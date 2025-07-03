@@ -12,7 +12,8 @@ When interacting with Claude, always provide context about our project.
 * **Purpose:** A web app to help au pair families manage day-to-day organization (calendar, tasks, shopping, notes).
 * **Target Users:** Host parents (like Maria) and Au Pairs.
 * **Key UX Principles:** Clear, Harmonious, Empowered. **English and German UI support.**
-* **Current Development Stage:** Early development; basic infrastructure set up, no application logic implemented yet.
+* **Current Development Stage:** Firebase authentication implemented, working on dashboard UI implementation.
+* **Design Reference:** See `/design-assets/dashboard-mockup.jpeg` for the target mobile-first UI design.
 
 ---
 
@@ -181,3 +182,27 @@ Firebase Emulators: Use npm run serve (from the functions directory) to test fun
 /functions/src/index.ts - TypeScript Firebase Functions entry point.
 
 /familysyncapp/index.js - JavaScript Firebase Functions entry point (to be consolidated).
+
+/design-assets/dashboard-mockup.jpeg - Mobile-first UI design reference showing card-based layout.
+
+🎨 UI Design Guidelines
+Design System: Based on the dashboard mockup in /design-assets/, the FamilySync app follows a mobile-first, card-based design with:
+
+Color Palette: Soft, calming colors with colorful accent cards (orange for work/family events, red for personal, green for other categories)
+
+Layout: Clean card-based design with rounded corners, subtle shadows, and good spacing
+
+Typography: Clean, readable fonts with clear hierarchy
+
+Components:
+- Profile pictures throughout for personalization
+- Progress indicators and checkboxes for task completion  
+- Color-coded event cards for easy categorization
+- Bottom navigation with icons (Home, Calendar, Tasks, Messages, Profile)
+- Task cards showing assignee profile pictures and completion status
+
+Visual Hierarchy: Clear sections for "My Tasks Today", "Children's Overview", "Upcoming Events", "Family Notes", and "Shopping List"
+
+Responsive Design: Mobile-first approach that adapts to larger screens while maintaining the card-based structure
+
+When implementing UI components, reference the dashboard mockup design for spacing, colors, and visual patterns.
