@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { COMMON_ALLERGIES, COMMON_MEDICATIONS, filterSuggestions } from '../../utils/dashboardStates';
 
-function AddChildCareInfo({ childData, onNext, onBack, onSkip }) {
+function AddChildCareInfo({ childData, onNext, onBack, onSkip, combinedView = false }) {
   const [formData, setFormData] = useState({
     allergies: childData.allergies || [],
     medications: childData.medications || [],

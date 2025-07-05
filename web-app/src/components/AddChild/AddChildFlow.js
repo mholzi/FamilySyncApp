@@ -1,24 +1,60 @@
 import { useState, useEffect } from 'react';
 import AddChildBasicInfo from './AddChildBasicInfo';
-import AddChildCareInfo from './AddChildCareInfo';
+import AddChildCareInfoStreamlined from './AddChildCareInfoStreamlined';
+import AddChildRoutineInfo from './AddChildRoutineInfo';
+import AddChildSchoolSchedule from './AddChildSchoolSchedule';
 import AddChildComplete from './AddChildComplete';
 
-function AddChildFlow({ user, familyId, existingChildren = [], onComplete, onCancel, isSaving = false }) {
+function AddChildFlow({ user, familyId, existingChildren = [], editingChild = null, onComplete, onCancel, isSaving = false }) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [childData, setChildData] = useState({
-    name: '',
-    dateOfBirth: null,
-    phoneNumber: '',
-    profilePictureUrl: null,
-    allergies: [],
-    medications: [],
-    emergencyContacts: [],
-    carePreferences: {
-      napTimes: [],
-      bedtime: null,
-      mealPreferences: []
+  
+  // Initialize with different data based on edit mode
+  const getInitialChildData = () => {
+    if (editingChild) {
+      // Don't generate tempId for editing mode
+      return {
+        name: '',
+        dateOfBirth: null,
+        phoneNumber: '',
+        profilePictureUrl: null,
+        allergies: [],
+        medications: [],
+        emergencyContacts: [],
+        carePreferences: {
+          napTimes: [],
+          bedtime: null,
+          mealPreferences: [],
+          dailyRoutine: null,
+          weeklyActivities: []
+        },
+        schoolSchedule: null,
+        scheduleType: null
+      };
+    } else {
+      // Only generate tempId for new children
+      return {
+        tempId: `child_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        name: '',
+        dateOfBirth: null,
+        phoneNumber: '',
+        profilePictureUrl: null,
+        allergies: [],
+        medications: [],
+        emergencyContacts: [],
+        carePreferences: {
+          napTimes: [],
+          bedtime: null,
+          mealPreferences: [],
+          dailyRoutine: null,
+          weeklyActivities: []
+        },
+        schoolSchedule: null,
+        scheduleType: null
+      };
     }
-  });
+  };
+
+  const [childData, setChildData] = useState(getInitialChildData());
 
   const handleNext = (stepData) => {
     setChildData(prev => ({ ...prev, ...stepData }));
@@ -36,8 +72,9 @@ function AddChildFlow({ user, familyId, existingChildren = [], onComplete, onCan
 
   const handleCompleteFlow = (action) => {
     if (action === 'add_another') {
-      // Reset form and start over
+      // Reset form and start over with new tempId
       setChildData({
+        tempId: `child_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         name: '',
         dateOfBirth: null,
         phoneNumber: '',
@@ -49,7 +86,9 @@ function AddChildFlow({ user, familyId, existingChildren = [], onComplete, onCan
           napTimes: [],
           bedtime: null,
           mealPreferences: []
-        }
+        },
+        schoolSchedule: null,
+        scheduleType: null
       });
       setCurrentStep(0);
     } else {
@@ -58,33 +97,79 @@ function AddChildFlow({ user, familyId, existingChildren = [], onComplete, onCan
     }
   };
 
+  const handleDelete = () => {
+    // Pass delete request to parent with child ID
+    onComplete({ deleteChild: editingChild.id });
+  };
+
   const handleSkip = (stepData = {}) => {
     const finalData = { ...childData, ...stepData };
-    // Move to completion step instead of ending flow
+    // Move to completion step
     setChildData(finalData);
-    setCurrentStep(2);
+    if (currentStep === 1) {
+      setCurrentStep(2); // Skip to completion
+    }
   };
 
   // Auto-save draft data as user progresses
   useEffect(() => {
-    if (childData.name || childData.dateOfBirth) {
+    if (childData.name || childData.dateOfBirth || childData.phoneNumber || childData.scheduleType) {
       // Save to localStorage as draft
       localStorage.setItem('childDraft', JSON.stringify(childData));
     }
   }, [childData]);
 
-  // Load draft data on mount
+  // Load draft data or editing child data on mount
   useEffect(() => {
-    const savedDraft = localStorage.getItem('childDraft');
-    if (savedDraft) {
-      try {
-        const parsedDraft = JSON.parse(savedDraft);
-        setChildData(parsedDraft);
-      } catch (error) {
-        console.error('Error loading draft:', error);
+    if (editingChild) {
+      console.log('Loading editing child data:', editingChild);
+      
+      // Convert Firestore data to component format
+      const editData = {
+        // Use the existing child ID, not a tempId
+        id: editingChild.id,
+        name: editingChild.name || '',
+        dateOfBirth: editingChild.dateOfBirth?.toDate ? 
+          editingChild.dateOfBirth.toDate().toISOString().split('T')[0] : 
+          (editingChild.dateOfBirth instanceof Date ? 
+            editingChild.dateOfBirth.toISOString().split('T')[0] : 
+            editingChild.dateOfBirth || ''),
+        phoneNumber: editingChild.phoneNumber || '',
+        profilePictureUrl: editingChild.profilePictureUrl || null,
+        carePreferences: editingChild.carePreferences || {
+          napTimes: [],
+          bedtime: null,
+          mealPreferences: [],
+          dailyRoutine: null,
+          weeklyActivities: [],
+          quickNotes: ''
+        },
+        schoolSchedule: editingChild.schoolSchedule || null,
+        scheduleType: editingChild.scheduleType || 'kindergarten',
+        allergies: editingChild.allergies || [],
+        medications: editingChild.medications || [],
+        emergencyContacts: editingChild.emergencyContacts || [],
+        // Preserve other fields that might exist
+        familyId: editingChild.familyId,
+        createdBy: editingChild.createdBy,
+        createdAt: editingChild.createdAt,
+        isActive: editingChild.isActive
+      };
+      
+      console.log('Processed edit data:', editData);
+      setChildData(editData);
+    } else {
+      const savedDraft = localStorage.getItem('childDraft');
+      if (savedDraft) {
+        try {
+          const parsedDraft = JSON.parse(savedDraft);
+          setChildData(prev => ({ ...prev, ...parsedDraft }));
+        } catch (error) {
+          console.error('Error loading draft:', error);
+        }
       }
     }
-  }, []);
+  }, [editingChild]);
 
   const renderStep = () => {
     switch (currentStep) {
@@ -95,13 +180,15 @@ function AddChildFlow({ user, familyId, existingChildren = [], onComplete, onCan
             existingChildren={existingChildren}
             onNext={handleNext}
             onCancel={onCancel}
+            onDelete={editingChild ? handleDelete : null}
+            isEditing={!!editingChild}
           />
         );
       case 1:
         return (
-          <AddChildCareInfo
+          <AddChildCareInfoStreamlined
             childData={childData}
-            onNext={handleComplete}
+            onNext={handleNext}
             onBack={handleBack}
             onSkip={handleSkip}
           />

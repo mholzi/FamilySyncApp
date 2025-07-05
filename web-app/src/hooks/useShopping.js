@@ -14,22 +14,24 @@ export const useShopping = (familyId) => {
     }
 
     try {
-      // Get active shopping lists
+      // Get all shopping lists and filter client-side to avoid index requirement
       const shoppingQuery = query(
         collection(db, 'families', familyId, 'shopping'),
-        where('isArchived', '==', false),
         orderBy('createdAt', 'desc')
       );
 
       const unsubscribe = onSnapshot(shoppingQuery, (snapshot) => {
-        const shoppingData = snapshot.docs.map(doc => ({
+        const allShoppingData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
           createdAt: doc.data().createdAt?.toDate(),
           updatedAt: doc.data().updatedAt?.toDate()
         }));
         
-        setShoppingLists(shoppingData);
+        // Filter out archived items client-side
+        const activeShoppingData = allShoppingData.filter(list => !list.isArchived);
+        
+        setShoppingLists(activeShoppingData);
         setLoading(false);
       }, (err) => {
         console.error('Error fetching shopping lists:', err);

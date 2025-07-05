@@ -1,16 +1,23 @@
-import { signOut } from 'firebase/auth';
-import { auth, db } from '../firebase';
+import { db } from '../firebase';
 import { useFamily } from '../hooks/useFamily';
 import { useTasks } from '../hooks/useTasks';
 import { useCalendar } from '../hooks/useCalendar';
 import { useShopping } from '../hooks/useShopping';
+import TodoList from './HouseholdTodos/TodoList';
+import AddTodo from './HouseholdTodos/AddTodo';
 import { updateTaskStatus } from '../utils/familyUtils';
 import { DashboardStates, getDashboardState } from '../utils/dashboardStates';
 import DashboardWelcome from './DashboardWelcome';
 import AddChildFlow from './AddChild/AddChildFlow';
-import { collection, addDoc, doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { useState } from 'react';
-import { uploadChildPhoto, validateImageFile, resizeImage } from '../utils/photoUpload';
+import { processAndUploadPhoto } from '../utils/optimizedPhotoUpload';
+import LoadingProgress from './LoadingProgress';
+import SmartCalendarPage from '../pages/SmartCalendarPage';
+import ShoppingListPage from '../pages/ShoppingListPage';
+import ProfileIcon from './Profile/ProfileIcon';
+import ProfilePage from './Profile/ProfilePage';
+import BottomNavigation from './BottomNavigation';
 
 function Dashboard({ user }) {
   // Use custom hooks to fetch data
@@ -19,21 +26,52 @@ function Dashboard({ user }) {
   const { events, loading: eventsLoading } = useCalendar(userData?.familyId, user.uid);
   const { shoppingLists, loading: shoppingLoading } = useShopping(userData?.familyId);
 
-  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard', 'add_child', 'welcome'
+  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard', 'add_child', 'edit_child', 'welcome', 'smart_calendar', 'profile'
   const [isAddingChild, setIsAddingChild] = useState(false);
+  const [editingChild, setEditingChild] = useState(null);
   const [isSavingChild, setIsSavingChild] = useState(false);
+  const [saveProgress, setSaveProgress] = useState(null);
+  const [showAddTodo, setShowAddTodo] = useState(false);
+  const [editingTodo, setEditingTodo] = useState(null);
 
   const loading = familyLoading || tasksLoading || eventsLoading || shoppingLoading;
 
   // Determine dashboard state
   const dashboardState = getDashboardState(userData, children, tasks);
   
+  // Determine user role (fallback logic for role detection)
+  const userRole = userData?.role || (familyData?.parentUids?.includes(user.uid) ? 'parent' : 'aupair');
+  
+  // Calculate shopping notifications for parents
+  const pendingApprovalCount = userRole === 'parent' 
+    ? shoppingLists.filter(list => list.status === 'needs-approval' || list.paymentStatus === 'approved').length 
+    : 0;
+  
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error('Error signing out:', error);
+  const handleProfileNavigation = (action) => {
+    // Handle navigation to different profile-related pages
+    switch (action) {
+      case 'profile':
+        setCurrentView('profile');
+        break;
+      case 'notifications':
+        console.log('Navigate to notifications');
+        alert('Notifications settings coming soon!');
+        break;
+      case 'settings':
+        console.log('Navigate to settings');
+        alert('Settings coming soon!');
+        break;
+      case 'family':
+        console.log('Navigate to family management');
+        alert('Family management coming soon!');
+        break;
+      case 'analytics':
+        console.log('Navigate to analytics');
+        alert('Analytics coming soon!');
+        break;
+      default:
+        console.log('Unknown navigation action:', action);
     }
   };
 
@@ -51,6 +89,13 @@ function Dashboard({ user }) {
   const handleAddChild = () => {
     setCurrentView('add_child');
     setIsAddingChild(true);
+    setEditingChild(null);
+  };
+
+  const handleEditChild = (child) => {
+    setCurrentView('edit_child');
+    setEditingChild(child);
+    setIsAddingChild(false);
   };
 
   const handleInviteAuPair = () => {
@@ -71,33 +116,70 @@ function Dashboard({ user }) {
   };
 
   const handleChildAdded = async (childData) => {
+    // Handle delete request
+    if (childData.deleteChild) {
+      try {
+        setIsSavingChild(true);
+        setSaveProgress({ stage: 'validation', progress: 50, message: 'Deleting child...' });
+        
+        await deleteDoc(doc(db, 'children', childData.deleteChild));
+        
+        setSaveProgress({ stage: 'complete', progress: 100, message: 'Child deleted successfully!' });
+        
+        setTimeout(() => {
+          setCurrentView('dashboard');
+          setEditingChild(null);
+          setIsSavingChild(false);
+          setSaveProgress(null);
+        }, 1000);
+        
+        return;
+      } catch (error) {
+        console.error('Error deleting child:', error);
+        alert('Failed to delete child. Please try again.');
+        setIsSavingChild(false);
+        setSaveProgress(null);
+        return;
+      }
+    }
+
     setIsSavingChild(true);
+    setSaveProgress({ stage: 'validation', progress: 0, message: 'Starting save process...' });
+    
     try {
       console.log('Received child data to save:', childData);
-      console.log('User data:', userData);
-      console.log('Family ID:', userData.familyId);
       
-      // Final duplication check before saving
-      const childName = childData.name.trim().toLowerCase();
-      const childBirthDate = childData.dateOfBirth ? 
-        new Date(childData.dateOfBirth).toDateString() : null;
-      
-      const exactDuplicate = children.find(child => {
-        const existingName = child.name.toLowerCase();
-        const existingBirthDate = child.dateOfBirth ? 
-          (child.dateOfBirth.toDate ? child.dateOfBirth.toDate() : new Date(child.dateOfBirth)).toDateString() : null;
+      // Skip duplicate check when editing existing child
+      if (!editingChild) {
+        // Only check for duplicates when adding new children
+        setSaveProgress({ stage: 'validation', progress: 10, message: 'Checking for duplicates...' });
         
-        return existingName === childName && existingBirthDate === childBirthDate;
-      });
-      
-      if (exactDuplicate) {
-        alert(`A child named "${exactDuplicate.name}" with the same birth date already exists. Please check the children list.`);
-        setCurrentView('dashboard');
-        setIsAddingChild(false);
-        return;
+        const childName = childData.name.trim().toLowerCase();
+        const childBirthDate = childData.dateOfBirth ? 
+          new Date(childData.dateOfBirth).toDateString() : null;
+        
+        const exactDuplicate = children.find(child => {
+          const existingName = child.name.toLowerCase();
+          const existingBirthDate = child.dateOfBirth ? 
+            (child.dateOfBirth.toDate ? child.dateOfBirth.toDate() : new Date(child.dateOfBirth)).toDateString() : null;
+          
+          return existingName === childName && existingBirthDate === childBirthDate;
+        });
+        
+        if (exactDuplicate) {
+          alert(`A child named "${exactDuplicate.name}" with the same birth date already exists. Please check the children list.`);
+          setCurrentView('dashboard');
+          setIsAddingChild(false);
+          return;
+        }
+      } else {
+        // Skip duplicate check for editing - go straight to data preparation
+        setSaveProgress({ stage: 'validation', progress: 10, message: 'Preparing update...' });
       }
       
       // Prepare the child data for Firestore
+      setSaveProgress({ stage: 'validation', progress: 20, message: 'Preparing child data...' });
+      
       const childToSave = {
         ...childData,
         familyId: userData.familyId,
@@ -115,19 +197,24 @@ function Dashboard({ user }) {
       
       // Handle photo upload if there's a photo file
       let photoURL = childToSave.profilePictureUrl;
-      if (childData.photoFile) {
+      if (childData.photoFile && childData.photoFile instanceof File && childData.photoFile.size > 0) {
         try {
-          // Validate the image file
-          validateImageFile(childData.photoFile);
-          
-          // Resize the image if needed
-          const resizedFile = await resizeImage(childData.photoFile);
-          
           // Generate a temporary child ID for the photo upload
           const tempChildId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
           
-          // Upload the photo and get the download URL
-          photoURL = await uploadChildPhoto(resizedFile, tempChildId, userData.familyId);
+          // Process and upload photo with progress tracking
+          photoURL = await processAndUploadPhoto(
+            childData.photoFile,
+            tempChildId,
+            userData.familyId,
+            (progress) => {
+              setSaveProgress({
+                stage: progress.stage,
+                progress: 30 + (progress.progress * 0.5), // Photo upload takes 50% of total progress
+                message: progress.message
+              });
+            }
+          );
           
           console.log('Photo uploaded successfully:', photoURL);
         } catch (photoError) {
@@ -136,6 +223,9 @@ function Dashboard({ user }) {
           alert(`Photo upload failed: ${photoError.message}. Child will be saved without photo.`);
           photoURL = null;
         }
+      } else {
+        // Skip photo upload progress
+        setSaveProgress({ stage: 'uploading', progress: 80, message: 'No photo to upload...' });
       }
       
       // Update child data with photo URL
@@ -146,23 +236,56 @@ function Dashboard({ user }) {
       
       console.log('Processed child data for Firestore:', childToSave);
       
-      // Add child to Firestore
-      const docRef = await addDoc(collection(db, 'children'), childToSave);
+      // Save child to Firestore (create new or update existing)
+      setSaveProgress({ stage: 'complete', progress: 90, message: 'Saving to database...' });
+      
+      if (editingChild) {
+        // Update existing child
+        await updateDoc(doc(db, 'children', editingChild.id), childToSave);
+        console.log('Child updated successfully with ID:', editingChild.id);
+      } else {
+        // Create new child
+        const docRef = await addDoc(collection(db, 'children'), childToSave);
+        console.log('Child added successfully with ID:', docRef.id);
+      }
       
       // Clear the draft from localStorage
       localStorage.removeItem('childDraft');
       
-      console.log('Child added successfully with ID:', docRef.id);
+      // Clean up draft document from Firestore if it exists
+      if (childData.tempId) {
+        try {
+          const draftRef = doc(db, 'families', userData.familyId, 'childDrafts', childData.tempId);
+          await deleteDoc(draftRef);
+          console.log('Draft document cleaned up:', childData.tempId);
+        } catch (draftError) {
+          console.warn('Could not clean up draft document:', draftError);
+          // Don't fail the whole operation for this
+        }
+      }
       
-      // Reset view
-      setCurrentView('dashboard');
-      setIsAddingChild(false);
+      setSaveProgress({ stage: 'complete', progress: 100, message: editingChild ? 'Child updated successfully!' : 'Child saved successfully!' });
+      
+      // Small delay to show completion
+      setTimeout(() => {
+        setCurrentView('dashboard');
+        setIsAddingChild(false);
+        setEditingChild(null);
+      }, 1000);
+      
     } catch (error) {
       console.error('Error adding child:', error);
+      setSaveProgress({ stage: 'error', progress: 0, message: 'Failed to save child. Please try again.' });
+      
       // Show error to user
-      alert('Failed to add child. Please try again.');
+      setTimeout(() => {
+        alert('Failed to add child. Please try again.');
+      }, 1000);
     } finally {
-      setIsSavingChild(false);
+      setTimeout(() => {
+        setIsSavingChild(false);
+        setSaveProgress(null);
+      }, 2000);
     }
   };
 
@@ -171,6 +294,28 @@ function Dashboard({ user }) {
     localStorage.removeItem('childDraft');
     setCurrentView('dashboard');
     setIsAddingChild(false);
+    setEditingChild(null);
+  };
+
+  // Todo handlers
+  const handleAddTodo = () => {
+    setShowAddTodo(true);
+    setEditingTodo(null);
+  };
+
+  const handleEditTodo = (todo) => {
+    setEditingTodo(todo);
+    setShowAddTodo(true);
+  };
+
+  const handleCloseTodo = () => {
+    setShowAddTodo(false);
+    setEditingTodo(null);
+  };
+
+  const handleTodoSuccess = () => {
+    // Refresh will happen automatically via real-time listeners
+    console.log('Todo saved successfully');
   };
 
   // Helper function to get user initials
@@ -208,14 +353,84 @@ function Dashboard({ user }) {
   // Show add child flow
   if (currentView === 'add_child' || isAddingChild) {
     return (
-      <AddChildFlow
-        user={user}
-        familyId={userData?.familyId}
-        existingChildren={children}
-        onComplete={handleChildAdded}
-        onCancel={handleCancelAddChild}
-        isSaving={isSavingChild}
-      />
+      <div style={styles.appContainer}>
+        <AddChildFlow
+          user={user}
+          familyId={userData?.familyId}
+          existingChildren={children}
+          onComplete={handleChildAdded}
+          onCancel={handleCancelAddChild}
+          isSaving={isSavingChild}
+        />
+        <BottomNavigation 
+          currentView={currentView} 
+          onNavigate={setCurrentView} 
+          pendingApprovalCount={pendingApprovalCount}
+        />
+      </div>
+    );
+  }
+
+  // Show edit child flow
+  if (currentView === 'edit_child' && editingChild) {
+    return (
+      <div style={styles.appContainer}>
+        <AddChildFlow
+          user={user}
+          familyId={userData?.familyId}
+          existingChildren={children.filter(child => child.id !== editingChild.id)}
+          editingChild={editingChild}
+          onComplete={handleChildAdded}
+          onCancel={handleCancelAddChild}
+          isSaving={isSavingChild}
+        />
+        <BottomNavigation 
+          currentView={currentView} 
+          onNavigate={setCurrentView} 
+          pendingApprovalCount={pendingApprovalCount}
+        />
+      </div>
+    );
+  }
+
+  // Show smart calendar
+  if (currentView === 'smart_calendar') {
+    return (
+      <div style={styles.appContainer}>
+        <SmartCalendarPage user={user} />
+        <BottomNavigation 
+          currentView={currentView} 
+          onNavigate={setCurrentView} 
+          pendingApprovalCount={pendingApprovalCount}
+        />
+      </div>
+    );
+  }
+
+  if (currentView === 'shopping') {
+    return (
+      <div style={styles.appContainer}>
+        <ShoppingListPage />
+        <BottomNavigation 
+          currentView={currentView} 
+          onNavigate={setCurrentView} 
+          pendingApprovalCount={pendingApprovalCount}
+        />
+      </div>
+    );
+  }
+
+  // Show profile page
+  if (currentView === 'profile') {
+    return (
+      <div style={styles.appContainer}>
+        <ProfilePage user={user} onBack={() => setCurrentView('dashboard')} />
+        <BottomNavigation 
+          currentView={currentView} 
+          onNavigate={setCurrentView} 
+          pendingApprovalCount={pendingApprovalCount}
+        />
+      </div>
     );
   }
 
@@ -225,16 +440,21 @@ function Dashboard({ user }) {
       <header style={styles.header}>
         <button style={styles.backButton}>←</button>
         <h1 style={styles.title}>{familyData?.name || 'FamilySync'}</h1>
-        <div style={styles.profileIcon} onClick={handleLogout}>
-          {userData?.name?.charAt(0) || 'U'}
-        </div>
+        <ProfileIcon 
+          user={user}
+          userData={userData}
+          onNavigate={handleProfileNavigation}
+        />
       </header>
 
       {/* Main Content */}
       <div style={styles.content}>
-        {/* My Tasks Today */}
-        <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>My Tasks Today</h2>
+        {/* My Tasks Today - Only show for Au Pairs */}
+        {userRole === 'aupair' && (
+          <section style={styles.section}>
+          <div style={styles.sectionHeader}>
+            <h2 style={styles.sectionTitle}>My Tasks Today</h2>
+          </div>
           <div style={styles.tasksContainer}>
             {tasks.length === 0 ? (
               <div style={styles.emptyState}>
@@ -286,10 +506,41 @@ function Dashboard({ user }) {
             )}
           </div>
         </section>
+        )}
+
+        {/* Household Todos (Parent-Au Pair) */}
+        <section style={styles.section}>
+          <div style={styles.sectionHeader}>
+            <h2 style={styles.sectionTitle}>
+              {userRole === 'parent' ? 'Household Tasks for Au Pair' : 'Your Assigned Tasks'}
+            </h2>
+            {userRole === 'parent' && (
+              <button style={styles.headerButton} onClick={handleAddTodo}>
+                Add Task +
+              </button>
+            )}
+          </div>
+          <div style={styles.todosContainer}>
+            <TodoList
+              familyId={userData?.familyId}
+              userRole={userRole}
+              userId={user.uid}
+              viewType="today"
+              onEditTodo={handleEditTodo}
+              showAddButton={false} // We handle this in the section header
+              onAddTodo={handleAddTodo}
+            />
+          </div>
+        </section>
 
         {/* Children's Overview */}
         <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>Children's Overview</h2>
+          <div style={styles.sectionHeader}>
+            <h2 style={styles.sectionTitle}>Children's Overview</h2>
+            <button style={styles.headerButton} onClick={handleAddChild}>
+              Add Child +
+            </button>
+          </div>
           <div style={styles.childrenContainer}>
             {children.length === 0 ? (
               <div style={styles.emptyState}>
@@ -302,7 +553,7 @@ function Dashboard({ user }) {
             ) : (
               children.map((child) => {
                 const age = child.dateOfBirth ? 
-                  Math.floor((new Date() - child.dateOfBirth.toDate()) / (365.25 * 24 * 60 * 60 * 1000)) 
+                  Math.floor((new Date() - (child.dateOfBirth.toDate ? child.dateOfBirth.toDate() : new Date(child.dateOfBirth))) / (365.25 * 24 * 60 * 60 * 1000)) 
                   : 0;
                 
                 return (
@@ -337,7 +588,12 @@ function Dashboard({ user }) {
                     </div>
                     <div style={styles.childActions}>
                       <button style={styles.childActionButton}>Log Care</button>
-                      <button style={styles.childActionButton} onClick={handleAddChild}>+ Add Child</button>
+                      <button 
+                        style={styles.childActionButtonSecondary} 
+                        onClick={() => handleEditChild(child)}
+                      >
+                        Edit
+                      </button>
                     </div>
                   </div>
                 );
@@ -348,7 +604,9 @@ function Dashboard({ user }) {
 
         {/* Upcoming Events */}
         <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>Upcoming Events for Me</h2>
+          <div style={styles.sectionHeader}>
+            <h2 style={styles.sectionTitle}>Upcoming Events for Me</h2>
+          </div>
           <div style={styles.eventsContainer}>
             {events.length === 0 ? (
               <div style={styles.emptyState}>
@@ -422,35 +680,105 @@ function Dashboard({ user }) {
           </div>
           
           <div style={styles.bottomCard}>
-            <h3 style={styles.bottomTitle}>Shopping List</h3>
+            <div style={styles.cardHeader}>
+              <h3 style={styles.bottomTitle}>Shopping List</h3>
+              <button 
+                style={styles.viewAllButton}
+                onClick={() => setCurrentView('shopping')}
+              >
+                View All
+              </button>
+            </div>
             <div style={styles.shoppingList}>
               {shoppingLists.length === 0 ? (
                 <div style={styles.emptyStateSmall}>
                   <p>No shopping lists</p>
+                  <button 
+                    style={styles.createButton}
+                    onClick={() => setCurrentView('shopping')}
+                  >
+                    Create first list
+                  </button>
                 </div>
               ) : (
                 (() => {
-                  // Get first shopping list and show first few items
-                  const firstList = shoppingLists[0];
-                  const items = Array.isArray(firstList.items) 
-                    ? firstList.items 
-                    : Object.values(firstList.items || {});
+                  const activeLists = shoppingLists.filter(list => !list.isArchived && list.status !== 'paid-out');
                   
-                  return items.slice(0, 3).map((item) => (
-                    <div key={item.id}>
-                      <div style={styles.shoppingItem}>
-                        <span>{item.name}</span>
-                        <div 
-                          style={item.isPurchased ? styles.checkboxChecked : styles.checkboxUnchecked}
+                  if (activeLists.length === 0) {
+                    return (
+                      <div style={styles.allClearState}>
+                        <div style={styles.allClearIcon}>✨</div>
+                        <p style={styles.allClearText}>All shopping done!</p>
+                        <p style={styles.allClearSubtext}>Great job keeping the household stocked</p>
+                        <button 
+                          style={styles.createButton}
+                          onClick={() => setCurrentView('shopping')}
                         >
-                          ✓
+                          Create new list
+                        </button>
+                      </div>
+                    );
+                  }
+                  
+                  // Check if all active lists are completed
+                  const allCompleted = activeLists.every(list => {
+                    const items = Array.isArray(list.items) 
+                      ? list.items 
+                      : Object.values(list.items || {});
+                    return items.length > 0 && items.every(item => item.isPurchased);
+                  });
+                  
+                  if (allCompleted) {
+                    return (
+                      <div style={styles.allClearState}>
+                        <div style={styles.allClearIcon}>🎉</div>
+                        <p style={styles.allClearText}>All shopping completed!</p>
+                        <p style={styles.allClearSubtext}>{activeLists.length} {activeLists.length === 1 ? 'list' : 'lists'} finished</p>
+                        <div style={styles.completedListsPreview}>
+                          {activeLists.map(list => (
+                            <div 
+                              key={list.id}
+                              style={styles.completedListItem}
+                              onClick={() => setCurrentView('shopping')}
+                            >
+                              {list.name} ✓
+                            </div>
+                          ))}
                         </div>
                       </div>
-                      {item.quantity && (
-                        <div style={styles.shoppingSubtext}>{item.quantity}</div>
-                      )}
-                    </div>
-                  ));
+                    );
+                  }
+                  
+                  return activeLists.map((list) => {
+                    const items = Array.isArray(list.items) 
+                      ? list.items 
+                      : Object.values(list.items || {});
+                    
+                    const completedItems = items.filter(item => item.isPurchased).length;
+                    const totalItems = items.length;
+                    const remainingItems = totalItems - completedItems;
+                    
+                    return (
+                      <div 
+                        key={list.id} 
+                        style={styles.shoppingListItem}
+                        onClick={() => setCurrentView('shopping')}
+                      >
+                        <div style={styles.listHeader}>
+                          <span style={styles.listName}>{list.name}</span>
+                          {list.status === 'needs-approval' && (
+                            <span style={styles.approvalBadge}>Needs Approval</span>
+                          )}
+                        </div>
+                        <div style={styles.progressIndicator}>
+                          {remainingItems > 0 
+                            ? `${remainingItems}/${totalItems} items remaining`
+                            : `${totalItems}/${totalItems} items completed ✓`
+                          }
+                        </div>
+                      </div>
+                    );
+                  });
                 })()
               )}
             </div>
@@ -469,32 +797,42 @@ function Dashboard({ user }) {
       </div>
 
       {/* Bottom Navigation */}
-      <nav style={styles.bottomNav}>
-        <div style={styles.navItem}>
-          <span style={styles.navIcon}>🏠</span>
-          <span style={styles.navLabel}>Hower</span>
-        </div>
-        <div style={styles.navItem}>
-          <span style={styles.navIcon}>📅</span>
-          <span style={styles.navLabel}>Daot</span>
-        </div>
-        <div style={styles.navItem}>
-          <div style={styles.fabButton}>✓</div>
-        </div>
-        <div style={styles.navItem}>
-          <span style={styles.navIcon}>📧</span>
-          <span style={styles.navLabel}>Polan</span>
-        </div>
-        <div style={styles.navItem}>
-          <span style={styles.navIcon}>👤</span>
-          <span style={styles.navLabel}>Socles</span>
-        </div>
-      </nav>
+      <BottomNavigation 
+        currentView={currentView} 
+        onNavigate={setCurrentView} 
+        pendingApprovalCount={pendingApprovalCount}
+      />
+
+      {/* Enhanced Loading Progress */}
+      <LoadingProgress
+        isVisible={isSavingChild}
+        title="Saving Child Profile"
+        subtitle="Please wait while we create your child's profile"
+        progress={saveProgress}
+        allowCancel={false}
+      />
+
+      {/* Add/Edit Todo Modal */}
+      {showAddTodo && (
+        <AddTodo
+          familyId={userData?.familyId}
+          userId={user.uid}
+          onClose={handleCloseTodo}
+          onSuccess={handleTodoSuccess}
+          editTodo={editingTodo}
+        />
+      )}
     </div>
   );
 }
 
 const styles = {
+  appContainer: {
+    minHeight: '100vh',
+    backgroundColor: '#F2F2F7',
+    paddingBottom: '80px', // Space for bottom navigation
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
+  },
   container: {
     minHeight: '100vh',
     backgroundColor: '#F2F2F7',
@@ -525,19 +863,6 @@ const styles = {
     color: '#000',
     margin: 0
   },
-  profileIcon: {
-    width: '32px',
-    height: '32px',
-    borderRadius: '16px',
-    backgroundColor: '#FF3B30',
-    color: 'white',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '14px',
-    fontWeight: '600',
-    cursor: 'pointer'
-  },
 
   // Content Styles
   content: {
@@ -548,11 +873,27 @@ const styles = {
   section: {
     marginBottom: '30px'
   },
+  sectionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '15px'
+  },
   sectionTitle: {
     fontSize: '20px',
     fontWeight: '600',
     color: '#000',
-    margin: '0 0 15px 0'
+    margin: 0
+  },
+  headerButton: {
+    backgroundColor: '#007AFF',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '8px 16px',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer'
   },
 
   // Task Styles
@@ -561,6 +902,14 @@ const styles = {
     gap: '15px',
     overflowX: 'auto',
     paddingBottom: '10px'
+  },
+  
+  // Todos Styles
+  todosContainer: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    padding: '16px',
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
   },
   taskCard: {
     backgroundColor: 'white',
@@ -782,47 +1131,115 @@ const styles = {
     color: '#8E8E93',
     marginLeft: '0'
   },
-
-  // Bottom Navigation Styles
-  bottomNav: {
-    position: 'fixed',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'white',
+  cardHeader: {
     display: 'flex',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '10px 0 25px 0',
-    borderTop: '1px solid #E5E5EA',
-    boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.1)'
+    marginBottom: '15px'
   },
-  navItem: {
+  viewAllButton: {
+    background: 'none',
+    border: 'none',
+    color: '#007AFF',
+    fontSize: '14px',
+    cursor: 'pointer',
+    fontWeight: '500'
+  },
+  createButton: {
+    background: '#007AFF',
+    color: 'white',
+    border: 'none',
+    padding: '8px 16px',
+    borderRadius: '6px',
+    fontSize: '14px',
+    cursor: 'pointer',
+    marginTop: '8px'
+  },
+  listHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '10px'
+  },
+  listName: {
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#333'
+  },
+  approvalBadge: {
+    background: '#FF6B35',
+    color: 'white',
+    fontSize: '10px',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    fontWeight: '500'
+  },
+  shoppingItemContainer: {
+    marginBottom: '8px'
+  },
+  itemCompleted: {
+    textDecoration: 'line-through',
+    opacity: 0.6
+  },
+  itemPending: {
+    // Default styles
+  },
+  moreItems: {
+    fontSize: '12px',
+    color: '#8E8E93',
+    fontStyle: 'italic',
+    marginTop: '8px'
+  },
+  shoppingListItem: {
+    backgroundColor: 'white',
+    borderRadius: '8px',
+    padding: '12px',
+    marginBottom: '8px',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s',
+    border: '1px solid #E5E5EA'
+  },
+  progressIndicator: {
+    fontSize: '12px',
+    color: '#8E8E93',
+    marginTop: '4px'
+  },
+  allClearState: {
+    textAlign: 'center',
+    padding: '20px',
+    backgroundColor: '#F0FDF4',
+    borderRadius: '12px',
+    border: '1px solid #86EFAC'
+  },
+  allClearIcon: {
+    fontSize: '32px',
+    marginBottom: '8px'
+  },
+  allClearText: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#166534',
+    margin: '0 0 4px 0'
+  },
+  allClearSubtext: {
+    fontSize: '12px',
+    color: '#16A34A',
+    margin: '0 0 12px 0'
+  },
+  completedListsPreview: {
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center',
     gap: '4px',
-    flex: 1
+    marginTop: '12px'
   },
-  navIcon: {
-    fontSize: '20px'
-  },
-  navLabel: {
-    fontSize: '10px',
-    color: '#8E8E93'
-  },
-  fabButton: {
-    width: '44px',
-    height: '44px',
-    borderRadius: '22px',
-    backgroundColor: '#4A5568',
-    color: 'white',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '18px',
-    fontWeight: '600',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+  completedListItem: {
+    fontSize: '12px',
+    color: '#16A34A',
+    backgroundColor: 'white',
+    padding: '6px 12px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s'
   },
 
   loading: {
@@ -880,6 +1297,17 @@ const styles = {
     backgroundColor: '#007AFF',
     color: 'white',
     border: 'none',
+    borderRadius: '6px',
+    padding: '6px 10px',
+    fontSize: '12px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    flex: 1
+  },
+  childActionButtonSecondary: {
+    backgroundColor: 'transparent',
+    color: '#007AFF',
+    border: '1px solid #007AFF',
     borderRadius: '6px',
     padding: '6px 10px',
     fontSize: '12px',

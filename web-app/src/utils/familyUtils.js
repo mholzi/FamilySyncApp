@@ -189,3 +189,18 @@ export const createNote = async (familyId, noteData) => {
     throw error;
   }
 };
+
+// Mark shopping list as completed (ready for receipt upload)
+export const markShoppingListCompleted = async (familyId, listId) => {
+  try {
+    const listRef = doc(db, 'families', familyId, 'shopping', listId);
+    await updateDoc(listRef, {
+      status: 'completed',
+      completedAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    });
+  } catch (error) {
+    console.error('Error marking shopping list as completed:', error);
+    throw error;
+  }
+};

@@ -1,0 +1,165 @@
+.shopping-list {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #E5E7EB;
+}
+
+.shopping-list.approval-mode {
+  border-left: 4px solid #FF6B35;
+}
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.list-info h3 {
+  margin: 0 0 4px 0;
+  color: #333;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.progress {
+  color: #6C757D;
+  font-size: 14px;
+}
+
+.amount {
+  font-size: 18px;
+  font-weight: 600;
+  color: #007AFF;
+}
+
+.list-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.upload-receipt-btn, .review-btn {
+  background: #007AFF;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.upload-receipt-btn:hover, .review-btn:hover {
+  background: #0056CC;
+}
+
+.review-btn {
+  background: #FF6B35;
+}
+
+.review-btn:hover {
+  background: #E55A2E;
+}
+
+.items-list {
+  margin-bottom: 20px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #F1F3F4;
+}
+
+.item:last-child {
+  border-bottom: none;
+}
+
+.item.completed {
+  opacity: 0.6;
+}
+
+.item-content {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 12px;
+}
+
+.item-checkbox {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #DEE2E6;
+  border-radius: 50%;
+  background: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.item.completed .item-checkbox {
+  background: #28A745;
+  border-color: #28A745;
+  color: white;
+}
+
+.item-name {
+  flex: 1;
+  font-size: 16px;
+  color: #333;
+}
+
+.item.completed .item-name {
+  text-decoration: line-through;
+}
+
+.details-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.details-btn:hover {
+  background: #F1F3F4;
+}
+
+.add-item-btn {
+  width: 100%;
+  background: #F8F9FA;
+  border: 2px dashed #DEE2E6;
+  color: #6C757D;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-item-btn:hover {
+  background: #E9ECEF;
+  border-color: #ADB5BD;
+  color: #495057;
+}
+
+.empty-items {
+  text-align: center;
+  padding: 20px;
+  color: #6C757D;
+  font-style: italic;
+}
+
+.empty-items p {
+  margin: 0;
+}

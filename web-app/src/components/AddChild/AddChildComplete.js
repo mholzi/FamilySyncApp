@@ -100,6 +100,39 @@ function AddChildComplete({ childData, onComplete }) {
                   <span style={styles.detailValue}>{childData.phoneNumber}</span>
                 </div>
               )}
+
+              {childData.carePreferences?.dailyRoutine && (
+                <div style={styles.detailItem}>
+                  <span style={styles.detailLabel}>Daily Routine:</span>
+                  <span style={styles.detailValue}>
+                    {childData.carePreferences.dailyRoutine.wakeUpTime} - {childData.carePreferences.dailyRoutine.bedtime}
+                    {childData.carePreferences.dailyRoutine.napTimes?.length > 0 && 
+                      `, ${childData.carePreferences.dailyRoutine.napTimes.length} nap(s)`
+                    }
+                  </span>
+                </div>
+              )}
+
+              {childData.schoolSchedule && (
+                <div style={styles.detailItem}>
+                  <span style={styles.detailLabel}>School:</span>
+                  <span style={styles.detailValue}>
+                    {childData.scheduleType === 'kindergarten' ? 'Kindergarten' : 'School'} schedule set
+                  </span>
+                </div>
+              )}
+
+              {childData.carePreferences?.quickNotes && (
+                <div style={styles.detailItem}>
+                  <span style={styles.detailLabel}>Notes:</span>
+                  <span style={styles.detailValue}>
+                    {childData.carePreferences.quickNotes.length > 50 
+                      ? `${childData.carePreferences.quickNotes.substring(0, 50)}...`
+                      : childData.carePreferences.quickNotes
+                    }
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
