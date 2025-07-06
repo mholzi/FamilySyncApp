@@ -1,4 +1,4 @@
-import { doc, updateDoc, collection, addDoc, Timestamp, query, where, orderBy, onSnapshot, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, addDoc, Timestamp, query, where, orderBy, onSnapshot, deleteDoc, getDocs, writeBatch, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 // Create a new household todo
@@ -37,21 +37,37 @@ export const createHouseholdTodo = async (familyId, todoData, createdBy) => {
 
 // Calculate next due date for recurring todos
 const calculateNextDueDate = (todoData) => {
-  if (!todoData.isRecurring || !todoData.dueDate) return todoData.dueDate;
+  if (!todoData.isRecurring || !todoData.dueDate) {
+    console.log('⚠️ Not recurring or no due date, returning original:', todoData.dueDate?.toDate());
+    return todoData.dueDate;
+  }
   
   const currentDate = todoData.dueDate.toDate();
   const interval = todoData.recurringInterval || 1;
   
+  console.log('🧮 Calculating next due date:', {
+    currentDate,
+    recurringType: todoData.recurringType,
+    interval
+  });
+  
+  let nextDate;
   switch (todoData.recurringType) {
     case 'daily':
-      return Timestamp.fromDate(new Date(currentDate.getTime() + (interval * 24 * 60 * 60 * 1000)));
+      nextDate = new Date(currentDate.getTime() + (interval * 24 * 60 * 60 * 1000));
+      console.log('📅 Daily recurrence - next date:', nextDate);
+      return Timestamp.fromDate(nextDate);
     case 'weekly':
-      return Timestamp.fromDate(new Date(currentDate.getTime() + (interval * 7 * 24 * 60 * 60 * 1000)));
+      nextDate = new Date(currentDate.getTime() + (interval * 7 * 24 * 60 * 60 * 1000));
+      console.log('📅 Weekly recurrence - next date:', nextDate);
+      return Timestamp.fromDate(nextDate);
     case 'monthly':
       const nextMonth = new Date(currentDate);
       nextMonth.setMonth(nextMonth.getMonth() + interval);
+      console.log('📅 Monthly recurrence - next date:', nextMonth);
       return Timestamp.fromDate(nextMonth);
     default:
+      console.log('⚠️ Unknown recurring type, returning original:', todoData.dueDate?.toDate());
       return todoData.dueDate;
   }
 };
@@ -59,6 +75,8 @@ const calculateNextDueDate = (todoData) => {
 // Complete a household todo
 export const completeHouseholdTodo = async (familyId, todoId, completionData, completedBy) => {
   try {
+    console.log('🔄 Starting completion for todo:', todoId);
+    
     const updateData = {
       status: 'completed',
       isCompleted: true,
@@ -70,17 +88,32 @@ export const completeHouseholdTodo = async (familyId, todoId, completionData, co
     };
 
     await updateDoc(doc(db, 'families', familyId, 'householdTodos', todoId), updateData);
+    console.log('✅ Todo marked as completed:', todoId);
     
     // If it's a recurring todo, create the next instance
-    const todoDoc = await doc(db, 'families', familyId, 'householdTodos', todoId).get();
+    const todoDocRef = doc(db, 'families', familyId, 'householdTodos', todoId);
+    const todoDoc = await getDoc(todoDocRef);
     if (todoDoc.exists()) {
       const todoData = todoDoc.data();
+      console.log('📋 Todo data retrieved:', {
+        title: todoData.title,
+        isRecurring: todoData.isRecurring,
+        recurringType: todoData.recurringType,
+        dueDate: todoData.dueDate?.toDate(),
+        nextDueDate: todoData.nextDueDate?.toDate()
+      });
+      
       if (todoData.isRecurring) {
+        console.log('🔁 Creating next recurring instance...');
         await createNextRecurringTodo(familyId, todoData, todoData.createdBy);
+      } else {
+        console.log('📝 Todo is not recurring, no next instance needed');
       }
+    } else {
+      console.warn('⚠️ Todo document not found after completion:', todoId);
     }
   } catch (error) {
-    console.error('Error completing household todo:', error);
+    console.error('❌ Error completing household todo:', error);
     throw error;
   }
 };
@@ -88,10 +121,17 @@ export const completeHouseholdTodo = async (familyId, todoId, completionData, co
 // Create next instance of recurring todo
 const createNextRecurringTodo = async (familyId, originalTodo, createdBy) => {
   try {
+    console.log('🔁 Creating next recurring todo for:', originalTodo.title);
+    
+    const baseDueDate = originalTodo.nextDueDate || originalTodo.dueDate;
+    console.log('📅 Base due date for calculation:', baseDueDate?.toDate());
+    
     const nextDueDate = calculateNextDueDate({
       ...originalTodo,
-      dueDate: originalTodo.nextDueDate || originalTodo.dueDate
+      dueDate: baseDueDate
     });
+    
+    console.log('📅 Calculated next due date:', nextDueDate?.toDate());
     
     const nextTodoData = {
       ...originalTodo,
@@ -112,9 +152,31 @@ const createNextRecurringTodo = async (familyId, originalTodo, createdBy) => {
     delete nextTodoData.createdAt;
     delete nextTodoData.updatedAt;
     
-    await createHouseholdTodo(familyId, nextTodoData, createdBy);
+    console.log('🆕 Creating new todo with data:', {
+      title: nextTodoData.title,
+      dueDate: nextTodoData.dueDate?.toDate(),
+      nextDueDate: nextTodoData.nextDueDate?.toDate(),
+      recurringType: nextTodoData.recurringType,
+      recurringInterval: nextTodoData.recurringInterval
+    });
+    
+    const newTodoId = await createHouseholdTodo(familyId, nextTodoData, createdBy);
+    console.log('✅ Next recurring todo created successfully with ID:', newTodoId);
+    
+    // Check if the new todo will be visible in today/tomorrow view
+    const today = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(23, 59, 59, 999);
+    
+    if (nextDueDate.toDate() <= tomorrow) {
+      console.log('👀 New todo will be visible in today/tomorrow view');
+    } else {
+      console.log('📅 New todo is scheduled for later:', nextDueDate.toDate());
+    }
+    
   } catch (error) {
-    console.error('Error creating next recurring todo:', error);
+    console.error('❌ Error creating next recurring todo:', error);
     throw error;
   }
 };
@@ -130,7 +192,8 @@ export const updateHouseholdTodo = async (familyId, todoId, updateData) => {
     // Recalculate next due date if recurring settings changed
     if (updateData.isRecurring !== undefined || updateData.dueDate !== undefined || 
         updateData.recurringType !== undefined || updateData.recurringInterval !== undefined) {
-      const todoDoc = await doc(db, 'families', familyId, 'householdTodos', todoId).get();
+      const todoDocRef = doc(db, 'families', familyId, 'householdTodos', todoId);
+      const todoDoc = await getDoc(todoDocRef);
       if (todoDoc.exists()) {
         const currentData = todoDoc.data();
         const mergedData = { ...currentData, ...updateData };
@@ -147,6 +210,94 @@ export const updateHouseholdTodo = async (familyId, todoId, updateData) => {
   }
 };
 
+// Confirm household todo completion (parent action)
+export const confirmHouseholdTodo = async (familyId, todoId, confirmedBy) => {
+  try {
+    console.log('✅ Parent confirming completion for todo:', todoId);
+    
+    const updateData = {
+      status: 'confirmed',
+      confirmedBy: confirmedBy,
+      confirmedAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    };
+
+    // If this is the first completion (not just confirmation), also set completion fields
+    const todoDocRef = doc(db, 'families', familyId, 'householdTodos', todoId);
+    const todoDoc = await getDoc(todoDocRef);
+    
+    if (todoDoc.exists()) {
+      const todoData = todoDoc.data();
+      
+      // If it's pending (parent doing the work), also mark as completed
+      if (todoData.status === 'pending') {
+        updateData.completedAt = Timestamp.now();
+        updateData.completedBy = confirmedBy;
+        updateData.completionNotes = 'Completed by parent';
+        console.log('✅ Parent completed and confirmed task directly');
+      } else {
+        console.log('✅ Parent confirmed au pair\'s completion');
+      }
+
+      await updateDoc(todoDocRef, updateData);
+      console.log('✅ Todo confirmed and will be hidden from view');
+      
+      // Handle recurring tasks if needed
+      if (todoData.isRecurring) {
+        console.log('🔁 Creating next recurring instance after confirmation...');
+        await createNextRecurringTodo(familyId, todoData, todoData.createdBy);
+      }
+    }
+    
+  } catch (error) {
+    console.error('❌ Error confirming household todo:', error);
+    throw error;
+  }
+};
+
+// Auto-reset tasks that have been completed for 24 hours without confirmation
+export const autoResetCompletedTasks = async (familyId) => {
+  try {
+    console.log('🔄 Checking for tasks to auto-reset after 24 hours...');
+    
+    const twentyFourHoursAgo = new Date();
+    twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+    
+    const autoResetQuery = query(
+      collection(db, 'families', familyId, 'householdTodos'),
+      where('status', '==', 'completed'),
+      where('completedAt', '<', Timestamp.fromDate(twentyFourHoursAgo))
+    );
+    
+    const snapshot = await getDocs(autoResetQuery);
+    const batch = writeBatch(db);
+    
+    snapshot.docs.forEach((doc) => {
+      const todoData = doc.data();
+      console.log('🔄 Auto-resetting task:', todoData.title);
+      
+      batch.update(doc.ref, { 
+        status: 'pending',
+        completedAt: null,
+        completedBy: null,
+        completionNotes: '',
+        updatedAt: Timestamp.now() 
+      });
+    });
+    
+    if (snapshot.docs.length > 0) {
+      await batch.commit();
+      console.log(`✅ Auto-reset ${snapshot.docs.length} tasks`);
+    } else {
+      console.log('📝 No tasks to auto-reset');
+    }
+    
+  } catch (error) {
+    console.error('❌ Error auto-resetting tasks:', error);
+    throw error;
+  }
+};
+
 // Delete household todo
 export const deleteHouseholdTodo = async (familyId, todoId) => {
   try {
@@ -157,22 +308,51 @@ export const deleteHouseholdTodo = async (familyId, todoId) => {
   }
 };
 
-// Get household todos for today
-export const getTodaysHouseholdTodos = (familyId, callback) => {
+// Get household todos for today and tomorrow
+export const getTodaysHouseholdTodos = (familyId, callback, userRole = null) => {
   try {
-    const today = new Date();
-    today.setHours(23, 59, 59, 999); // End of today
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(23, 59, 59, 999); // End of tomorrow
+    
+    console.log('📋 Setting up todos listener for family:', familyId, 'userRole:', userRole);
+    console.log('📅 Fetching todos due until:', tomorrow);
+    
+    // For au pairs, only show pending tasks. For parents, show pending and completed tasks (but not confirmed)
+    const statusFilter = userRole === 'aupair' ? ['pending'] : ['pending', 'completed'];
     
     const todosQuery = query(
       collection(db, 'families', familyId, 'householdTodos'),
-      where('dueDate', '<=', Timestamp.fromDate(today)),
-      where('status', '==', 'pending'),
+      where('dueDate', '<=', Timestamp.fromDate(tomorrow)),
+      where('status', 'in', statusFilter),
       orderBy('dueDate', 'asc')
     );
     
-    return onSnapshot(todosQuery, callback);
+    return onSnapshot(todosQuery, (snapshot) => {
+      console.log('🔄 Todos snapshot received:', {
+        size: snapshot.size,
+        empty: snapshot.empty,
+        fromCache: snapshot.metadata.fromCache,
+        userRole
+      });
+      
+      const todos = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      console.log('📋 Todos loaded:', todos.map(todo => ({
+        id: todo.id,
+        title: todo.title,
+        dueDate: todo.dueDate?.toDate(),
+        isRecurring: todo.isRecurring,
+        status: todo.status
+      })));
+      
+      callback(snapshot);
+    });
   } catch (error) {
-    console.error('Error getting today\'s household todos:', error);
+    console.error('❌ Error getting household todos for today and tomorrow:', error);
     throw error;
   }
 };
@@ -217,8 +397,8 @@ export const markOverdueTodos = async (familyId) => {
       where('status', '==', 'pending')
     );
     
-    const snapshot = await overdueQuery.get();
-    const batch = db.batch();
+    const snapshot = await getDocs(overdueQuery);
+    const batch = writeBatch(db);
     
     snapshot.docs.forEach((doc) => {
       batch.update(doc.ref, { 

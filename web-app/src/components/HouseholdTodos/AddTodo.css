@@ -83,6 +83,13 @@
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   height: 48px;
   box-sizing: border-box;
+  width: 100%;
+}
+
+.form-row .form-group input,
+.form-row .form-group select {
+  width: 100%;
+  max-width: none;
 }
 
 .form-group textarea {
@@ -341,8 +348,8 @@
   }
   
   .form-row {
-    grid-template-columns: 1fr;
-    gap: 16px;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
   }
   
   .quick-date-buttons {
@@ -359,12 +366,14 @@
   }
   
   .form-actions {
-    flex-direction: column-reverse;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 12px;
   }
   
   .btn-cancel,
   .btn-submit {
-    width: 100%;
+    flex: 1;
     justify-content: center;
   }
 }

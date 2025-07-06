@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { completeHouseholdTodo } from '../../utils/householdTodosUtils';
+import { completeHouseholdTodo, confirmHouseholdTodo } from '../../utils/householdTodosUtils';
 
 const SimpleTodoCard = ({ 
   todo, 
@@ -15,14 +15,19 @@ const SimpleTodoCard = ({
     
     setIsCompleting(true);
     try {
-      if (todo.status === 'completed') {
-        // For now, we don't support uncompleting todos
-        // Could be added later if needed
-        console.log('Uncompleting todos not supported yet');
-      } else {
-        await completeHouseholdTodo(familyId, todo.id, {
-          notes: 'Completed via dashboard'
-        }, userId);
+      if (todo.status === 'completed' && userRole === 'parent') {
+        // Parent confirming au pair's completion
+        await confirmHouseholdTodo(familyId, todo.id, userId);
+      } else if (todo.status === 'pending') {
+        if (userRole === 'parent') {
+          // Parent marking task as done - directly confirm it
+          await confirmHouseholdTodo(familyId, todo.id, userId);
+        } else {
+          // Au pair marking task as done - needs parent confirmation
+          await completeHouseholdTodo(familyId, todo.id, {
+            notes: 'Completed via dashboard'
+          }, userId);
+        }
       }
       
       if (onToggleComplete) {
@@ -42,6 +47,31 @@ const SimpleTodoCard = ({
   const getUserInitials = (name) => {
     if (!name) return 'A';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'high': return '#ef4444'; // red
+      case 'medium': return '#f97316'; // orange
+      case 'low': return '#22c55e'; // green
+      default: return '#6b7280'; // gray
+    }
+  };
+
+  const getCategoryBadgeStyle = (category, priority) => {
+    const priorityColor = getPriorityColor(priority);
+    return {
+      ...styles.categoryBadge,
+      backgroundColor: `${priorityColor}15`, // 15% opacity of priority color
+      color: priorityColor
+    };
+  };
+
+  const getButtonText = () => {
+    if (isCompleted) {
+      return userRole === 'parent' ? 'Confirm Done' : '✓ Done';
+    }
+    return 'Mark Done';
   };
 
   return (
@@ -66,7 +96,7 @@ const SimpleTodoCard = ({
           )}
         </div>
         {todo.description && (
-          <div style={styles.taskDescription}>
+          <div style={{...styles.taskDescription, marginTop: '10px'}}>
             {todo.description}
           </div>
         )}
@@ -85,8 +115,8 @@ const SimpleTodoCard = ({
       <div style={styles.bottomRow}>
         <div style={styles.leftBottomSection}>
           {todo.category && (
-            <span style={styles.categoryBadge}>
-              {todo.category}
+            <span style={getCategoryBadgeStyle(todo.category, todo.priority)}>
+              {todo.category.charAt(0).toUpperCase() + todo.category.slice(1)}
             </span>
           )}
         </div>
@@ -98,7 +128,7 @@ const SimpleTodoCard = ({
           onClick={handleToggleComplete}
           disabled={isCompleting}
         >
-          {isCompleting ? '...' : (isCompleted ? '✓ Done' : 'Mark Done')}
+          {isCompleting ? '...' : getButtonText()}
         </button>
       </div>
     </div>
@@ -127,10 +157,10 @@ const formatDueDate = (dueDate) => {
 
 const formatEstimatedTime = (minutes) => {
   if (!minutes) return '';
-  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 60) return `${minutes} Min`;
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
-  return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+  return remainingMinutes > 0 ? `${hours}h ${remainingMinutes} Min` : `${hours}h`;
 };
 
 const styles = {
@@ -142,7 +172,10 @@ const styles = {
     boxShadow: 'var(--shadow-sm)',
     border: '1px solid var(--border-light)',
     transition: 'var(--transition-normal)',
-    minWidth: '240px'
+    minWidth: '240px',
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: '120px'
   },
   taskCardCompleted: {
     backgroundColor: '#f8f9fa',
@@ -184,15 +217,25 @@ const styles = {
     display: 'flex',
     justifyContent: 'flex-end',
     marginBottom: 'var(--space-3)',
-    minHeight: '20px'
+    minHeight: '20px',
+    flex: 1
   },
   categoryBadge: {
     fontSize: 'var(--font-size-xs)',
     color: 'var(--primary-purple)',
     backgroundColor: '#f3f4f6',
-    padding: 'var(--space-1) var(--space-2)',
-    borderRadius: 'var(--radius-sm)',
-    fontWeight: 'var(--font-weight-medium)'
+    padding: 'var(--space-2) var(--space-3)',
+    borderRadius: 'var(--radius-md)',
+    fontWeight: 'var(--font-weight-medium)',
+    minWidth: '80px',
+    textAlign: 'center',
+    border: '1px solid transparent',
+    cursor: 'default',
+    transition: 'var(--transition-fast)',
+    height: 'auto',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   dueDateBadge: {
     fontSize: 'var(--font-size-xs)',
@@ -208,7 +251,8 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 'var(--space-2)'
+    gap: 'var(--space-2)',
+    marginTop: 'auto'
   },
   leftBottomSection: {
     display: 'flex',

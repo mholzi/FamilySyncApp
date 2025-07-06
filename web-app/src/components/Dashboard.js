@@ -6,12 +6,12 @@ import { useShopping } from '../hooks/useShopping';
 import TodoList from './HouseholdTodos/TodoList';
 import SimpleTodoCard from './HouseholdTodos/SimpleTodoCard';
 import AddTodo from './HouseholdTodos/AddTodo';
-import { getTodaysHouseholdTodos } from '../utils/householdTodosUtils';
+import { getTodaysHouseholdTodos, autoResetCompletedTasks } from '../utils/householdTodosUtils';
 import { updateTaskStatus } from '../utils/familyUtils';
 import { DashboardStates, getDashboardState } from '../utils/dashboardStates';
 import DashboardWelcome from './DashboardWelcome';
 import AddChildFlow from './AddChild/AddChildFlow';
-import { collection, addDoc, doc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, deleteDoc, Timestamp, getDoc } from 'firebase/firestore';
 import { useState, useEffect } from 'react';
 import { processAndUploadPhoto } from '../utils/optimizedPhotoUpload';
 import LoadingProgress from './LoadingProgress';
@@ -37,6 +37,8 @@ function Dashboard({ user }) {
   const [saveProgress, setSaveProgress] = useState(null);
   const [showAddTodo, setShowAddTodo] = useState(false);
   const [editingTodo, setEditingTodo] = useState(null);
+  const [showInvitePopup, setShowInvitePopup] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
   
   // State for household todos
   const [householdTodos, setHouseholdTodos] = useState([]);
@@ -46,7 +48,7 @@ function Dashboard({ user }) {
 
   // Fetch household todos for today
   useEffect(() => {
-    if (!userData?.familyId) return;
+    if (!userData?.familyId || !userData?.role) return;
 
     const unsubscribe = getTodaysHouseholdTodos(userData.familyId, (snapshot) => {
       const todosData = snapshot.docs.map(doc => ({
@@ -55,14 +57,31 @@ function Dashboard({ user }) {
       }));
       setHouseholdTodos(todosData);
       setTodosLoading(false);
-    });
+    }, userData.role);
 
     return () => {
       if (unsubscribe) {
         unsubscribe();
       }
     };
-  }, [userData?.familyId]);
+  }, [userData?.familyId, userData?.role]);
+
+  // Auto-reset completed tasks after 24 hours (run for parents only)
+  useEffect(() => {
+    if (!userData?.familyId || userData?.role !== 'parent') return;
+
+    const familyId = userData.familyId;
+    
+    // Run immediately
+    autoResetCompletedTasks(familyId);
+
+    // Run every hour to check for tasks to reset
+    const interval = setInterval(() => {
+      autoResetCompletedTasks(familyId);
+    }, 60 * 60 * 1000); // 1 hour
+
+    return () => clearInterval(interval);
+  }, [userData?.familyId, userData?.role]);
 
   // Determine dashboard state
   const dashboardState = getDashboardState(userData, children, tasks);
@@ -126,15 +145,42 @@ function Dashboard({ user }) {
     setIsAddingChild(false);
   };
 
-  const handleLogCare = (child) => {
-    // TODO: Implement care logging functionality
-    console.log('Log care for child:', child.name);
-    alert(`Care logging for ${child.name} coming soon!`);
-  };
 
-  const handleInviteAuPair = () => {
-    // TODO: Implement au pair invitation flow
-    console.log('Invite au pair clicked');
+  const handleInviteAuPair = async () => {
+    try {
+      // Generate a unique 6-character invitation code
+      const generateInviteCode = () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let code = '';
+        for (let i = 0; i < 6; i++) {
+          code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+      };
+
+      // Check if family already has an invite code
+      const familyDocRef = doc(db, 'families', userData.familyId);
+      const familyDoc = await getDoc(familyDocRef);
+      
+      if (familyDoc.exists() && familyDoc.data().inviteCode) {
+        // Use existing code
+        setInviteCode(familyDoc.data().inviteCode);
+      } else {
+        // Generate new code and save it
+        const newCode = generateInviteCode();
+        await updateDoc(familyDocRef, {
+          inviteCode: newCode,
+          inviteCreatedAt: Timestamp.now(),
+          inviteCreatedBy: user.uid
+        });
+        setInviteCode(newCode);
+      }
+      
+      setShowInvitePopup(true);
+    } catch (error) {
+      console.error('Error creating invitation:', error);
+      alert('Failed to create invitation. Please try again.');
+    }
   };
 
   const handleSkipWelcome = async () => {
@@ -483,71 +529,32 @@ function Dashboard({ user }) {
 
       {/* Main Content */}
       <div style={styles.content}>
-        {/* My Tasks Today - Only show for Au Pairs */}
-        {userRole === 'aupair' && (
-          <section style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <h2 style={styles.sectionTitle}>My Tasks Today</h2>
-          </div>
-          <div style={styles.tasksContainer}>
-            {householdTodos.length === 0 ? (
-              <div style={styles.emptyState}>
-                <div style={styles.emptyStateIcon}>📝</div>
-                <p>No tasks for today! 🎉</p>
-                <p style={styles.emptyStateSubtext}>
-                  Great job staying on top of everything!
-                </p>
-              </div>
-            ) : (
-              householdTodos.map((todo) => (
-                <SimpleTodoCard
-                  key={todo.id}
-                  todo={todo}
-                  userRole={userRole}
-                  familyId={userData?.familyId}
-                  userId={user.uid}
-                  onToggleComplete={(todoId, newStatus) => {
-                    // The component handles Firebase updates
-                    console.log(`Todo ${todoId} status changed to ${newStatus}`);
-                  }}
-                />
-              ))
-            )}
-          </div>
-        </section>
-        )}
-
         {/* Household Todos (Parent-Au Pair) */}
         <section style={styles.section}>
           <div style={styles.sectionHeader}>
             <h2 style={styles.sectionTitle}>
               {userRole === 'parent' 
                 ? `Household Tasks for Au Pair ${householdTodos.length > 0 ? `(${householdTodos.length})` : ''}` 
-                : 'Your Assigned Tasks'
+                : 'Your Daily Contributions'
               }
             </h2>
             {userRole === 'parent' && (
               <button style={styles.headerButton} onClick={handleAddTodo}>
-                Add Task +
+                Add Task
               </button>
             )}
           </div>
           <div style={styles.tasksContainer}>
             {householdTodos.length === 0 ? (
-              <div style={styles.emptyState}>
-                <div style={styles.emptyStateIcon}>📝</div>
-                <p>{userRole === 'parent' ? 'No tasks assigned yet' : 'No tasks for today! 🎉'}</p>
+              <div style={styles.emptyStateFullWidth}>
+                <div style={styles.emptyStateIcon}>✅</div>
+                <p style={styles.emptyStateTitle}>All Tasks Completed!</p>
                 <p style={styles.emptyStateSubtext}>
                   {userRole === 'parent' 
-                    ? 'Create your first household task for your au pair'
-                    : 'Great job staying on top of everything!'
+                    ? 'Great work! All household tasks have been completed. Your au pair is doing an excellent job!'
+                    : 'Fantastic work! You\'ve completed all your assigned tasks. Enjoy your well-deserved break! 🎉'
                   }
                 </p>
-                {userRole === 'parent' && (
-                  <button style={styles.emptyStateButton} onClick={handleAddTodo}>
-                    Add Task +
-                  </button>
-                )}
               </div>
             ) : (
               householdTodos.map((todo) => (
@@ -570,18 +577,22 @@ function Dashboard({ user }) {
         <section style={styles.section}>
           <div style={styles.sectionHeader}>
             <h2 style={styles.sectionTitle}>Children's Overview</h2>
-            <button style={styles.headerButton} onClick={handleAddChild}>
-              Add Child +
-            </button>
+            {userRole === 'parent' && (
+              <button style={styles.headerButton} onClick={handleAddChild}>
+                Add Child
+              </button>
+            )}
           </div>
           <div style={styles.childrenContainer}>
             {children.length === 0 ? (
               <div style={styles.emptyState}>
                 <div style={styles.emptyStateIcon}>👶</div>
                 <p>Ready to add your children?</p>
-                <button style={styles.emptyStateButton} onClick={handleAddChild}>
-                  Add Child +
-                </button>
+                {userRole === 'parent' && (
+                  <button style={styles.emptyStateButton} onClick={handleAddChild}>
+                    Add Child
+                  </button>
+                )}
               </div>
             ) : (
               children.map((child) => (
@@ -590,7 +601,6 @@ function Dashboard({ user }) {
                   child={child}
                   upcomingEvents={events}
                   onEditChild={handleEditChild}
-                  onLogCare={handleLogCare}
                 />
               ))
             )}
@@ -785,7 +795,7 @@ function Dashboard({ user }) {
         {children.length > 0 && (
           <div style={styles.reminderCard}>
             <span style={styles.reminderIcon}>👥</span>
-            <span style={styles.reminderText}>Still need to invite your au pair?</span>
+            <span style={styles.reminderText}>Still need to invite your Au Pair?</span>
             <button style={styles.reminderButton} onClick={handleInviteAuPair}>
               Create Invite
             </button>
@@ -818,6 +828,58 @@ function Dashboard({ user }) {
           onSuccess={handleTodoSuccess}
           editTodo={editingTodo}
         />
+      )}
+
+      {/* Au Pair Invitation Popup */}
+      {showInvitePopup && (
+        <div style={styles.inviteOverlay}>
+          <div style={styles.inviteModal}>
+            <div style={styles.inviteHeader}>
+              <h2 style={styles.inviteTitle}>Invite Your Au Pair</h2>
+              <button 
+                style={styles.inviteCloseButton} 
+                onClick={() => setShowInvitePopup(false)}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div style={styles.inviteContent}>
+              <p style={styles.inviteDescription}>
+                Share this code with your Au Pair. They'll use it to join your family during their sign-up process.
+              </p>
+              
+              <div style={styles.inviteCodeContainer}>
+                <div style={styles.inviteCodeLabel}>Invitation Code</div>
+                <div style={styles.inviteCode}>{inviteCode}</div>
+                <button 
+                  style={styles.copyButton}
+                  onClick={() => {
+                    navigator.clipboard.writeText(inviteCode);
+                    alert('Code copied to clipboard!');
+                  }}
+                >
+                  📋 Copy Code
+                </button>
+              </div>
+
+              <div style={styles.inviteInstructions}>
+                <h3 style={styles.inviteSubtitle}>Instructions for Au Pair:</h3>
+                <ol style={styles.inviteList}>
+                  <li>Download the FamilySync app</li>
+                  <li>Select "I am an Au Pair" during sign-up</li>
+                  <li>Enter this invitation code when prompted</li>
+                  <li>Complete their profile setup</li>
+                </ol>
+              </div>
+
+              <div style={styles.inviteNote}>
+                <strong>Note:</strong> This code will remain active until your Au Pair joins. 
+                You can share it via email, text, or any messaging app.
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -1300,6 +1362,23 @@ const styles = {
     fontSize: 'var(--font-size-xs)',
     padding: 'var(--space-5)'
   },
+  emptyStateFullWidth: {
+    backgroundColor: 'var(--white)',
+    borderRadius: 'var(--radius-lg)',
+    padding: 'var(--space-8)',
+    textAlign: 'center',
+    color: 'var(--text-secondary)',
+    fontSize: 'var(--font-size-sm)',
+    width: '100%',
+    border: '1px solid var(--border-light)',
+    background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)'
+  },
+  emptyStateTitle: {
+    fontSize: 'var(--font-size-lg)',
+    fontWeight: 'var(--font-weight-semibold)',
+    color: 'var(--text-primary)',
+    margin: 'var(--space-3) 0 var(--space-2) 0'
+  },
 
   // Child Actions
   childActions: {
@@ -1363,6 +1442,121 @@ const styles = {
     fontWeight: 'var(--font-weight-medium)',
     cursor: 'pointer',
     transition: 'var(--transition-fast)'
+  },
+
+  // Invitation Popup Styles
+  inviteOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    padding: '20px'
+  },
+  inviteModal: {
+    backgroundColor: 'var(--white)',
+    borderRadius: 'var(--radius-lg)',
+    width: '100%',
+    maxWidth: '500px',
+    maxHeight: '90vh',
+    overflow: 'auto',
+    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+  },
+  inviteHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '24px 24px 0 24px',
+    borderBottom: '1px solid var(--border-light)',
+    marginBottom: '24px'
+  },
+  inviteTitle: {
+    margin: 0,
+    fontSize: 'var(--font-size-xl)',
+    fontWeight: 'var(--font-weight-bold)',
+    color: 'var(--text-primary)'
+  },
+  inviteCloseButton: {
+    background: 'none',
+    border: 'none',
+    fontSize: '24px',
+    color: 'var(--text-tertiary)',
+    cursor: 'pointer',
+    padding: '4px',
+    borderRadius: '4px',
+    transition: 'background 0.2s ease'
+  },
+  inviteContent: {
+    padding: '0 24px 24px 24px'
+  },
+  inviteDescription: {
+    fontSize: 'var(--font-size-base)',
+    color: 'var(--text-secondary)',
+    marginBottom: '24px',
+    lineHeight: 'var(--line-height-relaxed)'
+  },
+  inviteCodeContainer: {
+    backgroundColor: '#f0f9ff',
+    border: '2px dashed var(--primary-purple)',
+    borderRadius: 'var(--radius-lg)',
+    padding: '24px',
+    textAlign: 'center',
+    marginBottom: '24px'
+  },
+  inviteCodeLabel: {
+    fontSize: 'var(--font-size-sm)',
+    color: 'var(--text-secondary)',
+    marginBottom: '8px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em'
+  },
+  inviteCode: {
+    fontSize: '32px',
+    fontWeight: 'var(--font-weight-bold)',
+    color: 'var(--primary-purple)',
+    letterSpacing: '0.1em',
+    fontFamily: 'monospace',
+    marginBottom: '16px'
+  },
+  copyButton: {
+    backgroundColor: 'var(--primary-purple)',
+    color: 'var(--white)',
+    border: 'none',
+    borderRadius: 'var(--radius-md)',
+    padding: '10px 20px',
+    fontSize: 'var(--font-size-sm)',
+    fontWeight: 'var(--font-weight-medium)',
+    cursor: 'pointer',
+    transition: 'var(--transition-fast)'
+  },
+  inviteInstructions: {
+    marginBottom: '24px'
+  },
+  inviteSubtitle: {
+    fontSize: 'var(--font-size-base)',
+    fontWeight: 'var(--font-weight-semibold)',
+    color: 'var(--text-primary)',
+    marginBottom: '12px'
+  },
+  inviteList: {
+    paddingLeft: '20px',
+    margin: 0,
+    color: 'var(--text-secondary)',
+    lineHeight: 'var(--line-height-relaxed)'
+  },
+  inviteNote: {
+    backgroundColor: '#fef3c7',
+    border: '1px solid #fbbf24',
+    borderRadius: 'var(--radius-md)',
+    padding: '12px 16px',
+    fontSize: 'var(--font-size-sm)',
+    color: '#92400e',
+    lineHeight: 'var(--line-height-relaxed)'
   }
 };
 
