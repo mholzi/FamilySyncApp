@@ -2,17 +2,136 @@ rules_version='2'
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Helper function to check if user is a member of a family
+    function isFamilyMember(familyId) {
+      return request.auth != null && 
+             request.auth.uid in get(/databases/$(database)/documents/families/$(familyId)).data.memberUids;
+    }
+    
+    // Helper function to check if user is member of the family that owns the document
+    function isFamilyMemberOfDocument(document) {
+      return request.auth != null && 
+             isFamilyMember(document.data.familyId);
+    }
+    
+    // Helper function to get user's familyId
+    function getUserFamilyId(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.familyId;
+    }
+    
+    // Helper function to check if user is accessing their own family's data
+    function isOwnFamilyData(familyId) {
+      return request.auth != null && 
+             getUserFamilyId(request.auth.uid) == familyId;
+    }
+    
+    // Users - can only read/write own profile, family members can read
+    match /users/{userId} {
+      allow read: if request.auth != null && 
+                     (request.auth.uid == userId || 
+                      (resource.data.familyId != null && 
+                       isFamilyMember(resource.data.familyId)));
+      allow write: if request.auth != null && 
+                      request.auth.uid == userId;
+    }
+    
+    // Families - only family members can read/write
+    match /families/{familyId} {
+      allow read, write: if isFamilyMember(familyId);
+      
+      // Family subcollections (e.g., data/items for shopping intelligence)
+      match /{subcollection=**} {
+        allow read, write: if isFamilyMember(familyId);
+      }
+    }
+    
+    // Children - only family members can access
+    match /children/{childId} {
+      allow read, write: if request.auth != null && 
+                           resource != null && 
+                           isFamilyMember(resource.data.familyId);
+      // Allow create if user is creating child for their family
+      allow create: if request.auth != null && 
+                      isFamilyMember(request.resource.data.familyId);
+    }
+    
+    // Tasks - only assigned user or family members can access
+    match /tasks/{taskId} {
+      allow read: if request.auth != null && 
+                    (resource.data.assignedTo == request.auth.uid || 
+                     isFamilyMember(resource.data.familyId));
+      allow write: if request.auth != null && 
+                     isFamilyMember(resource.data.familyId);
+      allow create: if request.auth != null && 
+                      isFamilyMember(request.resource.data.familyId);
+    }
+    
+    // Household Todos - family members only
+    match /householdTodos/{todoId} {
+      allow read, write: if request.auth != null && 
+                           resource != null && 
+                           isFamilyMember(resource.data.familyId);
+      allow create: if request.auth != null && 
+                      isFamilyMember(request.resource.data.familyId);
+    }
+    
+    // Calendar Events - family members and attendees can read
+    match /calendarEvents/{eventId} {
+      allow read: if request.auth != null && 
+                    (isFamilyMember(resource.data.familyId) || 
+                     request.auth.uid in resource.data.attendees);
+      allow write: if request.auth != null && 
+                     isFamilyMember(resource.data.familyId);
+      allow create: if request.auth != null && 
+                      isFamilyMember(request.resource.data.familyId);
+    }
+    
+    // Shopping Lists - family members only, with special approval rules
+    match /shoppingLists/{listId} {
+      allow read: if request.auth != null && 
+                    resource != null && 
+                    isFamilyMember(resource.data.familyId);
+      
+      // Parents can approve/pay out, au pairs can update status
+      allow update: if request.auth != null && 
+                      resource != null && 
+                      isFamilyMember(resource.data.familyId) &&
+                      (
+                        // Au pairs can mark as completed
+                        (resource.data.status == 'pending' && 
+                         request.resource.data.status == 'completed') ||
+                        // Parents can approve
+                        (resource.data.status == 'needs-approval' && 
+                         request.resource.data.status == 'approved' &&
+                         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'parent') ||
+                        // General updates by family members
+                        true
+                      );
+      
+      allow create: if request.auth != null && 
+                      isFamilyMember(request.resource.data.familyId);
+      
+      allow delete: if request.auth != null && 
+                      resource != null && 
+                      isFamilyMember(resource.data.familyId) &&
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'parent';
+    }
+    
+    // Notes - family members only, with child-specific access
+    match /notes/{noteId} {
+      allow read: if request.auth != null && 
+                    resource != null && 
+                    isFamilyMember(resource.data.familyId);
+      allow write: if request.auth != null && 
+                     resource != null && 
+                     isFamilyMember(resource.data.familyId);
+      allow create: if request.auth != null && 
+                      isFamilyMember(request.resource.data.familyId);
+    }
+    
+    // Deny all other access by default
     match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2025, 8, 2);
+      allow read, write: if false;
     }
   }
 }

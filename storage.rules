@@ -1,0 +1,60 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to get user's familyId from Firestore
+    function getUserFamilyId(userId) {
+      return firestore.get(/databases/(default)/documents/users/$(userId)).data.familyId;
+    }
+    
+    // Helper function to check if user is member of a family
+    function isFamilyMember(familyId) {
+      return isAuthenticated() && 
+             firestore.get(/databases/(default)/documents/families/$(familyId)).data.memberUids.hasAll([request.auth.uid]);
+    }
+    
+    // Helper function to check if user owns the family data
+    function isOwnFamilyData(familyId) {
+      return isAuthenticated() && 
+             getUserFamilyId(request.auth.uid) == familyId;
+    }
+    
+    // User profile photos - only the user can read/write their own profile photo
+    match /users/{userId}/{allPaths=**} {
+      allow read: if isAuthenticated() && 
+                     (request.auth.uid == userId || 
+                      isFamilyMember(getUserFamilyId(userId)));
+      allow write: if isAuthenticated() && 
+                      request.auth.uid == userId;
+    }
+    
+    // Children photos - only family members can access
+    match /children/{familyId}/{childId}/{allPaths=**} {
+      allow read, write: if isFamilyMember(familyId);
+    }
+    
+    // Shopping receipts and item photos - only family members can access
+    match /shopping/{familyId}/{allPaths=**} {
+      allow read, write: if isFamilyMember(familyId);
+    }
+    
+    // Family notes attachments - only family members can access
+    match /notes/{familyId}/{allPaths=**} {
+      allow read, write: if isFamilyMember(familyId);
+    }
+    
+    // Household todo completion photos - only family members can access
+    match /todos/{familyId}/{allPaths=**} {
+      allow read, write: if isFamilyMember(familyId);
+    }
+    
+    // Deny all other access by default
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
