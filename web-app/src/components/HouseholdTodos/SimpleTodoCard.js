@@ -167,7 +167,8 @@ const styles = {
     fontWeight: 'var(--font-weight-semibold)',
     color: 'var(--text-primary)',
     lineHeight: 'var(--line-height-tight)',
-    flex: 1
+    flex: 1,
+    textAlign: 'left'
   },
   taskTitleCompleted: {
     textDecoration: 'line-through',
@@ -176,7 +177,8 @@ const styles = {
   taskDescription: {
     fontSize: 'var(--font-size-xs)',
     color: 'var(--text-secondary)',
-    lineHeight: 'var(--line-height-normal)'
+    lineHeight: 'var(--line-height-normal)',
+    textAlign: 'left'
   },
   spacerArea: {
     display: 'flex',
