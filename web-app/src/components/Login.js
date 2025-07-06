@@ -24,16 +24,16 @@ function Login({ onSwitchToSignup }) {
   };
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.title}>Welcome Back</h2>
-      <form onSubmit={handleSubmit} style={styles.form}>
+    <div>
+      <h2 className="text-2xl font-bold text-primary text-center mb-6">Welcome Back</h2>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <input
           type="email"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          style={styles.input}
+          className="form-input"
         />
         <input
           type="password"
@@ -41,26 +41,29 @@ function Login({ onSwitchToSignup }) {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          style={styles.input}
+          className="form-input"
         />
-        {error && <p style={styles.error}>{error}</p>}
+        {error && <p className="text-sm" style={{ color: '#DC2626' }}>{error}</p>}
         <button 
           type="submit" 
           disabled={loading}
-          style={{
-            ...styles.button,
-            opacity: loading ? 0.7 : 1,
-            cursor: loading ? 'not-allowed' : 'pointer'
-          }}
+          className={`btn btn-primary btn-full mt-2 ${loading ? 'opacity-70' : ''}`}
         >
           {loading ? 'Logging in...' : 'Log In'}
         </button>
       </form>
-      <p style={styles.switchText}>
+      <p className="text-center mt-6 text-secondary text-sm">
         Don't have an account?{' '}
         <button 
           onClick={onSwitchToSignup}
-          style={styles.switchButton}
+          className="text-sm font-medium"
+          style={{ 
+            background: 'none', 
+            border: 'none', 
+            color: 'var(--primary-purple)', 
+            cursor: 'pointer',
+            textDecoration: 'underline'
+          }}
         >
           Sign up
         </button>
@@ -69,68 +72,5 @@ function Login({ onSwitchToSignup }) {
   );
 }
 
-const styles = {
-  container: {
-    backgroundColor: 'white',
-    padding: '40px',
-    borderRadius: '12px',
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-    width: '100%',
-    maxWidth: '400px',
-    margin: '20px auto'
-  },
-  title: {
-    color: '#333',
-    textAlign: 'center',
-    marginBottom: '30px',
-    fontSize: '24px'
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '15px'
-  },
-  input: {
-    padding: '12px',
-    fontSize: '16px',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    outline: 'none',
-    transition: 'border-color 0.3s',
-    '&:focus': {
-      borderColor: '#4285f4'
-    }
-  },
-  button: {
-    padding: '12px',
-    fontSize: '16px',
-    backgroundColor: '#4285f4',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    transition: 'background-color 0.3s',
-    marginTop: '10px'
-  },
-  error: {
-    color: '#dc3545',
-    fontSize: '14px',
-    margin: '5px 0'
-  },
-  switchText: {
-    textAlign: 'center',
-    marginTop: '20px',
-    color: '#666',
-    fontSize: '14px'
-  },
-  switchButton: {
-    background: 'none',
-    border: 'none',
-    color: '#4285f4',
-    cursor: 'pointer',
-    textDecoration: 'underline',
-    fontSize: '14px'
-  }
-};
 
 export default Login;

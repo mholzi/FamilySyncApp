@@ -51,7 +51,7 @@ export const useFamily = (userId) => {
             id: doc.id,
             ...doc.data()
           }));
-          console.log('Children fetched:', childrenData);
+          console.log('Children fetched:', childrenData.length, 'children');
           setChildren(childrenData);
         }, (error) => {
           console.error('Error listening to children:', error);
@@ -66,7 +66,7 @@ export const useFamily = (userId) => {
               id: doc.id,
               ...doc.data()
             }));
-            console.log('Children fetched (fallback):', childrenData);
+            console.log('Children fetched (fallback):', childrenData.length, 'children');
             setChildren(childrenData);
           });
         });
