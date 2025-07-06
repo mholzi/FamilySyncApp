@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { updateHouseholdTodo } from '../../utils/householdTodosUtils';
-import './TodoCard.css';
+import '../../styles/DesignSystem.css';
 
 const TodoCard = ({ 
   todo, 
@@ -42,6 +42,42 @@ const TodoCard = ({
       case 'medium': return '#f97316'; // orange
       case 'low': return '#22c55e'; // green
       default: return '#6b7280'; // gray
+    }
+  };
+
+  const getPriorityBadgeClass = (priority) => {
+    switch (priority) {
+      case 'high': return 'badge-pink';
+      case 'medium': return 'badge-orange';
+      case 'low': return 'badge-green';
+      default: return 'badge-blue';
+    }
+  };
+
+  const getPriorityIcon = (priority) => {
+    switch (priority) {
+      case 'high': return '🔴';
+      case 'medium': return '🟡';
+      case 'low': return '🟢';
+      default: return '⚪';
+    }
+  };
+
+  const getPriorityLabel = (priority) => {
+    switch (priority) {
+      case 'high': return 'High Priority';
+      case 'medium': return 'Medium Priority'; 
+      case 'low': return 'Low Priority';
+      default: return 'Normal Priority';
+    }
+  };
+
+  const getCategoryBadgeClass = (category) => {
+    switch (category) {
+      case 'cleaning': return 'badge-blue';
+      case 'maintenance': return 'badge-orange';
+      case 'organization': return 'badge-purple';
+      default: return 'badge-green';
     }
   };
 
@@ -249,18 +285,47 @@ const TodoCard = ({
   const isOverdue = todo.status === 'overdue' || 
     (todo.dueDate && todo.dueDate.toDate() < new Date() && todo.status === 'pending');
 
+  // Build card classes
+  const cardClasses = [
+    'card',
+    'relative',
+    'mb-3',
+    'transition-all',
+    isDragging && 'shadow-lg',
+    isSelected && 'border-primary-purple',
+    todo.status === 'completed' && 'opacity-70',
+    isOverdue && 'bg-red-50'
+  ].filter(Boolean).join(' ');
+
+  // Custom styles that can't be replaced with utility classes
+  const cardStyle = {
+    transform: `translateX(${dragOffset}px)`,
+    borderLeft: `4px solid ${getPriorityColor(todo.priority)}`
+  };
+
   return (
     <div 
       ref={cardRef}
-      className={`todo-card ${todo.status} ${isOverdue ? 'overdue' : ''} ${isDragging ? 'dragging' : ''} ${isSelected ? 'selected' : ''}`}
-      style={{ transform: `translateX(${dragOffset}px)` }}
+      className={cardClasses}
+      style={cardStyle}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
       {/* Swipe Action Indicators */}
       {isDragging && swipeAction && (
-        <div className={`swipe-indicator ${swipeAction}`}>
+        <div 
+          className={`absolute top-0 bottom-0 w-32 flex items-center justify-center text-sm font-semibold text-white ${
+            swipeAction === 'complete' ? 'left-0 bg-green-500' :
+            swipeAction === 'edit' ? 'left-0 bg-blue-500' :
+            'right-0 bg-red-500'
+          }`}
+          style={{
+            background: swipeAction === 'complete' ? 'linear-gradient(90deg, #22c55e, rgba(34, 197, 94, 0.8))' :
+                       swipeAction === 'edit' ? 'linear-gradient(90deg, #3b82f6, rgba(59, 130, 246, 0.8))' :
+                       'linear-gradient(-90deg, #ef4444, rgba(239, 68, 68, 0.8))'
+          }}
+        >
           {swipeAction === 'complete' && '✓ Complete'}
           {swipeAction === 'edit' && '✏️ Edit'}
           {swipeAction === 'delete' && '🗑️ Delete'}
@@ -269,67 +334,95 @@ const TodoCard = ({
 
       {/* Selection Checkbox */}
       {showSelection && (
-        <div className="selection-checkbox" onClick={handleSelectionToggle}>
-          <div className={`checkbox ${isSelected ? 'checked' : ''}`}>
+        <div 
+          className="absolute top-2 right-2 cursor-pointer"
+          onClick={handleSelectionToggle}
+          style={{ zIndex: 20 }}
+        >
+          <div className={`w-6 h-6 rounded border-2 flex items-center justify-center text-sm font-semibold transition-all ${
+            isSelected ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white border-gray-300'
+          }`}>
             {isSelected && '✓'}
           </div>
         </div>
       )}
 
-      <div 
-        className="todo-priority-bar" 
-        style={{ backgroundColor: getPriorityColor(todo.priority) }}
-      />
-      
-      <div className="todo-content">
-        <div className="todo-header">
-          <div className="todo-title-section">
+      <div className="card-body">
+        <div className="flex justify-between items-start gap-3">
+          <div className="flex-1 space-y-2">
             {isEditingTitle ? (
-              <div className="inline-edit-title">
+              <div className="flex items-center gap-2">
                 <input
                   ref={titleInputRef}
                   type="text"
                   value={editedTitle}
                   onChange={(e) => setEditedTitle(e.target.value)}
                   onBlur={handleTitleSave}
-                  className="title-input"
+                  className="form-input text-lg font-semibold"
                 />
-                <div className="inline-edit-actions">
-                  <button onClick={handleTitleSave} className="save-btn">✓</button>
-                  <button onClick={handleTitleCancel} className="cancel-btn">✕</button>
+                <div className="flex gap-1">
+                  <button 
+                    onClick={handleTitleSave} 
+                    className="btn btn-icon btn-sm bg-green-500 text-white hover:bg-green-600"
+                  >
+                    ✓
+                  </button>
+                  <button 
+                    onClick={handleTitleCancel} 
+                    className="btn btn-icon btn-sm bg-red-500 text-white hover:bg-red-600"
+                  >
+                    ✕
+                  </button>
                 </div>
               </div>
             ) : (
-              <h3 
-                className={`todo-title ${userRole === 'parent' && todo.status === 'pending' ? 'editable' : ''}`}
-                onClick={handleTitleEdit}
-              >
-                {todo.title}
-                {userRole === 'parent' && todo.status === 'pending' && (
-                  <span className="edit-hint">✏️</span>
-                )}
-              </h3>
+              <div className="flex items-start gap-2">
+                <h3 
+                  className={`text-lg font-semibold text-primary mb-0 flex-1 ${
+                    userRole === 'parent' && todo.status === 'pending' ? 'cursor-pointer hover:bg-gray-100 p-1 rounded transition-colors' : ''
+                  }`}
+                  onClick={handleTitleEdit}
+                >
+                  {todo.title}
+                  {userRole === 'parent' && todo.status === 'pending' && (
+                    <span className="text-xs text-tertiary ml-2 opacity-0 hover:opacity-60 transition-opacity">✏️</span>
+                  )}
+                </h3>
+                <div 
+                  className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full"
+                  style={{ 
+                    backgroundColor: `${getPriorityColor(todo.priority)}15`,
+                    color: getPriorityColor(todo.priority)
+                  }}
+                  title={getPriorityLabel(todo.priority)}
+                >
+                  <span className="text-sm">{getPriorityIcon(todo.priority)}</span>
+                  <span className="capitalize">{todo.priority || 'normal'}</span>
+                </div>
+              </div>
             )}
-            {todo.category && (
-              <span className={`todo-category ${todo.category}`}>
-                {todo.category}
-              </span>
-            )}
+            <div className="flex flex-wrap gap-2 mt-2">
+              {todo.category && (
+                <span className={`badge ${getCategoryBadgeClass(todo.category)}`}>
+                  {todo.category}
+                </span>
+              )}
+            </div>
           </div>
           
-          <div className="todo-meta">
+          <div className="flex flex-col items-end gap-1">
             {todo.dueDate && (
-              <span className={`todo-due-date ${isOverdue ? 'overdue' : ''}`}>
+              <span className={`badge ${isOverdue ? 'badge-pink' : ''} text-xs`}>
                 {formatDueDate(todo.dueDate)}
               </span>
             )}
             {todo.estimatedTime && (
-              <span className="todo-estimated-time">
+              <span className="text-xs text-tertiary bg-gray-100 px-2 py-1 rounded">
                 {formatEstimatedTime(todo.estimatedTime)}
               </span>
             )}
             {todo.isRecurring && (
-              <span className="todo-recurring">
+              <span className="text-xs text-green-700 bg-green-100 px-2 py-1 rounded">
                 🔄 {todo.recurringType}
               </span>
             )}
@@ -337,33 +430,45 @@ const TodoCard = ({
         </div>
 
         {(todo.description || isEditingDescription) && (
-          <div className="todo-description-section">
+          <div className="mt-3">
             {isEditingDescription ? (
-              <div className="inline-edit-description">
+              <div className="space-y-2">
                 <textarea
                   ref={descriptionInputRef}
                   value={editedDescription}
                   onChange={(e) => setEditedDescription(e.target.value)}
                   onBlur={handleDescriptionSave}
-                  className="description-input"
+                  className="form-input"
                   placeholder="Add description..."
                   rows={2}
                 />
-                <div className="inline-edit-actions">
-                  <button onClick={handleDescriptionSave} className="save-btn">✓</button>
-                  <button onClick={handleDescriptionCancel} className="cancel-btn">✕</button>
+                <div className="flex gap-1">
+                  <button 
+                    onClick={handleDescriptionSave} 
+                    className="btn btn-icon btn-sm bg-green-500 text-white hover:bg-green-600"
+                  >
+                    ✓
+                  </button>
+                  <button 
+                    onClick={handleDescriptionCancel} 
+                    className="btn btn-icon btn-sm bg-red-500 text-white hover:bg-red-600"
+                  >
+                    ✕
+                  </button>
                 </div>
               </div>
             ) : (
               <p 
-                className={`todo-description ${userRole === 'parent' && todo.status === 'pending' ? 'editable' : ''}`}
+                className={`text-sm text-secondary mb-0 ${
+                  userRole === 'parent' && todo.status === 'pending' ? 'cursor-pointer hover:bg-gray-100 p-2 rounded transition-colors' : ''
+                }`}
                 onClick={handleDescriptionEdit}
               >
                 {todo.description || (userRole === 'parent' && todo.status === 'pending' && (
-                  <span className="add-description">+ Add description</span>
+                  <span className="text-tertiary italic">+ Add description</span>
                 ))}
                 {userRole === 'parent' && todo.status === 'pending' && todo.description && (
-                  <span className="edit-hint">✏️</span>
+                  <span className="text-xs text-tertiary ml-2 opacity-0 hover:opacity-60 transition-opacity">✏️</span>
                 )}
               </p>
             )}
@@ -371,21 +476,21 @@ const TodoCard = ({
         )}
 
         {todo.status === 'completed' && todo.completedAt && (
-          <div className="todo-completion-info">
-            <span className="completion-time">
+          <div className="mt-3 p-3 bg-green-50 rounded-lg border-l-4 border-green-500">
+            <span className="text-sm text-green-700 font-medium">
               ✅ Completed {todo.completedAt.toDate().toLocaleDateString()}
             </span>
             {todo.completionNotes && (
-              <p className="completion-notes">{todo.completionNotes}</p>
+              <p className="text-sm text-gray-700 mt-1 italic">{todo.completionNotes}</p>
             )}
           </div>
         )}
 
         {showActions && todo.status === 'pending' && (
-          <div className="todo-actions">
+          <div className="flex gap-2 justify-end mt-4">
             {userRole === 'aupair' && (
               <button 
-                className="btn-complete"
+                className="btn btn-primary"
                 onClick={handleCompleteClick}
                 disabled={isCompleting}
               >
@@ -394,49 +499,52 @@ const TodoCard = ({
             )}
             
             {userRole === 'parent' && (
-              <div className="parent-actions">
+              <>
                 <button 
-                  className="btn-edit"
+                  className="btn btn-secondary btn-sm"
                   onClick={() => onEdit(todo)}
                 >
                   Edit
                 </button>
                 <button 
-                  className="btn-delete"
+                  className="btn btn-sm bg-red-500 text-white hover:bg-red-600"
                   onClick={() => onDelete(todo.id)}
                 >
                   Delete
                 </button>
-              </div>
+              </>
             )}
           </div>
         )}
       </div>
 
       {showCompletionForm && (
-        <div className="completion-form-overlay">
-          <div className="completion-form">
-            <h4>Complete Task</h4>
-            <textarea
-              placeholder="Add notes about completion (optional)"
-              value={completionNotes}
-              onChange={(e) => setCompletionNotes(e.target.value)}
-              rows={3}
-            />
-            <div className="form-actions">
-              <button 
-                className="btn-cancel"
-                onClick={() => setShowCompletionForm(false)}
-              >
-                Cancel
-              </button>
-              <button 
-                className="btn-submit"
-                onClick={handleSubmitCompletion}
-                disabled={isCompleting}
-              >
-                {isCompleting ? 'Completing...' : 'Complete Task'}
-              </button>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-5" style={{ zIndex: 1000 }}>
+          <div className="card animate-scale-in w-full max-w-md">
+            <div className="card-body">
+              <h4 className="text-lg font-semibold text-primary mb-4">Complete Task</h4>
+              <textarea
+                placeholder="Add notes about completion (optional)"
+                value={completionNotes}
+                onChange={(e) => setCompletionNotes(e.target.value)}
+                rows={3}
+                className="form-input mb-4"
+              />
+              <div className="flex gap-3 justify-end">
+                <button 
+                  className="btn btn-secondary"
+                  onClick={() => setShowCompletionForm(false)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="btn btn-primary"
+                  onClick={handleSubmitCompletion}
+                  disabled={isCompleting}
+                >
+                  {isCompleting ? 'Completing...' : 'Complete Task'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

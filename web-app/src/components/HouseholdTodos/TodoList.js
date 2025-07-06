@@ -7,7 +7,6 @@ import {
   deleteHouseholdTodo,
   markOverdueTodos 
 } from '../../utils/householdTodosUtils';
-import './TodoList.css';
 
 const TodoList = ({ 
   familyId, 
@@ -21,7 +20,7 @@ const TodoList = ({
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [filter, setFilter] = useState('all'); // all, high, medium, low
+  const [filter, setFilter] = useState('all'); // all, high, medium, low - keeping for bulk operations
   
   // Bulk operations state
   const [selectionMode, setSelectionMode] = useState(false);
@@ -101,7 +100,7 @@ const TodoList = ({
   };
 
   const handleSelectAll = () => {
-    const currentVisibleTodos = filteredTodos.filter(todo => todo.status === 'pending');
+    const currentVisibleTodos = todos.filter(todo => todo.status === 'pending');
     const allSelected = currentVisibleTodos.every(todo => selectedTodos.has(todo.id));
     
     if (allSelected) {
@@ -173,298 +172,315 @@ const TodoList = ({
     }
   };
 
-  const filteredTodos = todos.filter(todo => {
-    if (filter === 'all') return true;
-    return todo.priority === filter;
-  });
+  const filteredTodos = todos; // Show all todos - priority is now visual only
 
   const groupedTodos = {
-    overdue: filteredTodos.filter(todo => 
+    overdue: todos.filter(todo => 
       todo.status === 'overdue' || 
       (todo.dueDate && todo.dueDate.toDate() < new Date() && todo.status === 'pending')
     ),
-    today: filteredTodos.filter(todo => {
+    today: todos.filter(todo => {
       if (todo.status !== 'pending') return false;
       if (!todo.dueDate) return false;
       const dueDate = todo.dueDate.toDate();
       const today = new Date();
       return dueDate.toDateString() === today.toDateString();
     }),
-    upcoming: filteredTodos.filter(todo => {
+    upcoming: todos.filter(todo => {
       if (todo.status !== 'pending') return false;
       if (!todo.dueDate) return false;
       const dueDate = todo.dueDate.toDate();
       const today = new Date();
       return dueDate > today;
     }),
-    completed: filteredTodos.filter(todo => todo.status === 'completed')
+    completed: todos.filter(todo => todo.status === 'completed')
   };
 
   return (
-    <div className="todo-list-container">
-      <div className="todo-list-header">
-        <div className="view-info">
-          <h2>
-            {viewType === 'today' && 'Today\'s Tasks'}
-            {viewType === 'all' && 'All Tasks'}
-            {viewType === 'completed' && 'Completed Tasks'}
-          </h2>
-          <span className="todo-count">
-            {loading ? '...' : `${filteredTodos.length} ${filteredTodos.length === 1 ? 'task' : 'tasks'}`}
-          </span>
-        </div>
+    <div className="p-4">
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-2xl font-semibold text-primary">
+              {viewType === 'today' && 'Today\'s Tasks'}
+              {viewType === 'all' && 'All Tasks'}
+              {viewType === 'completed' && 'Completed Tasks'}
+            </h2>
+            <span className="text-secondary text-sm">
+              {loading ? '...' : `${todos.length} ${todos.length === 1 ? 'task' : 'tasks'}`}
+            </span>
+          </div>
 
-        <div className="todo-controls">
-          {!selectionMode ? (
-            <>
-              {/* Priority Filter */}
-              <div className="filter-group">
-                <label>Priority:</label>
-                <select 
-                  value={filter} 
-                  onChange={(e) => setFilter(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="all">All</option>
-                  <option value="high">High</option>
-                  <option value="medium">Medium</option>
-                  <option value="low">Low</option>
-                </select>
-              </div>
-
-              {/* Bulk Selection Toggle */}
-              {filteredTodos.filter(todo => todo.status === 'pending').length > 1 && (
-                <button 
-                  className="btn-select-mode" 
-                  onClick={handleSelectionToggle}
-                >
-                  Select
-                </button>
-              )}
-
-              {/* Add Todo Button (Parent Only) */}
-              {showAddButton && userRole === 'parent' && (
-                <button className="btn-add-todo" onClick={onAddTodo}>
-                  + Add Task
-                </button>
-              )}
-            </>
-          ) : (
-            <>
-              {/* Selection Info */}
-              <div className="selection-info">
-                <span>{selectedTodos.size} selected</span>
-                <button onClick={handleSelectAll} className="btn-select-all">
-                  {filteredTodos.filter(todo => todo.status === 'pending').every(todo => selectedTodos.has(todo.id)) 
-                    ? 'Deselect All' : 'Select All'}
-                </button>
-              </div>
-
-              {/* Bulk Actions */}
-              <div className="bulk-actions">
-                {userRole === 'aupair' && selectedTodos.size > 0 && (
+          <div className="flex items-center gap-3">
+            {!selectionMode ? (
+              <>
+                {/* Bulk Selection Toggle */}
+                {todos.filter(todo => todo.status === 'pending').length > 1 && (
                   <button 
-                    onClick={handleBulkComplete}
-                    disabled={bulkActionInProgress}
-                    className="btn-bulk-complete"
+                    className="btn btn-secondary btn-sm" 
+                    onClick={handleSelectionToggle}
                   >
-                    Complete ({selectedTodos.size})
+                    Select
                   </button>
                 )}
-                
-                {userRole === 'parent' && selectedTodos.size > 0 && (
-                  <>
-                    <div className="priority-group">
-                      <label>Priority:</label>
-                      <select onChange={(e) => handleBulkPriorityChange(e.target.value)} className="filter-select">
-                        <option value="">Change...</option>
-                        <option value="high">High</option>
-                        <option value="medium">Medium</option>
-                        <option value="low">Low</option>
-                      </select>
-                    </div>
-                    
-                    <button 
-                      onClick={handleBulkDelete}
-                      disabled={bulkActionInProgress}
-                      className="btn-bulk-delete"
-                    >
-                      Delete ({selectedTodos.size})
-                    </button>
-                  </>
+
+                {/* Add Todo Button (Parent Only) */}
+                {showAddButton && userRole === 'parent' && (
+                  <button className="btn btn-primary btn-sm" onClick={onAddTodo}>
+                    + Add Task
+                  </button>
                 )}
-                
-                <button 
-                  onClick={handleSelectionToggle}
-                  className="btn-cancel-selection"
-                >
-                  Cancel
-                </button>
-              </div>
-            </>
-          )}
+              </>
+            ) : (
+              <>
+                {/* Selection Info */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-secondary">{selectedTodos.size} selected</span>
+                  <button onClick={handleSelectAll} className="text-primary text-sm font-medium hover:underline">
+                    {todos.filter(todo => todo.status === 'pending').every(todo => selectedTodos.has(todo.id)) 
+                      ? 'Deselect All' : 'Select All'}
+                  </button>
+                </div>
+
+                {/* Bulk Actions */}
+                <div className="flex items-center gap-2">
+                  {userRole === 'aupair' && selectedTodos.size > 0 && (
+                    <button 
+                      onClick={handleBulkComplete}
+                      disabled={bulkActionInProgress}
+                      className="btn btn-primary btn-sm"
+                    >
+                      Complete ({selectedTodos.size})
+                    </button>
+                  )}
+                  
+                  {userRole === 'parent' && selectedTodos.size > 0 && (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm text-secondary">Priority:</label>
+                        <select onChange={(e) => handleBulkPriorityChange(e.target.value)} className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                          <option value="">Change...</option>
+                          <option value="high">High</option>
+                          <option value="medium">Medium</option>
+                          <option value="low">Low</option>
+                        </select>
+                      </div>
+                      
+                      <button 
+                        onClick={handleBulkDelete}
+                        disabled={bulkActionInProgress}
+                        className="btn btn-secondary btn-sm text-red-600 hover:bg-red-50"
+                      >
+                        Delete ({selectedTodos.size})
+                      </button>
+                    </>
+                  )}
+                  
+                  <button 
+                    onClick={handleSelectionToggle}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
+            <span className="text-red-700 text-sm">{error}</span>
+            <button onClick={() => setError(null)} className="text-red-700 hover:text-red-900 text-lg font-bold">×</button>
+          </div>
+        )}
       </div>
 
-      {error && (
-        <div className="error-message">
-          {error}
-          <button onClick={() => setError(null)} className="btn-dismiss">×</button>
-        </div>
-      )}
-
-      <div className="todo-list-content">
+      <div>
         {/* Show immediate empty state if no todos and not loading, or if loading is done */}
-        {!loading && filteredTodos.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">📋</div>
-            <h3>{userRole === 'parent' ? 'All tasks cleared!' : 'No tasks assigned'}</h3>
-            <p>
+        {!loading && todos.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">📋</div>
+            <h3 className="text-xl font-semibold text-primary mb-2">
+              {userRole === 'parent' ? 'All tasks cleared!' : 'No tasks assigned'}
+            </h3>
+            <p className="text-secondary mb-6">
               {userRole === 'parent' 
                 ? 'No household tasks created yet. Ready to create your first task for your au pair?'
                 : 'No tasks assigned to you yet.'
               }
             </p>
             {userRole === 'parent' && (
-              <button className="btn-add-todo-empty" onClick={onAddTodo}>
+              <button className="btn btn-primary" onClick={onAddTodo}>
                 Create first task
               </button>
             )}
           </div>
         ) : loading ? (
-          <div className="loading-spinner">
-            <div className="spinner"></div>
-            <p>Loading todos...</p>
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-secondary">Loading todos...</p>
           </div>
         ) : (
           <>
             {viewType === 'today' && (
               <>
                 {/* Overdue Section */}
-            {groupedTodos.overdue.length > 0 && (
-              <div className="todo-section overdue">
-                <h3 className="section-title">
-                  ⚠️ Overdue ({groupedTodos.overdue.length})
-                </h3>
-                <div className="todo-grid">
-                  {groupedTodos.overdue.map(todo => (
-                    <TodoCard
-                      key={todo.id}
-                      todo={todo}
-                      userRole={userRole}
-                      familyId={familyId}
-                      onComplete={handleCompleteTodo}
-                      onEdit={onEditTodo}
-                      onDelete={handleDeleteTodo}
-                      showSelection={selectionMode}
-                      isSelected={selectedTodos.has(todo.id)}
-                      onSelect={handleTodoSelect}
-                    />
-                  ))}
+                {groupedTodos.overdue.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-primary mb-3 flex items-center gap-2">
+                      <span className="text-red-500">⚠️</span>
+                      Overdue
+                      <span className="badge badge-red">{groupedTodos.overdue.length}</span>
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {groupedTodos.overdue.map(todo => (
+                        <TodoCard
+                          key={todo.id}
+                          todo={todo}
+                          userRole={userRole}
+                          familyId={familyId}
+                          onComplete={handleCompleteTodo}
+                          onEdit={onEditTodo}
+                          onDelete={handleDeleteTodo}
+                          showSelection={selectionMode}
+                          isSelected={selectedTodos.has(todo.id)}
+                          onSelect={handleTodoSelect}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Today Section */}
+                {groupedTodos.today.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-primary mb-3 flex items-center gap-2">
+                      📅 Due Today
+                      <span className="badge badge-blue">{groupedTodos.today.length}</span>
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {groupedTodos.today.map(todo => (
+                        <TodoCard
+                          key={todo.id}
+                          todo={todo}
+                          userRole={userRole}
+                          familyId={familyId}
+                          onComplete={handleCompleteTodo}
+                          onEdit={onEditTodo}
+                          onDelete={handleDeleteTodo}
+                          showSelection={selectionMode}
+                          isSelected={selectedTodos.has(todo.id)}
+                          onSelect={handleTodoSelect}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* No tasks for today */}
+                {groupedTodos.overdue.length === 0 && groupedTodos.today.length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">✅</div>
+                    <h3 className="text-xl font-semibold text-primary mb-2">All caught up!</h3>
+                    <p className="text-secondary">No tasks due today. Great work!</p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {viewType === 'all' && (
+              <>
+                {/* Pending Tasks */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-primary mb-3 flex items-center gap-2">
+                    📋 Pending Tasks
+                    <span className="badge badge-purple">
+                      {groupedTodos.overdue.length + groupedTodos.today.length + groupedTodos.upcoming.length}
+                    </span>
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {/* Show overdue first */}
+                    {groupedTodos.overdue.map(todo => (
+                      <TodoCard
+                        key={todo.id}
+                        todo={todo}
+                        userRole={userRole}
+                        familyId={familyId}
+                        onComplete={handleCompleteTodo}
+                        onEdit={onEditTodo}
+                        onDelete={handleDeleteTodo}
+                        showSelection={selectionMode}
+                        isSelected={selectedTodos.has(todo.id)}
+                        onSelect={handleTodoSelect}
+                      />
+                    ))}
+                    {/* Then today */}
+                    {groupedTodos.today.map(todo => (
+                      <TodoCard
+                        key={todo.id}
+                        todo={todo}
+                        userRole={userRole}
+                        familyId={familyId}
+                        onComplete={handleCompleteTodo}
+                        onEdit={onEditTodo}
+                        onDelete={handleDeleteTodo}
+                        showSelection={selectionMode}
+                        isSelected={selectedTodos.has(todo.id)}
+                        onSelect={handleTodoSelect}
+                      />
+                    ))}
+                    {/* Then upcoming */}
+                    {groupedTodos.upcoming.map(todo => (
+                      <TodoCard
+                        key={todo.id}
+                        todo={todo}
+                        userRole={userRole}
+                        familyId={familyId}
+                        onComplete={handleCompleteTodo}
+                        onEdit={onEditTodo}
+                        onDelete={handleDeleteTodo}
+                        showSelection={selectionMode}
+                        isSelected={selectedTodos.has(todo.id)}
+                        onSelect={handleTodoSelect}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
+
+                {/* Completed Tasks */}
+                {groupedTodos.completed.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-primary mb-3 flex items-center gap-2">
+                      ✅ Recently Completed
+                      <span className="badge badge-green">{groupedTodos.completed.length}</span>
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {groupedTodos.completed.slice(0, 5).map(todo => (
+                        <TodoCard
+                          key={todo.id}
+                          todo={todo}
+                          userRole={userRole}
+                          familyId={familyId}
+                          onComplete={handleCompleteTodo}
+                          onEdit={onEditTodo}
+                          onDelete={handleDeleteTodo}
+                          showActions={false}
+                          showSelection={false}
+                          isSelected={false}
+                          onSelect={handleTodoSelect}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
-            {/* Today Section */}
-            {groupedTodos.today.length > 0 && (
-              <div className="todo-section today">
-                <h3 className="section-title">
-                  📅 Due Today ({groupedTodos.today.length})
-                </h3>
-                <div className="todo-grid">
-                  {groupedTodos.today.map(todo => (
-                    <TodoCard
-                      key={todo.id}
-                      todo={todo}
-                      userRole={userRole}
-                      familyId={familyId}
-                      onComplete={handleCompleteTodo}
-                      onEdit={onEditTodo}
-                      onDelete={handleDeleteTodo}
-                      showSelection={selectionMode}
-                      isSelected={selectedTodos.has(todo.id)}
-                      onSelect={handleTodoSelect}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* No tasks for today */}
-            {groupedTodos.overdue.length === 0 && groupedTodos.today.length === 0 && (
-              <div className="empty-state">
-                <div className="empty-icon">✅</div>
-                <h3>All caught up!</h3>
-                <p>No tasks due today. Great work!</p>
-              </div>
-            )}
-          </>
-        )}
-
-        {viewType === 'all' && (
-          <>
-            {/* Pending Tasks */}
-            <div className="todo-section all-pending">
-              <h3 className="section-title">
-                📋 Pending Tasks ({groupedTodos.overdue.length + groupedTodos.today.length + groupedTodos.upcoming.length})
-              </h3>
-              <div className="todo-grid">
-                {/* Show overdue first */}
-                {groupedTodos.overdue.map(todo => (
-                  <TodoCard
-                    key={todo.id}
-                    todo={todo}
-                    userRole={userRole}
-                    familyId={familyId}
-                    onComplete={handleCompleteTodo}
-                    onEdit={onEditTodo}
-                    onDelete={handleDeleteTodo}
-                    showSelection={selectionMode}
-                    isSelected={selectedTodos.has(todo.id)}
-                    onSelect={handleTodoSelect}
-                  />
-                ))}
-                {/* Then today */}
-                {groupedTodos.today.map(todo => (
-                  <TodoCard
-                    key={todo.id}
-                    todo={todo}
-                    userRole={userRole}
-                    familyId={familyId}
-                    onComplete={handleCompleteTodo}
-                    onEdit={onEditTodo}
-                    onDelete={handleDeleteTodo}
-                    showSelection={selectionMode}
-                    isSelected={selectedTodos.has(todo.id)}
-                    onSelect={handleTodoSelect}
-                  />
-                ))}
-                {/* Then upcoming */}
-                {groupedTodos.upcoming.map(todo => (
-                  <TodoCard
-                    key={todo.id}
-                    todo={todo}
-                    userRole={userRole}
-                    familyId={familyId}
-                    onComplete={handleCompleteTodo}
-                    onEdit={onEditTodo}
-                    onDelete={handleDeleteTodo}
-                    showSelection={selectionMode}
-                    isSelected={selectedTodos.has(todo.id)}
-                    onSelect={handleTodoSelect}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Completed Tasks */}
-            {groupedTodos.completed.length > 0 && (
-              <div className="todo-section completed">
-                <h3 className="section-title">
-                  ✅ Recently Completed ({groupedTodos.completed.length})
-                </h3>
-                <div className="todo-grid">
-                  {groupedTodos.completed.slice(0, 5).map(todo => (
+            {viewType === 'completed' && (
+              <div className="mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {todos.map(todo => (
                     <TodoCard
                       key={todo.id}
                       todo={todo}
@@ -481,30 +497,6 @@ const TodoList = ({
                   ))}
                 </div>
               </div>
-            )}
-          </>
-        )}
-
-        {viewType === 'completed' && (
-          <div className="todo-section completed">
-            <div className="todo-grid">
-              {filteredTodos.map(todo => (
-                <TodoCard
-                  key={todo.id}
-                  todo={todo}
-                  userRole={userRole}
-                  familyId={familyId}
-                  onComplete={handleCompleteTodo}
-                  onEdit={onEditTodo}
-                  onDelete={handleDeleteTodo}
-                  showActions={false}
-                  showSelection={false}
-                  isSelected={false}
-                  onSelect={handleTodoSelect}
-                />
-              ))}
-            </div>
-          </div>
             )}
           </>
         )}
