@@ -117,6 +117,7 @@
 
 .date-input-row input {
   flex: 1;
+  min-width: 140px;
 }
 
 .quick-date-buttons {
@@ -330,17 +331,11 @@
     gap: 16px;
   }
   
-  .date-input-row {
-    flex-direction: column;
-    gap: 12px;
-  }
-  
   .quick-date-buttons {
     justify-content: center;
   }
   
   .quick-date-btn {
-    flex: 1;
     padding: 10px 16px;
   }
   
@@ -382,5 +377,10 @@
   .day-btn {
     padding: 6px 10px;
     min-width: 40px;
+  }
+  
+  .quick-date-btn {
+    padding: 12px 14px;
+    font-size: 12px;
   }
 }

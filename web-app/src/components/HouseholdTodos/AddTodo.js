@@ -167,7 +167,7 @@ const AddTodo = ({
             {errors.title && <span className="error-text">{errors.title}</span>}
           </div>
 
-          {/* Quick Form Row */}
+          {/* Priority and Category Row */}
           <div className="form-row">
             {/* Priority */}
             <div className="form-group">
