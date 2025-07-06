@@ -4,13 +4,15 @@ import { useTasks } from '../hooks/useTasks';
 import { useCalendar } from '../hooks/useCalendar';
 import { useShopping } from '../hooks/useShopping';
 import TodoList from './HouseholdTodos/TodoList';
+import SimpleTodoCard from './HouseholdTodos/SimpleTodoCard';
 import AddTodo from './HouseholdTodos/AddTodo';
+import { getTodaysHouseholdTodos } from '../utils/householdTodosUtils';
 import { updateTaskStatus } from '../utils/familyUtils';
 import { DashboardStates, getDashboardState } from '../utils/dashboardStates';
 import DashboardWelcome from './DashboardWelcome';
 import AddChildFlow from './AddChild/AddChildFlow';
 import { collection, addDoc, doc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { processAndUploadPhoto } from '../utils/optimizedPhotoUpload';
 import LoadingProgress from './LoadingProgress';
 import SmartCalendarPage from '../pages/SmartCalendarPage';
@@ -18,6 +20,8 @@ import ShoppingListPage from '../pages/ShoppingListPage';
 import ProfileIcon from './Profile/ProfileIcon';
 import ProfilePage from './Profile/ProfilePage';
 import BottomNavigation from './BottomNavigation';
+import FamilyNotesList from './Notes/FamilyNotesList';
+import EnhancedChildCard from './Children/EnhancedChildCard';
 
 function Dashboard({ user }) {
   // Use custom hooks to fetch data
@@ -33,8 +37,32 @@ function Dashboard({ user }) {
   const [saveProgress, setSaveProgress] = useState(null);
   const [showAddTodo, setShowAddTodo] = useState(false);
   const [editingTodo, setEditingTodo] = useState(null);
+  
+  // State for household todos
+  const [householdTodos, setHouseholdTodos] = useState([]);
+  const [todosLoading, setTodosLoading] = useState(true);
 
-  const loading = familyLoading || tasksLoading || eventsLoading || shoppingLoading;
+  const loading = familyLoading || tasksLoading || eventsLoading || shoppingLoading || todosLoading;
+
+  // Fetch household todos for today
+  useEffect(() => {
+    if (!userData?.familyId) return;
+
+    const unsubscribe = getTodaysHouseholdTodos(userData.familyId, (snapshot) => {
+      const todosData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setHouseholdTodos(todosData);
+      setTodosLoading(false);
+    });
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [userData?.familyId]);
 
   // Determine dashboard state
   const dashboardState = getDashboardState(userData, children, tasks);
@@ -96,6 +124,12 @@ function Dashboard({ user }) {
     setCurrentView('edit_child');
     setEditingChild(child);
     setIsAddingChild(false);
+  };
+
+  const handleLogCare = (child) => {
+    // TODO: Implement care logging functionality
+    console.log('Log care for child:', child.name);
+    alert(`Care logging for ${child.name} coming soon!`);
   };
 
   const handleInviteAuPair = () => {
@@ -456,52 +490,27 @@ function Dashboard({ user }) {
             <h2 style={styles.sectionTitle}>My Tasks Today</h2>
           </div>
           <div style={styles.tasksContainer}>
-            {tasks.length === 0 ? (
+            {householdTodos.length === 0 ? (
               <div style={styles.emptyState}>
-                {children.length === 0 ? (
-                  <p>No tasks for today! 🎉</p>
-                ) : (
-                  <>
-                    <p>📝 No tasks yet</p>
-                    <p style={styles.emptyStateSubtext}>
-                      Ready to create your first task for {children[0].name}?
-                    </p>
-                    <button style={styles.emptyStateButton}>Create Task +</button>
-                  </>
-                )}
+                <div style={styles.emptyStateIcon}>📝</div>
+                <p>No tasks for today! 🎉</p>
+                <p style={styles.emptyStateSubtext}>
+                  Great job staying on top of everything!
+                </p>
               </div>
             ) : (
-              tasks.map((task) => (
-                <div 
-                  key={task.id} 
-                  style={{
-                    ...styles.taskCard, 
-                    ...(task.status === 'completed' ? {} : styles.taskCardActive)
+              householdTodos.map((todo) => (
+                <SimpleTodoCard
+                  key={todo.id}
+                  todo={todo}
+                  userRole={userRole}
+                  familyId={userData?.familyId}
+                  userId={user.uid}
+                  onToggleComplete={(todoId, newStatus) => {
+                    // The component handles Firebase updates
+                    console.log(`Todo ${todoId} status changed to ${newStatus}`);
                   }}
-                >
-                  <div style={styles.taskHeader}>
-                    <div style={styles.taskProfile}>
-                      <div style={styles.profilePic}>
-                        {getUserInitials(userData?.name)}
-                      </div>
-                      <span style={styles.taskTitle}>{task.title}</span>
-                    </div>
-                    <div 
-                      style={task.status === 'completed' ? styles.checkboxChecked : styles.checkboxUnchecked}
-                      onClick={() => handleTaskToggle(task.id, task.status)}
-                    >
-                      ✓
-                    </div>
-                  </div>
-                  {task.description && (
-                    <div style={styles.taskDescription}>
-                      {task.description}
-                    </div>
-                  )}
-                  <div style={styles.taskTime}>
-                    {task.dueDate ? formatTime(task.dueDate) : 'Today'}
-                  </div>
-                </div>
+                />
               ))
             )}
           </div>
@@ -512,7 +521,10 @@ function Dashboard({ user }) {
         <section style={styles.section}>
           <div style={styles.sectionHeader}>
             <h2 style={styles.sectionTitle}>
-              {userRole === 'parent' ? 'Household Tasks for Au Pair' : 'Your Assigned Tasks'}
+              {userRole === 'parent' 
+                ? `Household Tasks for Au Pair ${householdTodos.length > 0 ? `(${householdTodos.length})` : ''}` 
+                : 'Your Assigned Tasks'
+              }
             </h2>
             {userRole === 'parent' && (
               <button style={styles.headerButton} onClick={handleAddTodo}>
@@ -520,16 +532,37 @@ function Dashboard({ user }) {
               </button>
             )}
           </div>
-          <div style={styles.todosContainer}>
-            <TodoList
-              familyId={userData?.familyId}
-              userRole={userRole}
-              userId={user.uid}
-              viewType="today"
-              onEditTodo={handleEditTodo}
-              showAddButton={false} // We handle this in the section header
-              onAddTodo={handleAddTodo}
-            />
+          <div style={styles.tasksContainer}>
+            {householdTodos.length === 0 ? (
+              <div style={styles.emptyState}>
+                <div style={styles.emptyStateIcon}>📝</div>
+                <p>{userRole === 'parent' ? 'No tasks assigned yet' : 'No tasks for today! 🎉'}</p>
+                <p style={styles.emptyStateSubtext}>
+                  {userRole === 'parent' 
+                    ? 'Create your first household task for your au pair'
+                    : 'Great job staying on top of everything!'
+                  }
+                </p>
+                {userRole === 'parent' && (
+                  <button style={styles.emptyStateButton} onClick={handleAddTodo}>
+                    Add Task +
+                  </button>
+                )}
+              </div>
+            ) : (
+              householdTodos.map((todo) => (
+                <SimpleTodoCard
+                  key={todo.id}
+                  todo={todo}
+                  userRole={userRole}
+                  familyId={userData?.familyId}
+                  userId={user.uid}
+                  onToggleComplete={(todoId, newStatus) => {
+                    console.log(`Todo ${todoId} status changed to ${newStatus}`);
+                  }}
+                />
+              ))
+            )}
           </div>
         </section>
 
@@ -551,53 +584,15 @@ function Dashboard({ user }) {
                 </button>
               </div>
             ) : (
-              children.map((child) => {
-                const age = child.dateOfBirth ? 
-                  Math.floor((new Date() - (child.dateOfBirth.toDate ? child.dateOfBirth.toDate() : new Date(child.dateOfBirth))) / (365.25 * 24 * 60 * 60 * 1000)) 
-                  : 0;
-                
-                return (
-                  <div key={child.id} style={styles.childCard}>
-                    <div style={styles.childHeader}>
-                      <div style={styles.childProfile}>
-                        <div style={styles.childPic}>
-                          {child.profilePictureUrl ? (
-                            <img 
-                              src={child.profilePictureUrl} 
-                              alt={`${child.name} profile`}
-                              style={styles.childProfileImage}
-                            />
-                          ) : (
-                            getUserInitials(child.name)
-                          )}
-                        </div>
-                        <div>
-                          <div style={styles.childName}>{child.name}</div>
-                          <div style={styles.childAge}>Age {age}</div>
-                        </div>
-                      </div>
-                      <div style={styles.statusDot}></div>
-                    </div>
-                    <div style={styles.progressSection}>
-                      <div style={styles.progressLabel}>Today's Care</div>
-                      <div style={styles.progressTimes}>
-                        <span style={styles.timeStart}>8:00</span>
-                        <span style={styles.timeCurrent}>Now</span>
-                      </div>
-                      <div style={styles.progressSubtext}>All good 👍</div>
-                    </div>
-                    <div style={styles.childActions}>
-                      <button style={styles.childActionButton}>Log Care</button>
-                      <button 
-                        style={styles.childActionButtonSecondary} 
-                        onClick={() => handleEditChild(child)}
-                      >
-                        Edit
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
+              children.map((child) => (
+                <EnhancedChildCard
+                  key={child.id}
+                  child={child}
+                  upcomingEvents={events}
+                  onEditChild={handleEditChild}
+                  onLogCare={handleLogCare}
+                />
+              ))
             )}
           </div>
         </section>
@@ -673,10 +668,12 @@ function Dashboard({ user }) {
         {/* Bottom Section */}
         <div style={styles.bottomContainer}>
           <div style={styles.bottomCard}>
-            <h3 style={styles.bottomTitle}>Family Notes</h3>
-            <div style={styles.notesList}>
-              {/* Notes content placeholder */}
-            </div>
+            <FamilyNotesList
+              familyId={userData?.familyId}
+              userId={user.uid}
+              userRole={userRole}
+              maxDisplayed={3}
+            />
           </div>
           
           <div style={styles.bottomCard}>
@@ -829,16 +826,16 @@ function Dashboard({ user }) {
 const styles = {
   appContainer: {
     minHeight: '100vh',
-    backgroundColor: '#F2F2F7',
+    backgroundColor: '#F8FAFC',
     paddingBottom: '80px', // Space for bottom navigation
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
+    fontFamily: 'var(--font-family-sans)'
   },
   container: {
     minHeight: '100vh',
-    backgroundColor: '#F2F2F7',
+    backgroundColor: '#F8FAFC',
     display: 'flex',
     flexDirection: 'column',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
+    fontFamily: 'var(--font-family-sans)'
   },
   
   // Header Styles
@@ -846,336 +843,350 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '15px 20px',
-    backgroundColor: 'white',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+    padding: 'var(--space-4) var(--space-5)',
+    backgroundColor: 'var(--white)',
+    boxShadow: 'var(--shadow-sm)',
+    borderBottom: '1px solid var(--border-light)'
   },
   backButton: {
     backgroundColor: 'transparent',
     border: 'none',
-    fontSize: '20px',
+    fontSize: 'var(--font-size-xl)',
     cursor: 'pointer',
-    color: '#007AFF'
+    color: 'var(--primary-purple)',
+    padding: 'var(--space-2)',
+    borderRadius: 'var(--radius-md)',
+    transition: 'var(--transition-fast)'
   },
   title: {
-    fontSize: '18px',
-    fontWeight: '600',
-    color: '#000',
+    fontSize: 'var(--font-size-lg)',
+    fontWeight: 'var(--font-weight-semibold)',
+    color: 'var(--text-primary)',
     margin: 0
   },
 
   // Content Styles
   content: {
     flex: 1,
-    padding: '20px',
+    padding: 'var(--space-5)',
     paddingBottom: '100px'
   },
   section: {
-    marginBottom: '30px'
+    marginBottom: 'var(--space-8)'
   },
   sectionHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '15px'
+    marginBottom: 'var(--space-4)'
   },
   sectionTitle: {
-    fontSize: '20px',
-    fontWeight: '600',
-    color: '#000',
+    fontSize: 'var(--font-size-xl)',
+    fontWeight: 'var(--font-weight-semibold)',
+    color: 'var(--text-primary)',
     margin: 0
   },
   headerButton: {
-    backgroundColor: '#007AFF',
-    color: 'white',
+    backgroundColor: 'var(--primary-purple)',
+    color: 'var(--white)',
     border: 'none',
-    borderRadius: '8px',
-    padding: '8px 16px',
-    fontSize: '14px',
-    fontWeight: '500',
-    cursor: 'pointer'
+    borderRadius: 'var(--radius-md)',
+    padding: 'var(--space-2) var(--space-4)',
+    fontSize: 'var(--font-size-sm)',
+    fontWeight: 'var(--font-weight-medium)',
+    cursor: 'pointer',
+    transition: 'var(--transition-fast)',
+    boxShadow: 'var(--shadow-sm)'
   },
 
   // Task Styles
   tasksContainer: {
     display: 'flex',
-    gap: '15px',
+    gap: 'var(--space-4)',
     overflowX: 'auto',
-    paddingBottom: '10px'
+    paddingBottom: 'var(--space-3)'
   },
   
-  // Todos Styles
-  todosContainer: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    padding: '16px',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-  },
+  // Todos Styles (using tasksContainer for horizontal layout)
   taskCard: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    padding: '15px',
-    minWidth: '200px',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+    backgroundColor: 'var(--white)',
+    borderRadius: 'var(--radius-lg)',
+    padding: 'var(--space-4)',
+    minWidth: '240px',
+    boxShadow: 'var(--shadow-sm)',
+    border: '1px solid var(--border-light)',
+    transition: 'var(--transition-normal)'
   },
   taskCardActive: {
-    backgroundColor: '#4A5568',
-    color: 'white'
+    backgroundColor: 'var(--gray-800)',
+    color: 'var(--white)',
+    border: '1px solid var(--gray-700)'
   },
   taskHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '10px'
+    marginBottom: 'var(--space-3)'
   },
   taskProfile: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px'
+    gap: 'var(--space-2)'
   },
   profilePic: {
-    width: '24px',
-    height: '24px',
-    borderRadius: '12px',
-    backgroundColor: '#E5E5EA',
+    width: '28px',
+    height: '28px',
+    borderRadius: 'var(--radius-full)',
+    backgroundColor: 'var(--gray-100)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '10px',
-    fontWeight: '600'
+    fontSize: 'var(--font-size-xs)',
+    fontWeight: 'var(--font-weight-semibold)',
+    color: 'var(--text-secondary)'
   },
   taskTitle: {
-    fontSize: '14px',
-    fontWeight: '500'
+    fontSize: 'var(--font-size-sm)',
+    fontWeight: 'var(--font-weight-medium)',
+    color: 'inherit'
   },
   checkboxChecked: {
-    width: '20px',
-    height: '20px',
-    borderRadius: '10px',
-    backgroundColor: '#34C759',
-    color: 'white',
+    width: '24px',
+    height: '24px',
+    borderRadius: 'var(--radius-full)',
+    backgroundColor: 'var(--secondary-green)',
+    color: 'var(--white)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '12px',
-    cursor: 'pointer'
+    fontSize: 'var(--font-size-xs)',
+    cursor: 'pointer',
+    transition: 'var(--transition-fast)'
   },
   checkboxUnchecked: {
-    width: '20px',
-    height: '20px',
-    borderRadius: '10px',
-    border: '1px solid #C7C7CC',
+    width: '24px',
+    height: '24px',
+    borderRadius: 'var(--radius-full)',
+    border: '2px solid var(--gray-300)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '12px',
-    color: '#C7C7CC',
-    cursor: 'pointer'
+    fontSize: 'var(--font-size-xs)',
+    color: 'var(--gray-300)',
+    cursor: 'pointer',
+    transition: 'var(--transition-fast)'
   },
   taskDescription: {
-    fontSize: '12px',
-    lineHeight: '1.4',
-    marginBottom: '10px',
-    opacity: 0.8
+    fontSize: 'var(--font-size-xs)',
+    lineHeight: 'var(--line-height-normal)',
+    marginBottom: 'var(--space-3)',
+    opacity: 0.8,
+    color: 'var(--text-secondary)'
   },
   taskTime: {
-    fontSize: '11px',
-    color: '#8E8E93'
+    fontSize: 'var(--font-size-xs)',
+    color: 'var(--text-tertiary)'
   },
 
   // Children's Overview Styles
   childrenContainer: {
     display: 'flex',
-    gap: '15px',
+    gap: 'var(--space-4)',
     overflowX: 'auto',
-    paddingBottom: '10px'
+    paddingBottom: 'var(--space-3)'
   },
   childCard: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    padding: '15px',
-    minWidth: '160px',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+    backgroundColor: 'var(--white)',
+    borderRadius: 'var(--radius-lg)',
+    padding: 'var(--space-4)',
+    minWidth: '180px',
+    boxShadow: 'var(--shadow-sm)',
+    border: '1px solid var(--border-light)',
+    transition: 'var(--transition-normal)'
   },
   childHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: '15px'
+    marginBottom: 'var(--space-4)'
   },
   childProfile: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px'
+    gap: 'var(--space-2)'
   },
   childPic: {
-    width: '32px',
-    height: '32px',
-    borderRadius: '16px',
-    backgroundColor: '#E5E5EA',
+    width: '36px',
+    height: '36px',
+    borderRadius: 'var(--radius-full)',
+    backgroundColor: 'var(--gray-100)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '14px',
-    fontWeight: '600',
-    overflow: 'hidden'
+    fontSize: 'var(--font-size-sm)',
+    fontWeight: 'var(--font-weight-semibold)',
+    overflow: 'hidden',
+    color: 'var(--text-secondary)'
   },
   childProfileImage: {
     width: '100%',
     height: '100%',
     objectFit: 'cover',
-    borderRadius: '16px'
+    borderRadius: 'var(--radius-full)'
   },
   childName: {
-    fontSize: '12px',
-    fontWeight: '500',
-    color: '#000'
+    fontSize: 'var(--font-size-sm)',
+    fontWeight: 'var(--font-weight-medium)',
+    color: 'var(--text-primary)'
   },
   childAge: {
-    fontSize: '10px',
-    color: '#8E8E93'
+    fontSize: 'var(--font-size-xs)',
+    color: 'var(--text-secondary)'
   },
   statusDot: {
     width: '8px',
     height: '8px',
-    borderRadius: '4px',
-    backgroundColor: '#FF3B30'
+    borderRadius: 'var(--radius-full)',
+    backgroundColor: 'var(--secondary-green)'
   },
   progressSection: {
-    fontSize: '11px'
+    fontSize: 'var(--font-size-xs)'
   },
   progressLabel: {
-    fontWeight: '500',
-    marginBottom: '5px'
+    fontWeight: 'var(--font-weight-medium)',
+    marginBottom: 'var(--space-1)',
+    color: 'var(--text-primary)'
   },
   progressTimes: {
     display: 'flex',
     justifyContent: 'space-between',
-    marginBottom: '5px'
+    marginBottom: 'var(--space-1)'
   },
   timeStart: {
-    color: '#8E8E93'
+    color: 'var(--text-tertiary)'
   },
   timeCurrent: {
-    color: '#34C759',
-    fontWeight: '600'
+    color: 'var(--secondary-green)',
+    fontWeight: 'var(--font-weight-semibold)'
   },
   progressSubtext: {
-    color: '#8E8E93',
-    fontSize: '10px'
+    color: 'var(--text-tertiary)',
+    fontSize: 'var(--font-size-xs)'
   },
 
   // Events Styles
   eventsContainer: {
     display: 'flex',
-    gap: '15px',
+    gap: 'var(--space-4)',
     overflowX: 'auto',
-    paddingBottom: '10px'
+    paddingBottom: 'var(--space-3)'
   },
   eventCard: {
-    borderRadius: '12px',
-    padding: '15px',
-    minWidth: '120px',
-    color: 'white',
+    borderRadius: 'var(--radius-lg)',
+    padding: 'var(--space-4)',
+    minWidth: '140px',
+    color: 'var(--white)',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'space-between',
-    minHeight: '80px'
+    minHeight: '90px',
+    boxShadow: 'var(--shadow-sm)'
   },
   eventText: {
-    fontSize: '14px',
-    fontWeight: '500',
-    lineHeight: '1.3'
+    fontSize: 'var(--font-size-sm)',
+    fontWeight: 'var(--font-weight-medium)',
+    lineHeight: 'var(--line-height-tight)'
   },
   eventTime: {
-    fontSize: '12px',
+    fontSize: 'var(--font-size-xs)',
     opacity: 0.9,
-    marginTop: '10px'
+    marginTop: 'var(--space-3)'
   },
 
   // Bottom Section Styles
   bottomContainer: {
     display: 'flex',
-    gap: '15px',
-    marginTop: '20px'
+    gap: 'var(--space-4)',
+    marginTop: 'var(--space-5)'
   },
   bottomCard: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    padding: '15px',
+    backgroundColor: 'var(--white)',
+    borderRadius: 'var(--radius-lg)',
+    padding: 'var(--space-4)',
     flex: 1,
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+    boxShadow: 'var(--shadow-sm)',
+    border: '1px solid var(--border-light)'
   },
   bottomTitle: {
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#000',
-    margin: '0 0 15px 0'
-  },
-  notesList: {
-    minHeight: '80px'
+    fontSize: 'var(--font-size-lg)',
+    fontWeight: 'var(--font-weight-semibold)',
+    color: 'var(--text-primary)',
+    margin: '0 0 var(--space-4) 0'
   },
   shoppingList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '10px'
+    gap: 'var(--space-3)'
   },
   shoppingItem: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    fontSize: '14px'
+    fontSize: 'var(--font-size-sm)'
   },
   shoppingSubtext: {
-    fontSize: '12px',
-    color: '#8E8E93',
+    fontSize: 'var(--font-size-xs)',
+    color: 'var(--text-tertiary)',
     marginLeft: '0'
   },
   cardHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '15px'
+    marginBottom: 'var(--space-4)'
   },
   viewAllButton: {
     background: 'none',
     border: 'none',
-    color: '#007AFF',
-    fontSize: '14px',
+    color: 'var(--primary-purple)',
+    fontSize: 'var(--font-size-sm)',
     cursor: 'pointer',
-    fontWeight: '500'
+    fontWeight: 'var(--font-weight-medium)',
+    transition: 'var(--transition-fast)'
   },
   createButton: {
-    background: '#007AFF',
-    color: 'white',
+    background: 'var(--primary-purple)',
+    color: 'var(--white)',
     border: 'none',
-    padding: '8px 16px',
-    borderRadius: '6px',
-    fontSize: '14px',
+    padding: 'var(--space-2) var(--space-4)',
+    borderRadius: 'var(--radius-md)',
+    fontSize: 'var(--font-size-sm)',
     cursor: 'pointer',
-    marginTop: '8px'
+    marginTop: 'var(--space-2)',
+    fontWeight: 'var(--font-weight-medium)',
+    transition: 'var(--transition-fast)'
   },
   listHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '10px'
+    marginBottom: 'var(--space-3)'
   },
   listName: {
-    fontSize: '14px',
-    fontWeight: '500',
-    color: '#333'
+    fontSize: 'var(--font-size-sm)',
+    fontWeight: 'var(--font-weight-medium)',
+    color: 'var(--text-primary)'
   },
   approvalBadge: {
-    background: '#FF6B35',
-    color: 'white',
-    fontSize: '10px',
-    padding: '2px 6px',
-    borderRadius: '4px',
-    fontWeight: '500'
+    background: 'var(--secondary-orange)',
+    color: 'var(--white)',
+    fontSize: 'var(--font-size-xs)',
+    padding: 'var(--space-1) var(--space-2)',
+    borderRadius: 'var(--radius-sm)',
+    fontWeight: 'var(--font-weight-medium)'
   },
   shoppingItemContainer: {
-    marginBottom: '8px'
+    marginBottom: 'var(--space-2)'
   },
   itemCompleted: {
     textDecoration: 'line-through',
@@ -1185,61 +1196,61 @@ const styles = {
     // Default styles
   },
   moreItems: {
-    fontSize: '12px',
-    color: '#8E8E93',
+    fontSize: 'var(--font-size-xs)',
+    color: 'var(--text-tertiary)',
     fontStyle: 'italic',
-    marginTop: '8px'
+    marginTop: 'var(--space-2)'
   },
   shoppingListItem: {
-    backgroundColor: 'white',
-    borderRadius: '8px',
-    padding: '12px',
-    marginBottom: '8px',
+    backgroundColor: 'var(--white)',
+    borderRadius: 'var(--radius-md)',
+    padding: 'var(--space-3)',
+    marginBottom: 'var(--space-2)',
     cursor: 'pointer',
-    transition: 'background-color 0.2s',
-    border: '1px solid #E5E5EA'
+    transition: 'var(--transition-fast)',
+    border: '1px solid var(--border-light)'
   },
   progressIndicator: {
-    fontSize: '12px',
-    color: '#8E8E93',
-    marginTop: '4px'
+    fontSize: 'var(--font-size-xs)',
+    color: 'var(--text-tertiary)',
+    marginTop: 'var(--space-1)'
   },
   allClearState: {
     textAlign: 'center',
-    padding: '20px',
+    padding: 'var(--space-5)',
     backgroundColor: '#F0FDF4',
-    borderRadius: '12px',
+    borderRadius: 'var(--radius-lg)',
     border: '1px solid #86EFAC'
   },
   allClearIcon: {
-    fontSize: '32px',
-    marginBottom: '8px'
+    fontSize: 'var(--font-size-4xl)',
+    marginBottom: 'var(--space-2)'
   },
   allClearText: {
-    fontSize: '16px',
-    fontWeight: '600',
+    fontSize: 'var(--font-size-lg)',
+    fontWeight: 'var(--font-weight-semibold)',
     color: '#166534',
-    margin: '0 0 4px 0'
+    margin: '0 0 var(--space-1) 0'
   },
   allClearSubtext: {
-    fontSize: '12px',
+    fontSize: 'var(--font-size-xs)',
     color: '#16A34A',
-    margin: '0 0 12px 0'
+    margin: '0 0 var(--space-3) 0'
   },
   completedListsPreview: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '4px',
-    marginTop: '12px'
+    gap: 'var(--space-1)',
+    marginTop: 'var(--space-3)'
   },
   completedListItem: {
-    fontSize: '12px',
+    fontSize: 'var(--font-size-xs)',
     color: '#16A34A',
-    backgroundColor: 'white',
-    padding: '6px 12px',
-    borderRadius: '6px',
+    backgroundColor: 'var(--white)',
+    padding: 'var(--space-2) var(--space-3)',
+    borderRadius: 'var(--radius-md)',
     cursor: 'pointer',
-    transition: 'background-color 0.2s'
+    transition: 'var(--transition-fast)'
   },
 
   loading: {
@@ -1247,104 +1258,111 @@ const styles = {
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: '100vh',
-    fontSize: '20px',
-    color: '#666'
+    fontSize: 'var(--font-size-xl)',
+    color: 'var(--text-secondary)'
   },
 
   // Empty States
   emptyState: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    padding: '30px',
+    backgroundColor: 'var(--white)',
+    borderRadius: 'var(--radius-lg)',
+    padding: 'var(--space-8)',
     textAlign: 'center',
-    color: '#8E8E93',
-    fontSize: '14px',
-    minWidth: '200px'
+    color: 'var(--text-secondary)',
+    fontSize: 'var(--font-size-sm)',
+    minWidth: '220px',
+    border: '1px solid var(--border-light)'
   },
   emptyStateIcon: {
-    fontSize: '32px',
-    marginBottom: '10px'
+    fontSize: 'var(--font-size-4xl)',
+    marginBottom: 'var(--space-3)'
   },
   emptyStateSubtext: {
-    fontSize: '12px',
-    margin: '5px 0 15px 0'
+    fontSize: 'var(--font-size-xs)',
+    margin: 'var(--space-1) 0 var(--space-4) 0',
+    color: 'var(--text-tertiary)'
   },
   emptyStateButton: {
-    backgroundColor: '#007AFF',
-    color: 'white',
+    backgroundColor: 'var(--primary-purple)',
+    color: 'var(--white)',
     border: 'none',
-    borderRadius: '8px',
-    padding: '10px 16px',
-    fontSize: '14px',
-    fontWeight: '500',
+    borderRadius: 'var(--radius-md)',
+    padding: 'var(--space-3) var(--space-4)',
+    fontSize: 'var(--font-size-sm)',
+    fontWeight: 'var(--font-weight-medium)',
     cursor: 'pointer',
-    marginTop: '10px'
+    marginTop: 'var(--space-3)',
+    transition: 'var(--transition-fast)'
   },
   emptyStateSmall: {
     textAlign: 'center',
-    color: '#8E8E93',
-    fontSize: '12px',
-    padding: '20px'
+    color: 'var(--text-secondary)',
+    fontSize: 'var(--font-size-xs)',
+    padding: 'var(--space-5)'
   },
 
   // Child Actions
   childActions: {
     display: 'flex',
-    gap: '8px',
-    marginTop: '10px'
+    gap: 'var(--space-2)',
+    marginTop: 'var(--space-3)'
   },
   childActionButton: {
-    backgroundColor: '#007AFF',
-    color: 'white',
+    backgroundColor: 'var(--primary-purple)',
+    color: 'var(--white)',
     border: 'none',
-    borderRadius: '6px',
-    padding: '6px 10px',
-    fontSize: '12px',
-    fontWeight: '500',
+    borderRadius: 'var(--radius-md)',
+    padding: 'var(--space-2) var(--space-3)',
+    fontSize: 'var(--font-size-xs)',
+    fontWeight: 'var(--font-weight-medium)',
     cursor: 'pointer',
-    flex: 1
+    flex: 1,
+    transition: 'var(--transition-fast)'
   },
   childActionButtonSecondary: {
     backgroundColor: 'transparent',
-    color: '#007AFF',
-    border: '1px solid #007AFF',
-    borderRadius: '6px',
-    padding: '6px 10px',
-    fontSize: '12px',
-    fontWeight: '500',
+    color: 'var(--primary-purple)',
+    border: '1px solid var(--primary-purple)',
+    borderRadius: 'var(--radius-md)',
+    padding: 'var(--space-2) var(--space-3)',
+    fontSize: 'var(--font-size-xs)',
+    fontWeight: 'var(--font-weight-medium)',
     cursor: 'pointer',
-    flex: 1
+    flex: 1,
+    transition: 'var(--transition-fast)'
   },
 
   // Reminder Card
   reminderCard: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    padding: '20px',
-    marginTop: '20px',
+    backgroundColor: 'var(--white)',
+    borderRadius: 'var(--radius-lg)',
+    padding: 'var(--space-5)',
+    marginTop: 'var(--space-5)',
     display: 'flex',
     alignItems: 'center',
-    gap: '15px',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+    gap: 'var(--space-4)',
+    boxShadow: 'var(--shadow-sm)',
+    border: '1px solid var(--border-light)'
   },
   reminderIcon: {
-    fontSize: '24px'
+    fontSize: 'var(--font-size-2xl)'
   },
   reminderText: {
     flex: 1,
-    fontSize: '14px',
-    color: '#000',
-    fontWeight: '500'
+    fontSize: 'var(--font-size-sm)',
+    color: 'var(--text-primary)',
+    fontWeight: 'var(--font-weight-medium)'
   },
   reminderButton: {
-    backgroundColor: '#007AFF',
-    color: 'white',
+    backgroundColor: 'var(--primary-purple)',
+    color: 'var(--white)',
     border: 'none',
-    borderRadius: '8px',
-    padding: '10px 16px',
-    fontSize: '14px',
-    fontWeight: '500',
-    cursor: 'pointer'
+    borderRadius: 'var(--radius-md)',
+    padding: 'var(--space-3) var(--space-4)',
+    fontSize: 'var(--font-size-sm)',
+    fontWeight: 'var(--font-weight-medium)',
+    cursor: 'pointer',
+    transition: 'var(--transition-fast)'
   }
 };
 
