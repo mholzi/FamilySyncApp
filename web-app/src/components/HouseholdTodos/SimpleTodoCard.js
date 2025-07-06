@@ -50,43 +50,46 @@ const SimpleTodoCard = ({
       ...(isCompleted ? styles.taskCardCompleted : {}),
       ...(isOverdue ? styles.taskCardOverdue : {})
     }}>
+      {/* Header with title and due date on the right */}
       <div style={styles.taskHeader}>
-        <div style={styles.taskProfile}>
-          <div style={styles.profilePic}>
-            {getUserInitials('Au Pair')}
+        <div style={styles.titleRow}>
+          <div style={{
+            ...styles.taskTitle,
+            ...(isCompleted ? styles.taskTitleCompleted : {})
+          }}>
+            {todo.title}
           </div>
-          <div style={styles.taskInfo}>
-            <div style={{
-              ...styles.taskTitle,
-              ...(isCompleted ? styles.taskTitleCompleted : {})
-            }}>
-              {todo.title}
-            </div>
-            {todo.description && (
-              <div style={styles.taskDescription}>
-                {todo.description}
-              </div>
-            )}
-          </div>
+          {todo.dueDate && (
+            <span style={styles.dueDateBadge}>
+              {formatDueDate(todo.dueDate)}
+            </span>
+          )}
         </div>
-      </div>
-      
-      {/* Progress bar area - keeping space but no progress bar as requested */}
-      <div style={styles.progressArea}>
-        {todo.category && (
-          <span style={styles.categoryBadge}>
-            {todo.category}
-          </span>
-        )}
-        {todo.dueDate && (
-          <span style={styles.dueDateBadge}>
-            {formatDueDate(todo.dueDate)}
-          </span>
+        {todo.description && (
+          <div style={styles.taskDescription}>
+            {todo.description}
+          </div>
         )}
       </div>
       
-      {/* Done toggle button at bottom left as requested */}
+      {/* Spacer area */}
+      <div style={styles.spacerArea}>
+        {todo.estimatedTime && (
+          <span style={styles.timeEstimate}>
+            {formatEstimatedTime(todo.estimatedTime)}
+          </span>
+        )}
+      </div>
+      
+      {/* Bottom row with category tag on left and done button on right */}
       <div style={styles.bottomRow}>
+        <div style={styles.leftBottomSection}>
+          {todo.category && (
+            <span style={styles.categoryBadge}>
+              {todo.category}
+            </span>
+          )}
+        </div>
         <button 
           style={{
             ...styles.doneButton,
@@ -97,12 +100,6 @@ const SimpleTodoCard = ({
         >
           {isCompleting ? '...' : (isCompleted ? '✓ Done' : 'Mark Done')}
         </button>
-        
-        {todo.estimatedTime && (
-          <span style={styles.timeEstimate}>
-            {formatEstimatedTime(todo.estimatedTime)}
-          </span>
-        )}
       </div>
     </div>
   );
@@ -158,34 +155,19 @@ const styles = {
   taskHeader: {
     marginBottom: 'var(--space-3)'
   },
-  taskProfile: {
+  titleRow: {
     display: 'flex',
+    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: 'var(--space-3)'
-  },
-  profilePic: {
-    width: '32px',
-    height: '32px',
-    borderRadius: 'var(--radius-full)',
-    backgroundColor: 'var(--primary-purple)',
-    color: 'var(--white)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 'var(--font-size-xs)',
-    fontWeight: 'var(--font-weight-semibold)',
-    flexShrink: 0
-  },
-  taskInfo: {
-    flex: 1,
-    minWidth: 0
+    gap: 'var(--space-2)',
+    marginBottom: 'var(--space-1)'
   },
   taskTitle: {
     fontSize: 'var(--font-size-sm)',
     fontWeight: 'var(--font-weight-semibold)',
     color: 'var(--text-primary)',
     lineHeight: 'var(--line-height-tight)',
-    marginBottom: 'var(--space-1)'
+    flex: 1
   },
   taskTitleCompleted: {
     textDecoration: 'line-through',
@@ -196,9 +178,9 @@ const styles = {
     color: 'var(--text-secondary)',
     lineHeight: 'var(--line-height-normal)'
   },
-  progressArea: {
+  spacerArea: {
     display: 'flex',
-    gap: 'var(--space-2)',
+    justifyContent: 'flex-end',
     marginBottom: 'var(--space-3)',
     minHeight: '20px'
   },
@@ -216,12 +198,20 @@ const styles = {
     backgroundColor: '#fef3c7',
     padding: 'var(--space-1) var(--space-2)',
     borderRadius: 'var(--radius-sm)',
-    fontWeight: 'var(--font-weight-medium)'
+    fontWeight: 'var(--font-weight-medium)',
+    flexShrink: 0,
+    whiteSpace: 'nowrap'
   },
   bottomRow: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
+    gap: 'var(--space-2)'
+  },
+  leftBottomSection: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 'var(--space-2)'
   },
   doneButton: {
     border: 'none',
