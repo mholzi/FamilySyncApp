@@ -17,7 +17,6 @@ const AddTodo = ({
     category: editTodo?.category || 'general',
     estimatedTime: editTodo?.estimatedTime || '',
     dueDate: editTodo?.dueDate ? formatDateForInput(editTodo.dueDate.toDate()) : '',
-    dueTime: editTodo?.dueDate ? formatTimeForInput(editTodo.dueDate.toDate()) : '09:00',
     isRecurring: editTodo?.isRecurring || false,
     recurringType: editTodo?.recurringType || 'weekly',
     recurringInterval: editTodo?.recurringInterval || 1,
@@ -33,9 +32,16 @@ const AddTodo = ({
     return date.toISOString().split('T')[0];
   }
 
-  function formatTimeForInput(date) {
-    return date.toTimeString().slice(0, 5);
-  }
+  // Helper functions for quick date selection
+  const getToday = () => {
+    return new Date().toISOString().split('T')[0];
+  };
+
+  const getTomorrow = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split('T')[0];
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -47,8 +53,10 @@ const AddTodo = ({
     if (!formData.dueDate) {
       newErrors.dueDate = 'Due date is required';
     } else {
-      const selectedDate = new Date(`${formData.dueDate}T${formData.dueTime}`);
-      if (selectedDate < new Date() && !editTodo) {
+      const selectedDate = new Date(`${formData.dueDate}T09:00:00`);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (selectedDate < today && !editTodo) {
         newErrors.dueDate = 'Due date cannot be in the past';
       }
     }
@@ -73,7 +81,8 @@ const AddTodo = ({
     setIsSubmitting(true);
     
     try {
-      const dueDateTime = new Date(`${formData.dueDate}T${formData.dueTime}`);
+      // Set default time to 9 AM for tasks
+      const dueDateTime = new Date(`${formData.dueDate}T09:00:00`);
       
       const todoData = {
         title: formData.title.trim(),
@@ -120,6 +129,11 @@ const AddTodo = ({
         ? prev.recurringDays.filter(d => d !== dayIndex)
         : [...prev.recurringDays, dayIndex].sort()
     }));
+  };
+
+  const handleQuickDateSelect = (dateType) => {
+    const date = dateType === 'today' ? getToday() : getTomorrow();
+    handleInputChange('dueDate', date);
   };
 
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -186,10 +200,10 @@ const AddTodo = ({
             </div>
           </div>
 
-          {/* Due Date and Time */}
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="dueDate">Due Date *</label>
+          {/* Due Date with Quick Selection */}
+          <div className="form-group">
+            <label htmlFor="dueDate">Due Date *</label>
+            <div className="date-input-row">
               <input
                 id="dueDate"
                 type="date"
@@ -197,18 +211,24 @@ const AddTodo = ({
                 onChange={(e) => handleInputChange('dueDate', e.target.value)}
                 className={errors.dueDate ? 'error' : ''}
               />
-              {errors.dueDate && <span className="error-text">{errors.dueDate}</span>}
+              <div className="quick-date-buttons">
+                <button
+                  type="button"
+                  className={`quick-date-btn ${formData.dueDate === getToday() ? 'active' : ''}`}
+                  onClick={() => handleQuickDateSelect('today')}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  className={`quick-date-btn ${formData.dueDate === getTomorrow() ? 'active' : ''}`}
+                  onClick={() => handleQuickDateSelect('tomorrow')}
+                >
+                  Tomorrow
+                </button>
+              </div>
             </div>
-
-            <div className="form-group">
-              <label htmlFor="dueTime">Due Time</label>
-              <input
-                id="dueTime"
-                type="time"
-                value={formData.dueTime}
-                onChange={(e) => handleInputChange('dueTime', e.target.value)}
-              />
-            </div>
+            {errors.dueDate && <span className="error-text">{errors.dueDate}</span>}
           </div>
 
           {/* Advanced Options Toggle */}
