@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const AddFamilyNote = ({ onSubmit, onCancel, initialNote = null, userRole }) => {
+const AddFamilyNote = ({ onSubmit, onCancel, onDelete, initialNote = null, userRole }) => {
   const [content, setContent] = useState(initialNote?.content || '');
   const [priority, setPriority] = useState(initialNote?.priority || 'normal');
   const [category, setCategory] = useState(initialNote?.category || 'general');
@@ -34,6 +34,23 @@ const AddFamilyNote = ({ onSubmit, onCancel, initialNote = null, userRole }) => 
     }
   };
 
+  const handleDelete = async () => {
+    setIsSubmitting(true);
+    try {
+      if (onDelete) {
+        await onDelete(initialNote.id);
+      } else {
+        console.error('onDelete handler not provided');
+        alert('Delete functionality not available');
+      }
+    } catch (error) {
+      console.error('Error deleting note:', error);
+      alert('Failed to delete note. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const templates = [
     { text: "Today the kids are allowed to watch a film", category: "kids" },
     { text: "Late pickup today at 6 PM", category: "schedule" },
@@ -55,13 +72,6 @@ const AddFamilyNote = ({ onSubmit, onCancel, initialNote = null, userRole }) => 
           <h3 style={styles.title}>
             {isEditing ? 'Edit Note' : 'Add Family Note'}
           </h3>
-          <button 
-            style={styles.closeButton}
-            onClick={onCancel}
-            disabled={isSubmitting}
-          >
-            ✕
-          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="card-body">
@@ -130,24 +140,37 @@ const AddFamilyNote = ({ onSubmit, onCancel, initialNote = null, userRole }) => 
           </div>
 
           <div style={styles.actions}>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onCancel}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={!content.trim() || isSubmitting}
-            >
-              {isSubmitting 
-                ? (isEditing ? 'Updating...' : 'Adding...') 
-                : (isEditing ? 'Update Note' : 'Add Note')
-              }
-            </button>
+            {isEditing && (
+              <button
+                type="button"
+                style={styles.deleteButton}
+                className="delete-button"
+                onClick={handleDelete}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Deleting...' : 'Delete'}
+              </button>
+            )}
+            <div style={styles.rightActions}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={onCancel}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={!content.trim() || isSubmitting}
+              >
+                {isSubmitting 
+                  ? (isEditing ? 'Updating...' : 'Adding...') 
+                  : (isEditing ? 'Update Note' : 'Add Note')
+                }
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -166,7 +189,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1000,
+    zIndex: 99999,
     padding: 'var(--space-4)'
   },
   modal: {
@@ -240,9 +263,24 @@ const styles = {
   },
   actions: {
     display: 'flex',
-    gap: 'var(--space-3)',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginTop: 'var(--space-6)'
+  },
+  rightActions: {
+    display: 'flex',
+    gap: 'var(--space-3)'
+  },
+  deleteButton: {
+    background: 'none',
+    border: '1px solid #ef4444',
+    borderRadius: 'var(--radius-md)',
+    padding: 'var(--space-2) var(--space-4)',
+    fontSize: 'var(--font-size-sm)',
+    fontWeight: 'var(--font-weight-medium)',
+    color: '#ef4444',
+    cursor: 'pointer',
+    transition: 'var(--transition-fast)'
   }
 };
 
@@ -259,6 +297,11 @@ if (typeof document !== 'undefined') {
     .close-button:hover {
       background-color: var(--gray-100);
       color: var(--text-primary);
+    }
+    
+    .delete-button:hover {
+      background-color: #ef4444;
+      color: white;
     }
     
     @keyframes scaleIn {

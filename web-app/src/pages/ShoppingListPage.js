@@ -6,11 +6,12 @@ import { auth } from '../firebase';
 import { createShoppingList } from '../utils/familyUtils';
 import ShoppingList from '../components/Shopping/ShoppingList';
 import AddShoppingList from '../components/Shopping/AddShoppingList';
+import PaymentStatusCard from '../components/Shopping/PaymentStatusCard';
 import './ShoppingListPage.css';
 
 const ShoppingListPage = () => {
   const [currentUser, setCurrentUser] = useState(null);
-  const { familyData: family } = useFamily(currentUser?.uid);
+  const { familyData: family, userData } = useFamily(currentUser?.uid);
   const { shoppingLists, loading, error } = useShopping(family?.id);
   const [showAddList, setShowAddList] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -55,9 +56,22 @@ const ShoppingListPage = () => {
   };
 
   const activeLists = shoppingLists.filter(list => !list.isArchived && list.status !== 'paid-out');
-  const pendingApproval = shoppingLists.filter(list => 
-    list.status === 'needs-approval' || list.paymentStatus === 'approved'
-  );
+  
+  // Determine user role and filter lists accordingly
+  const userRole = userData?.role || (family?.parentUids?.includes(currentUser?.uid) ? 'parent' : 'aupair');
+  
+  // For parents: show pending approval lists
+  const pendingApproval = userRole === 'parent' 
+    ? shoppingLists.filter(list => list.status === 'needs-approval' || list.paymentStatus === 'approved')
+    : [];
+
+  // For au pairs: show payment tracking for receipts they uploaded
+  const paymentTracking = userRole === 'aupair' 
+    ? shoppingLists.filter(list => 
+        list.receiptUploadedBy === currentUser?.uid && 
+        (list.paymentStatus === 'pending' || list.paymentStatus === 'approved' || list.paymentStatus === 'paid-out' || list.paymentStatus === 'confirmed')
+      )
+    : [];
 
   if (loading) {
     return (
@@ -98,6 +112,24 @@ const ShoppingListPage = () => {
               familyId={family?.id}
               currentUser={currentUser}
               mode="approval"
+            />
+          ))}
+        </div>
+      )}
+
+      {paymentTracking.length > 0 && (
+        <div className="payment-tracking-section">
+          <h2>Payment Tracking</h2>
+          <p className="section-description">Track the approval and payment status of your shopping receipts</p>
+          {paymentTracking.map(list => (
+            <PaymentStatusCard 
+              key={list.id}
+              list={list}
+              familyId={family?.id}
+              currentUser={currentUser}
+              onUpdate={() => {
+                // Optional: trigger a refresh of the shopping lists
+              }}
             />
           ))}
         </div>

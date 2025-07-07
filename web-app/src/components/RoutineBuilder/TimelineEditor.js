@@ -1,10 +1,14 @@
 import { useState } from 'react';
-import { ACTIVITY_TYPES } from '../../utils/routineTemplates';
+import { ACTIVITY_TYPES, getAgeGroup } from '../../utils/routineTemplates';
 
 function TimelineEditor({ routine, onChange, childAge }) {
   const [selectedBlock, setSelectedBlock] = useState(null);
   const [isAddingNap, setIsAddingNap] = useState(false);
   const [isAddingActivity, setIsAddingActivity] = useState(false);
+  
+  // Determine if child is school age (6+ years) to hide nap functionality
+  const ageGroup = getAgeGroup(childAge);
+  const isSchoolAge = ageGroup === 'schoolAge' || ageGroup === 'teen';
 
   // Generate hourly timeline
   const generateTimeline = () => {
@@ -173,9 +177,11 @@ function TimelineEditor({ routine, onChange, childAge }) {
       <div style={styles.header}>
         <h3 style={styles.title}>Visual Timeline</h3>
         <div style={styles.actions}>
-          <button style={styles.addButton} onClick={() => setIsAddingNap(true)}>
-            + Add Nap
-          </button>
+          {!isSchoolAge && (
+            <button style={styles.addButton} onClick={() => setIsAddingNap(true)}>
+              + Add Nap
+            </button>
+          )}
           <button style={styles.addButton} onClick={() => setIsAddingActivity(true)}>
             + Add Activity
           </button>
@@ -218,7 +224,7 @@ function TimelineEditor({ routine, onChange, childAge }) {
                         onClick={() => setSelectedBlock(block)}
                       >
                         <span style={styles.blockLabel}>{block.label}</span>
-                        {(block.type === 'nap' || block.type === 'activity' || block.type === 'snack') && (
+                        {((block.type === 'nap' && !isSchoolAge) || block.type === 'activity' || block.type === 'snack') && (
                           <button
                             style={styles.removeBlockButton}
                             onClick={(e) => {
@@ -238,8 +244,8 @@ function TimelineEditor({ routine, onChange, childAge }) {
         </div>
       </div>
 
-      {/* Add Nap Modal */}
-      {isAddingNap && (
+      {/* Add Nap Modal - Only show for non-school age children */}
+      {isAddingNap && !isSchoolAge && (
         <div style={styles.modal}>
           <div style={styles.modalContent}>
             <h4 style={styles.modalTitle}>Add Nap Time</h4>

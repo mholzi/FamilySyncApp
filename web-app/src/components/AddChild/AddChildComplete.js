@@ -54,11 +54,15 @@ function AddChildComplete({ childData, onComplete }) {
           <div style={styles.childCard}>
             <div style={styles.childHeader}>
               <div style={styles.childAvatar}>
-                {childData.profilePictureUrl ? (
+                {childData.profilePictureUrl && !childData.profilePictureUrl.startsWith('blob:') ? (
                   <img 
                     src={childData.profilePictureUrl} 
                     alt={`${childData.name} profile`}
                     style={styles.childAvatarImage}
+                    onError={(e) => {
+                      console.log('Image failed to load:', e.target.src);
+                      e.target.style.display = 'none';
+                    }}
                   />
                 ) : (
                   childData.name ? childData.name.charAt(0).toUpperCase() : 'C'

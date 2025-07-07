@@ -1,8 +1,12 @@
 import { useState } from 'react';
-import { ACTIVITY_CATEGORIES } from '../../utils/routineTemplates';
+import { ACTIVITY_CATEGORIES, getAgeGroup } from '../../utils/routineTemplates';
 
 function ChildRoutineCard({ child }) {
   const [showFullSchedule, setShowFullSchedule] = useState(false);
+  
+  // Determine if child is school age to hide nap functionality
+  const ageGroup = getAgeGroup(child.dateOfBirth);
+  const isSchoolAge = ageGroup === 'schoolAge' || ageGroup === 'teen';
 
   // Get current time info
   const now = new Date();
@@ -50,16 +54,18 @@ function ChildRoutineCard({ child }) {
       });
     }
 
-    // Add naps
-    routine.napTimes?.forEach((nap, index) => {
-      events.push({
-        type: 'nap',
-        name: 'Nap Time',
-        time: nap.startTime,
-        duration: nap.duration,
-        icon: '😴'
+    // Add naps (only for non-school age children)
+    if (!isSchoolAge) {
+      routine.napTimes?.forEach((nap, index) => {
+        events.push({
+          type: 'nap',
+          name: 'Nap Time',
+          time: nap.startTime,
+          duration: nap.duration,
+          icon: '😴'
+        });
       });
-    });
+    }
 
     // Add bedtime
     if (routine.bedtime) {
@@ -138,7 +144,7 @@ function ChildRoutineCard({ child }) {
               <span style={styles.timeIcon}>🌅</span>
               <span style={styles.timeText}>{routine.wakeUpTime}</span>
             </div>
-            {routine.napTimes?.length > 0 && (
+            {!isSchoolAge && routine.napTimes?.length > 0 && (
               <div style={styles.timeBlock}>
                 <span style={styles.timeIcon}>😴</span>
                 <span style={styles.timeText}>
@@ -195,7 +201,7 @@ function ChildRoutineCard({ child }) {
                   </div>
                 )}
                 
-                {routine.napTimes?.map((nap, index) => (
+                {!isSchoolAge && routine.napTimes?.map((nap, index) => (
                   <div key={index} style={styles.timelineItem}>
                     <span style={styles.timelineTime}>{nap.startTime}</span>
                     <span style={styles.timelineIcon}>😴</span>

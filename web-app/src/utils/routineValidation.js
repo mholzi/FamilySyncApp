@@ -328,7 +328,8 @@ export class RoutineValidator {
     this.validateSleep();
     this.validateMeals();
     this.validateNaps();
-    this.validateFreePlay();
+    // Skip free play validation as requested
+    // this.validateFreePlay();
     this.validateConflicts();
 
     return {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { addShoppingItem, toggleShoppingItem } from '../../utils/familyUtils';
+import { addShoppingItem, toggleShoppingItem, markShoppingListCompleted } from '../../utils/familyUtils';
 import { getFamilyItems, createOrUpdateFamilyItem, updateItemFamiliarity, getItemIcon } from '../../utils/familyItemsUtils';
 import AddItemForm from './AddItemForm';
 import ItemDetailsModal from './ItemDetailsModal';
@@ -107,6 +107,15 @@ const ShoppingList = ({ list, familyId, currentUser, mode = 'active' }) => {
     }
   };
 
+  const handleCompleteShopping = async () => {
+    try {
+      await markShoppingListCompleted(familyId, list.id);
+    } catch (error) {
+      console.error('Error completing shopping list:', error);
+      alert('Failed to complete shopping list. Please try again.');
+    }
+  };
+
   const getItemDisplayIcon = (itemName) => {
     const familyItemKey = itemName.toLowerCase().replace(/\s+/g, '_');
     const familyItem = familyItems[familyItemKey];
@@ -121,6 +130,7 @@ const ShoppingList = ({ list, familyId, currentUser, mode = 'active' }) => {
 
   const items = list.items ? Object.values(list.items) : [];
   const completedItems = items.filter(item => item.isPurchased).length;
+  const allItemsCompleted = items.length > 0 && completedItems === items.length;
 
   if (mode === 'approval') {
     return (
@@ -155,8 +165,20 @@ const ShoppingList = ({ list, familyId, currentUser, mode = 'active' }) => {
           <h3>{list.name}</h3>
           {items.length > 0 && (
             <span className="progress">
-              {completedItems}/{items.length} items
+              {items.length - completedItems}/{items.length} items remaining
             </span>
+          )}
+          {list.supermarket && (
+            <div className="supermarket-info">
+              <span className="supermarket-logo">{list.supermarket.logo}</span>
+              <div className="supermarket-details">
+                <span className="supermarket-name">{list.supermarket.name}</span>
+                <span className="supermarket-address">{list.supermarket.location?.address}</span>
+                {list.supermarket.location?.phone && (
+                  <span className="supermarket-phone">📞 {list.supermarket.location.phone}</span>
+                )}
+              </div>
+            </div>
           )}
         </div>
         
@@ -167,6 +189,14 @@ const ShoppingList = ({ list, familyId, currentUser, mode = 'active' }) => {
               onClick={() => setShowReceipt(true)}
             >
               📄 Receipt
+            </button>
+          )}
+          {allItemsCompleted && list.status !== 'completed' && (
+            <button 
+              className="complete-shopping-btn"
+              onClick={handleCompleteShopping}
+            >
+              ✅ Complete Shopping
             </button>
           )}
         </div>

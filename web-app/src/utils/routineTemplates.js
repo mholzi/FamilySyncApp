@@ -23,7 +23,16 @@ export const ROUTINE_TEMPLATES = {
         { startTime: '07:30', duration: 60, activities: ['tummy_time', 'sensory'] },
         { startTime: '10:00', duration: 30, activities: ['interactive', 'music'] },
         { startTime: '14:00', duration: 30, activities: ['outdoor', 'exploration'] }
-      ]
+      ],
+      responsibilities: {
+        wakeUp: 'au_pair',
+        breakfast: 'au_pair',
+        lunch: 'au_pair',
+        dinner: 'shared',
+        snacks: 'au_pair',
+        naps: 'au_pair',
+        bedtime: 'parent'
+      }
     }
   },
   
@@ -48,7 +57,16 @@ export const ROUTINE_TEMPLATES = {
         { startTime: '09:00', duration: 90, activities: ['creative', 'educational'] },
         { startTime: '15:00', duration: 60, activities: ['outdoor', 'physical'] },
         { startTime: '16:30', duration: 30, activities: ['quiet', 'reading'] }
-      ]
+      ],
+      responsibilities: {
+        wakeUp: 'au_pair',
+        breakfast: 'au_pair',
+        lunch: 'au_pair',
+        dinner: 'shared',
+        snacks: 'au_pair',
+        naps: 'au_pair',
+        bedtime: 'parent'
+      }
     }
   },
   
@@ -73,7 +91,16 @@ export const ROUTINE_TEMPLATES = {
         { startTime: '08:30', duration: 90, activities: ['educational', 'creative'] },
         { startTime: '14:30', duration: 90, activities: ['outdoor', 'social'] },
         { startTime: '16:30', duration: 60, activities: ['free_choice'] }
-      ]
+      ],
+      responsibilities: {
+        wakeUp: 'au_pair',
+        breakfast: 'au_pair',
+        lunch: 'au_pair',
+        dinner: 'shared',
+        snacks: 'au_pair',
+        naps: 'au_pair',
+        bedtime: 'parent'
+      }
     }
   },
   
@@ -97,7 +124,16 @@ export const ROUTINE_TEMPLATES = {
         { startTime: '16:00', duration: 60, activities: ['homework', 'study'] },
         { startTime: '17:00', duration: 60, activities: ['outdoor', 'sports'] },
         { startTime: '19:30', duration: 60, activities: ['free_time', 'hobbies'] }
-      ]
+      ],
+      responsibilities: {
+        wakeUp: 'shared',
+        breakfast: 'au_pair',
+        lunch: 'parent',
+        dinner: 'shared',
+        snacks: 'au_pair',
+        naps: 'parent',
+        bedtime: 'parent'
+      }
     }
   }
 };

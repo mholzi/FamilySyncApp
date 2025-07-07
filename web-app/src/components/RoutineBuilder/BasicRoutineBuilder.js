@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
-import { ROUTINE_TEMPLATES, getTemplateByAge } from '../../utils/routineTemplates';
+import { ROUTINE_TEMPLATES, getTemplateByAge, getAgeGroup } from '../../utils/routineTemplates';
 import { validateRoutine } from '../../utils/routineValidation';
 
 function BasicRoutineBuilder({ childData, initialRoutine, onSave, onCancel }) {
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Determine if child is school age to hide nap functionality and templates
+  const ageGroup = getAgeGroup(childData?.dateOfBirth);
+  const isSchoolAge = ageGroup === 'schoolAge' || ageGroup === 'teen';
   // Migrate routine data to handle legacy format
   const migrateRoutineData = (routineData) => {
     if (!routineData) {
@@ -16,7 +20,16 @@ function BasicRoutineBuilder({ childData, initialRoutine, onSave, onCancel }) {
           dinner: '17:30',
           snacks: []
         },
-        napTimes: []
+        napTimes: [],
+        responsibilities: {
+          wakeUp: 'au_pair',
+          breakfast: 'au_pair',
+          lunch: 'au_pair',
+          dinner: 'shared',
+          snacks: 'au_pair',
+          naps: 'au_pair',
+          bedtime: 'parent'
+        }
       };
     }
 
@@ -41,6 +54,19 @@ function BasicRoutineBuilder({ childData, initialRoutine, onSave, onCancel }) {
     // Ensure napTimes is an array
     if (!Array.isArray(migratedData.napTimes)) {
       migratedData.napTimes = [];
+    }
+
+    // Ensure responsibilities object exists with defaults
+    if (!migratedData.responsibilities) {
+      migratedData.responsibilities = {
+        wakeUp: 'au_pair',
+        breakfast: 'au_pair',
+        lunch: 'au_pair',
+        dinner: 'shared',
+        snacks: 'au_pair',
+        naps: 'au_pair',
+        bedtime: 'parent'
+      };
     }
 
     return migratedData;
@@ -84,6 +110,16 @@ function BasicRoutineBuilder({ childData, initialRoutine, onSave, onCancel }) {
       mealTimes: {
         ...prev.mealTimes,
         [meal]: time
+      }
+    }));
+  };
+
+  const updateResponsibility = (activity, responsibility) => {
+    setRoutine(prev => ({
+      ...prev,
+      responsibilities: {
+        ...prev.responsibilities,
+        [activity]: responsibility
       }
     }));
   };
@@ -182,6 +218,45 @@ function BasicRoutineBuilder({ childData, initialRoutine, onSave, onCancel }) {
     setRoutine(migrateRoutineData(template.dailyRoutine));
   };
 
+  // Responsibility selector component
+  const ResponsibilitySelector = ({ activity, currentValue, label }) => (
+    <div style={styles.responsibilitySelector}>
+      <label style={styles.responsibilityLabel}>{label}</label>
+      <div style={styles.responsibilityOptions}>
+        <button
+          type="button"
+          style={{
+            ...styles.responsibilityOption,
+            ...(currentValue === 'au_pair' ? styles.responsibilitySelected : {})
+          }}
+          onClick={() => updateResponsibility(activity, 'au_pair')}
+        >
+          👤 Au Pair
+        </button>
+        <button
+          type="button"
+          style={{
+            ...styles.responsibilityOption,
+            ...(currentValue === 'shared' ? styles.responsibilitySelected : {})
+          }}
+          onClick={() => updateResponsibility(activity, 'shared')}
+        >
+          🤝 Shared
+        </button>
+        <button
+          type="button"
+          style={{
+            ...styles.responsibilityOption,
+            ...(currentValue === 'parent' ? styles.responsibilitySelected : {})
+          }}
+          onClick={() => updateResponsibility(activity, 'parent')}
+        >
+          👨‍👩‍👧‍👦 Parent
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -191,21 +266,23 @@ function BasicRoutineBuilder({ childData, initialRoutine, onSave, onCancel }) {
         </p>
       </div>
 
-      {/* Template Selector */}
-      <div style={styles.section}>
-        <h3 style={styles.sectionTitle}>Quick Start Templates</h3>
-        <div style={styles.templateButtons}>
-          {Object.values(ROUTINE_TEMPLATES).map(template => (
-            <button
-              key={template.id}
-              style={styles.templateButton}
-              onClick={() => loadTemplate(template)}
-            >
-              {template.name}
-            </button>
-          ))}
+      {/* Template Selector - Only show for non-school age children */}
+      {!isSchoolAge && (
+        <div style={styles.section}>
+          <h3 style={styles.sectionTitle}>Quick Start Templates</h3>
+          <div style={styles.templateButtons}>
+            {Object.values(ROUTINE_TEMPLATES).map(template => (
+              <button
+                key={template.id}
+                style={styles.templateButton}
+                onClick={() => loadTemplate(template)}
+              >
+                {template.name}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Basic Times */}
       <div style={styles.section}>
@@ -219,6 +296,11 @@ function BasicRoutineBuilder({ childData, initialRoutine, onSave, onCancel }) {
               onChange={(e) => updateRoutineField('wakeUpTime', e.target.value)}
               style={styles.input}
             />
+            <ResponsibilitySelector 
+              activity="wakeUp" 
+              currentValue={routine.responsibilities.wakeUp} 
+              label="Who handles wake up?"
+            />
           </div>
           <div style={styles.timeInput}>
             <label style={styles.label}>🌙 Bedtime</label>
@@ -227,6 +309,11 @@ function BasicRoutineBuilder({ childData, initialRoutine, onSave, onCancel }) {
               value={routine.bedtime}
               onChange={(e) => updateRoutineField('bedtime', e.target.value)}
               style={styles.input}
+            />
+            <ResponsibilitySelector 
+              activity="bedtime" 
+              currentValue={routine.responsibilities.bedtime} 
+              label="Who handles bedtime?"
             />
           </div>
         </div>
@@ -244,6 +331,11 @@ function BasicRoutineBuilder({ childData, initialRoutine, onSave, onCancel }) {
               onChange={(e) => updateMealTime('breakfast', e.target.value)}
               style={styles.input}
             />
+            <ResponsibilitySelector 
+              activity="breakfast" 
+              currentValue={routine.responsibilities.breakfast} 
+              label="Who prepares breakfast?"
+            />
           </div>
           <div style={styles.mealInput}>
             <label style={styles.label}>🍽️ Dinner</label>
@@ -252,6 +344,11 @@ function BasicRoutineBuilder({ childData, initialRoutine, onSave, onCancel }) {
               value={routine.mealTimes.dinner}
               onChange={(e) => updateMealTime('dinner', e.target.value)}
               style={styles.input}
+            />
+            <ResponsibilitySelector 
+              activity="dinner" 
+              currentValue={routine.responsibilities.dinner} 
+              label="Who prepares dinner?"
             />
           </div>
         </div>
@@ -288,6 +385,12 @@ function BasicRoutineBuilder({ childData, initialRoutine, onSave, onCancel }) {
               <p style={styles.emptyText}>No lunch times set (meals at school)</p>
             )}
           </div>
+          
+          <ResponsibilitySelector 
+            activity="lunch" 
+            currentValue={routine.responsibilities.lunch} 
+            label="Who handles home lunches?"
+          />
         </div>
 
         {/* Snacks */}
@@ -321,70 +424,84 @@ function BasicRoutineBuilder({ childData, initialRoutine, onSave, onCancel }) {
               <p style={styles.emptyText}>No snack times set</p>
             )}
           </div>
+          
+          <ResponsibilitySelector 
+            activity="snacks" 
+            currentValue={routine.responsibilities.snacks} 
+            label="Who prepares snacks?"
+          />
         </div>
       </div>
 
-      {/* Nap Times */}
-      <div style={styles.section}>
-        <h3 style={styles.sectionTitle}>😴 Nap Times</h3>
-        
-        <div style={styles.addItemRow}>
-          <input
-            type="time"
-            value={newNap.startTime}
-            onChange={(e) => setNewNap(prev => ({ ...prev, startTime: e.target.value }))}
-            style={styles.input}
-            placeholder="Start time"
-          />
-          <input
-            type="number"
-            value={newNap.duration}
-            onChange={(e) => setNewNap(prev => ({ ...prev, duration: parseInt(e.target.value) || 0 }))}
-            style={styles.input}
-            placeholder="Duration (minutes)"
-            min="15"
-            max="240"
-          />
-          <button style={styles.addButton} onClick={addNap}>
-            Add Nap
-          </button>
-        </div>
+      {/* Nap Times - Only show for non-school age children */}
+      {!isSchoolAge && (
+        <div style={styles.section}>
+          <h3 style={styles.sectionTitle}>😴 Nap Times</h3>
+          
+          <div style={styles.addItemRow}>
+            <input
+              type="time"
+              value={newNap.startTime}
+              onChange={(e) => setNewNap(prev => ({ ...prev, startTime: e.target.value }))}
+              style={styles.input}
+              placeholder="Start time"
+            />
+            <input
+              type="number"
+              value={newNap.duration}
+              onChange={(e) => setNewNap(prev => ({ ...prev, duration: parseInt(e.target.value) || 0 }))}
+              style={styles.input}
+              placeholder="Duration (minutes)"
+              min="15"
+              max="240"
+            />
+            <button style={styles.addButton} onClick={addNap}>
+              Add Nap
+            </button>
+          </div>
 
-        <div style={styles.itemsList}>
-          {routine.napTimes.map((nap, index) => (
-            <div key={index} style={styles.napItem}>
-              <div style={styles.napDetails}>
-                <input
-                  type="time"
-                  value={nap.startTime}
-                  onChange={(e) => updateNap(index, 'startTime', e.target.value)}
-                  style={styles.smallInput}
-                />
-                <span style={styles.napDuration}>
+          <div style={styles.itemsList}>
+            {routine.napTimes.map((nap, index) => (
+              <div key={index} style={styles.napItem}>
+                <div style={styles.napDetails}>
                   <input
-                    type="number"
-                    value={nap.duration}
-                    onChange={(e) => updateNap(index, 'duration', parseInt(e.target.value) || 0)}
+                    type="time"
+                    value={nap.startTime}
+                    onChange={(e) => updateNap(index, 'startTime', e.target.value)}
                     style={styles.smallInput}
-                    min="15"
-                    max="240"
                   />
-                  minutes
-                </span>
+                  <span style={styles.napDuration}>
+                    <input
+                      type="number"
+                      value={nap.duration}
+                      onChange={(e) => updateNap(index, 'duration', parseInt(e.target.value) || 0)}
+                      style={styles.smallInput}
+                      min="15"
+                      max="240"
+                    />
+                    minutes
+                  </span>
+                </div>
+                <button 
+                  style={styles.removeButton}
+                  onClick={() => removeNap(index)}
+                >
+                  Remove
+                </button>
               </div>
-              <button 
-                style={styles.removeButton}
-                onClick={() => removeNap(index)}
-              >
-                Remove
-              </button>
-            </div>
-          ))}
-          {routine.napTimes.length === 0 && (
-            <p style={styles.emptyText}>No nap times set</p>
-          )}
+            ))}
+            {routine.napTimes.length === 0 && (
+              <p style={styles.emptyText}>No nap times set</p>
+            )}
+          </div>
+          
+          <ResponsibilitySelector 
+            activity="naps" 
+            currentValue={routine.responsibilities.naps} 
+            label="Who handles nap time?"
+          />
         </div>
-      </div>
+      )}
 
       {/* Validation Display */}
       {validation && (validation.errors.length > 0 || validation.warnings.length > 0) && (
@@ -715,6 +832,41 @@ const styles = {
   },
   saveSpinner: {
     animation: 'pulse 1.5s infinite'
+  },
+  responsibilitySelector: {
+    marginTop: '12px',
+    padding: '12px',
+    backgroundColor: '#F8F9FA',
+    borderRadius: '8px',
+    border: '1px solid #E5E7EB'
+  },
+  responsibilityLabel: {
+    fontSize: '14px',
+    color: '#666',
+    fontWeight: '500',
+    marginBottom: '8px',
+    display: 'block'
+  },
+  responsibilityOptions: {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap'
+  },
+  responsibilityOption: {
+    padding: '6px 12px',
+    borderRadius: '6px',
+    border: '1px solid #E5E7EB',
+    backgroundColor: 'white',
+    fontSize: '12px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    color: '#666'
+  },
+  responsibilitySelected: {
+    backgroundColor: '#007AFF',
+    color: 'white',
+    borderColor: '#007AFF'
   }
 };
 

@@ -4,8 +4,9 @@ import { doc, setDoc, updateDoc, getDoc } from 'firebase/firestore';
 import { COMMON_ALLERGIES, COMMON_MEDICATIONS, filterSuggestions } from '../../utils/dashboardStates';
 import BasicRoutineBuilder from '../RoutineBuilder/BasicRoutineBuilder';
 import AddChildSchoolSchedule from './AddChildSchoolSchedule';
+import RecurringActivitiesManager from '../Activities/RecurringActivitiesManager';
 
-function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip }) {
+function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCancel, isEditing = false }) {
   const [formData, setFormData] = useState({
     // Essential care info
     allergies: childData.allergies || [],
@@ -31,6 +32,7 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip }) {
   const [expandedSections, setExpandedSections] = useState({
     routine: false,
     schoolSchedule: false,
+    recurringActivities: false,
     emergencyContacts: false
   });
 
@@ -47,8 +49,9 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip }) {
 
   const [showRoutineBuilder, setShowRoutineBuilder] = useState(false);
   const [showSchoolScheduleBuilder, setShowSchoolScheduleBuilder] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [showRecurringActivitiesManager, setShowRecurringActivitiesManager] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null); // 'saving', 'saved', 'error'
+  const [isSaving, setIsSaving] = useState(false);
   const [isLoadingDraft, setIsLoadingDraft] = useState(true);
 
   // Update form data when childData changes (for editing mode)
@@ -363,7 +366,14 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip }) {
       }
     };
     console.log('Saving streamlined care data:', completeData);
-    onNext(completeData);
+    
+    if (isEditing && onCancel) {
+      // In edit mode, call onCancel to close the modal after saving
+      onCancel();
+    } else {
+      // In add mode, continue to next step
+      onNext(completeData);
+    }
   };
 
   const handleSkipStep = () => {
@@ -568,6 +578,16 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip }) {
         }}
         onNext={handleSchoolScheduleSave}
         onBack={() => setShowSchoolScheduleBuilder(false)}
+      />
+    );
+  }
+
+  // Show recurring activities manager if active
+  if (showRecurringActivitiesManager) {
+    return (
+      <RecurringActivitiesManagerWrapper
+        childData={childData}
+        onClose={() => setShowRecurringActivitiesManager(false)}
       />
     );
   }
@@ -861,6 +881,41 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip }) {
               )}
             </div>
 
+            {/* Recurring Activities Section */}
+            <div style={styles.expandableCard}>
+              <button 
+                style={styles.expandHeader}
+                onClick={() => toggleSection('recurringActivities')}
+              >
+                <div style={styles.expandInfo}>
+                  <span style={styles.expandTitle}>
+                    🏃 Recurring Activities
+                  </span>
+                  <span style={styles.expandSubtitle}>
+                    Manage sports, lessons, and regular appointments
+                  </span>
+                </div>
+                <span style={styles.expandIcon}>
+                  {expandedSections.recurringActivities ? '▼' : '▶'}
+                </span>
+              </button>
+              
+              {expandedSections.recurringActivities && (
+                <div style={styles.expandContent}>
+                  <p style={styles.expandDescription}>
+                    Set up recurring activities like sports practice, music lessons, or therapy appointments. 
+                    These will appear in your family calendar and upcoming events.
+                  </p>
+                  <button
+                    style={styles.actionButton}
+                    onClick={() => setShowRecurringActivitiesManager(true)}
+                  >
+                    Manage Activities
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Emergency Contacts Section */}
             <div style={styles.expandableCard}>
               <button 
@@ -914,12 +969,27 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip }) {
       </div>
 
       <div style={styles.buttonSection}>
-        <button style={styles.skipButton} onClick={handleSkipStep}>
-          Skip for Now
-        </button>
-        <button style={styles.continueButton} onClick={handleSave}>
-          Continue
-        </button>
+        {isEditing ? (
+          // Edit mode: Show Cancel and Save
+          <>
+            <button style={styles.skipButton} onClick={onCancel}>
+              Cancel
+            </button>
+            <button style={styles.continueButton} onClick={handleSave}>
+              Save Changes
+            </button>
+          </>
+        ) : (
+          // Add mode: Show Skip for Now and Continue
+          <>
+            <button style={styles.skipButton} onClick={handleSkipStep}>
+              Skip for Now
+            </button>
+            <button style={styles.continueButton} onClick={handleSave}>
+              Continue
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -1415,14 +1485,15 @@ const styles = {
   
   buttonSection: {
     position: 'fixed',
-    bottom: 0,
+    bottom: '70px', // Add space for bottom navigation
     left: 0,
     right: 0,
     padding: '20px',
     backgroundColor: 'white',
     borderTop: '1px solid #E5E5EA',
     display: 'flex',
-    gap: '15px'
+    gap: '15px',
+    zIndex: 100 // Ensure it appears above other elements
   },
   
   skipButton: {
@@ -1483,5 +1554,87 @@ if (typeof document !== 'undefined') {
     document.head.appendChild(style);
   }
 }
+
+// Wrapper component to handle familyId and children fetching for RecurringActivitiesManager
+const RecurringActivitiesManagerWrapper = ({ childData, onClose }) => {
+  const [familyId, setFamilyId] = useState(null);
+  const [children, setChildren] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFamilyData = async () => {
+      try {
+        // Try to get familyId from childData first
+        let currentFamilyId = childData.familyId;
+        
+        // If not available, fetch from user document
+        if (!currentFamilyId && auth.currentUser) {
+          const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+          if (userDoc.exists()) {
+            currentFamilyId = userDoc.data().familyId;
+          }
+        }
+
+        if (currentFamilyId) {
+          setFamilyId(currentFamilyId);
+          
+          // For now, just use the current child data
+          // In a full implementation, you might want to fetch all family children
+          setChildren([childData]);
+        }
+      } catch (error) {
+        console.error('Error fetching family data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFamilyData();
+  }, [childData]);
+
+  if (loading) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.header}>
+          <button style={styles.backButton} onClick={onClose}>←</button>
+          <h1 style={styles.title}>Loading...</h1>
+        </div>
+        <div style={styles.content}>
+          <div style={styles.loadingState}>
+            <div style={styles.loadingIcon}>🏃</div>
+            <h2 style={styles.loadingTitle}>Loading activities...</h2>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!familyId) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.header}>
+          <button style={styles.backButton} onClick={onClose}>←</button>
+          <h1 style={styles.title}>Error</h1>
+        </div>
+        <div style={styles.content}>
+          <div style={styles.loadingState}>
+            <div style={styles.loadingIcon}>⚠️</div>
+            <h2 style={styles.loadingTitle}>Unable to load family data</h2>
+            <p style={styles.loadingText}>Please try again later</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <RecurringActivitiesManager
+      familyId={familyId}
+      children={children}
+      userRole="parent"
+      onClose={onClose}
+    />
+  );
+};
 
 export default AddChildCareInfoStreamlined;

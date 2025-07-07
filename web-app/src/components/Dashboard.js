@@ -3,7 +3,6 @@ import { useFamily } from '../hooks/useFamily';
 import { useTasks } from '../hooks/useTasks';
 import { useCalendar } from '../hooks/useCalendar';
 import { useShopping } from '../hooks/useShopping';
-import TodoList from './HouseholdTodos/TodoList';
 import SimpleTodoCard from './HouseholdTodos/SimpleTodoCard';
 import AddTodo from './HouseholdTodos/AddTodo';
 import { getTodaysHouseholdTodos, autoResetCompletedTasks } from '../utils/householdTodosUtils';
@@ -22,6 +21,10 @@ import ProfilePage from './Profile/ProfilePage';
 import BottomNavigation from './BottomNavigation';
 import FamilyNotesList from './Notes/FamilyNotesList';
 import EnhancedChildCard from './Children/EnhancedChildCard';
+import UpcomingEventsForMe from './Dashboard/UpcomingEventsForMe';
+import RecurringActivitiesManager from './Activities/RecurringActivitiesManager';
+import TimeOffRequest from './Requests/TimeOffRequest';
+import RequestsList from './Requests/RequestsList';
 
 function Dashboard({ user }) {
   // Use custom hooks to fetch data
@@ -30,7 +33,7 @@ function Dashboard({ user }) {
   const { events, loading: eventsLoading } = useCalendar(userData?.familyId, user.uid);
   const { shoppingLists, loading: shoppingLoading } = useShopping(userData?.familyId);
 
-  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard', 'add_child', 'edit_child', 'welcome', 'smart_calendar', 'profile'
+  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard', 'add_child', 'edit_child', 'welcome', 'smart_calendar', 'profile', 'activities'
   const [isAddingChild, setIsAddingChild] = useState(false);
   const [editingChild, setEditingChild] = useState(null);
   const [isSavingChild, setIsSavingChild] = useState(false);
@@ -39,6 +42,7 @@ function Dashboard({ user }) {
   const [editingTodo, setEditingTodo] = useState(null);
   const [showInvitePopup, setShowInvitePopup] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
+  const [showTimeOffRequest, setShowTimeOffRequest] = useState(false);
   
   // State for household todos
   const [householdTodos, setHouseholdTodos] = useState([]);
@@ -93,6 +97,40 @@ function Dashboard({ user }) {
   const pendingApprovalCount = userRole === 'parent' 
     ? shoppingLists.filter(list => list.status === 'needs-approval' || list.paymentStatus === 'approved').length 
     : 0;
+
+  // Helper function to get au pair ID
+  const getAuPairId = (familyData) => {
+    console.log('Getting au pair ID from familyData:', familyData);
+    console.log('All familyData keys:', Object.keys(familyData || {}));
+    
+    // Try auPairUids first
+    if (familyData?.auPairUids && familyData.auPairUids.length > 0) {
+      console.log('Found auPairUids:', familyData.auPairUids);
+      return familyData.auPairUids[0];
+    }
+    
+    // Try memberUids and filter out parentUids
+    if (familyData?.memberUids && familyData?.parentUids) {
+      const auPairIds = familyData.memberUids.filter(uid => !familyData.parentUids.includes(uid));
+      console.log('Found au pair IDs from memberUids:', auPairIds);
+      if (auPairIds.length > 0) {
+        return auPairIds[0];
+      }
+    }
+    
+    // Try checking if current non-parent user is au pair
+    if (familyData && user && !familyData?.parentUids?.includes(user.uid)) {
+      console.log('Current user might be au pair or au pair exists:', user.uid);
+      // Check if there are any users other than parents
+      if (familyData.memberUids && familyData.memberUids.length > (familyData.parentUids?.length || 0)) {
+        console.log('Found additional members (likely au pair)');
+        return familyData.memberUids.find(uid => !familyData.parentUids?.includes(uid));
+      }
+    }
+    
+    console.log('No au pair ID found - showing invite message');
+    return null;
+  };
   
 
   const handleProfileNavigation = (action) => {
@@ -122,16 +160,6 @@ function Dashboard({ user }) {
     }
   };
 
-  const handleTaskToggle = async (taskId, currentStatus) => {
-    if (!userData?.familyId) return;
-    
-    const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
-    try {
-      await updateTaskStatus(userData.familyId, taskId, newStatus, user.uid);
-    } catch (error) {
-      console.error('Error updating task:', error);
-    }
-  };
 
   const handleAddChild = () => {
     setCurrentView('add_child');
@@ -383,10 +411,6 @@ function Dashboard({ user }) {
     setEditingTodo(null);
   };
 
-  const handleEditTodo = (todo) => {
-    setEditingTodo(todo);
-    setShowAddTodo(true);
-  };
 
   const handleCloseTodo = () => {
     setShowAddTodo(false);
@@ -398,11 +422,7 @@ function Dashboard({ user }) {
     console.log('Todo saved successfully');
   };
 
-  // Helper function to get user initials
-  const getUserInitials = (name) => {
-    if (!name) return 'U';
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  };
+
 
   // Helper function to format time
   const formatTime = (date) => {
@@ -514,6 +534,25 @@ function Dashboard({ user }) {
     );
   }
 
+  // Show recurring activities management
+  if (currentView === 'activities') {
+    return (
+      <div style={styles.appContainer}>
+        <RecurringActivitiesManager
+          familyId={userData?.familyId}
+          children={children}
+          userRole={userRole}
+          onClose={() => setCurrentView('dashboard')}
+        />
+        <BottomNavigation 
+          currentView={currentView} 
+          onNavigate={setCurrentView} 
+          pendingApprovalCount={pendingApprovalCount}
+        />
+      </div>
+    );
+  }
+
   return (
     <div style={styles.container}>
       {/* Header */}
@@ -599,80 +638,82 @@ function Dashboard({ user }) {
                 <EnhancedChildCard
                   key={child.id}
                   child={child}
-                  upcomingEvents={events}
                   onEditChild={handleEditChild}
+                  userRole={userRole}
                 />
               ))
             )}
           </div>
         </section>
 
-        {/* Upcoming Events */}
+        {/* Recurring Activities Management - Only for Parents */}
+        {userRole === 'parent' && (
+          <section style={styles.section}>
+            <div style={styles.sectionHeader}>
+              <h2 style={styles.sectionTitle}>Recurring Activities</h2>
+              <button 
+                style={styles.headerButton} 
+                onClick={() => setCurrentView('activities')}
+              >
+                Manage Activities
+              </button>
+            </div>
+            <div style={styles.activitiesPreview}>
+              <p style={styles.activitiesDescription}>
+                Set up regular schedules for sports, lessons, appointments, and other recurring activities. 
+                Your au pair will see these in their upcoming events.
+              </p>
+              <div style={styles.activitiesFeatures}>
+                <div style={styles.featureItem}>
+                  <span style={styles.featureIcon}>📅</span>
+                  <span>Weekly & custom schedules</span>
+                </div>
+                <div style={styles.featureItem}>
+                  <span style={styles.featureIcon}>📍</span>
+                  <span>Locations & contact info</span>
+                </div>
+                <div style={styles.featureItem}>
+                  <span style={styles.featureIcon}>🎒</span>
+                  <span>Required items & preparation</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Time-Off Requests Section */}
         <section style={styles.section}>
           <div style={styles.sectionHeader}>
-            <h2 style={styles.sectionTitle}>Upcoming Events for Me</h2>
-          </div>
-          <div style={styles.eventsContainer}>
-            {events.length === 0 ? (
-              <div style={styles.emptyState}>
-                {children.length === 0 ? (
-                  <p>No upcoming events</p>
-                ) : (
-                  <>
-                    <p>📅 No events yet</p>
-                    <p style={styles.emptyStateSubtext}>
-                      Add {children[0].name}'s school pickup, activities?
-                    </p>
-                    <button style={styles.emptyStateButton}>Add Event +</button>
-                  </>
-                )}
-              </div>
-            ) : (
-              events.map((event) => {
-                // Choose color based on category
-                const getEventColor = (category) => {
-                  switch (category) {
-                    case 'work':
-                    case 'family': return '#FF9500';
-                    case 'personal': return '#FF3B30';
-                    case 'childcare': return '#34C759';
-                    default: return '#007AFF';
-                  }
-                };
-
-                return (
-                  <div 
-                    key={event.id} 
-                    style={{
-                      ...styles.eventCard, 
-                      backgroundColor: event.color || getEventColor(event.category)
-                    }}
-                  >
-                    <div style={styles.eventText}>
-                      {event.title}
-                      {event.category && (
-                        <>
-                          <br/>
-                          <span style={{fontSize: '12px', opacity: 0.8}}>
-                            {event.category}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                    <div style={styles.eventTime}>
-                      {event.startTime ? formatTime(event.startTime) : ''}
-                      {event.endTime && (
-                        <>
-                          <br/>
-                          {formatTime(event.endTime)}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
+            <h2 style={styles.sectionTitle}>
+              {userRole === 'parent' ? 'Babysitting & Time-Off' : 'Babysitting'}
+            </h2>
+            {userRole === 'parent' && (
+              <button 
+                style={styles.headerButton} 
+                onClick={() => setShowTimeOffRequest(true)}
+              >
+                + New Request
+              </button>
             )}
           </div>
+          <RequestsList
+            familyId={userData?.familyId}
+            userId={user.uid}
+            userRole={userRole}
+            children={children}
+            familyData={familyData}
+          />
+        </section>
+
+        {/* Upcoming Events for Me */}
+        <section style={styles.section}>
+          <UpcomingEventsForMe 
+            children={children}
+            userRole={userRole}
+            activities={events}
+            familyId={userData?.familyId}
+            maxEvents={5}
+          />
         </section>
 
         {/* Bottom Section */}
@@ -682,6 +723,8 @@ function Dashboard({ user }) {
               familyId={userData?.familyId}
               userId={user.uid}
               userRole={userRole}
+              userData={userData}
+              familyData={familyData}
               maxDisplayed={3}
             />
           </div>
@@ -773,7 +816,7 @@ function Dashboard({ user }) {
                       >
                         <div style={styles.listHeader}>
                           <span style={styles.listName}>{list.name}</span>
-                          {list.status === 'needs-approval' && (
+                          {list.status === 'needs-approval' && userRole === 'parent' && (
                             <span style={styles.approvalBadge}>Needs Approval</span>
                           )}
                         </div>
@@ -791,8 +834,10 @@ function Dashboard({ user }) {
             </div>
           </div>
         </div>
-        {/* Au Pair Invitation Reminder */}
-        {children.length > 0 && (
+        {/* Au Pair Invitation Reminder - Only show if no au pair is linked and user is parent */}
+        {children.length > 0 && 
+         userRole === 'parent' && 
+         !getAuPairId(familyData) && (
           <div style={styles.reminderCard}>
             <span style={styles.reminderIcon}>👥</span>
             <span style={styles.reminderText}>Still need to invite your Au Pair?</span>
@@ -880,6 +925,17 @@ function Dashboard({ user }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Time-Off Request Modal */}
+      {showTimeOffRequest && (
+        <TimeOffRequest
+          familyId={userData?.familyId}
+          currentUser={user}
+          children={children}
+          auPairId={getAuPairId(familyData)} // Get au pair ID using helper
+          onClose={() => setShowTimeOffRequest(false)}
+        />
       )}
     </div>
   );
@@ -1557,6 +1613,37 @@ const styles = {
     fontSize: 'var(--font-size-sm)',
     color: '#92400e',
     lineHeight: 'var(--line-height-relaxed)'
+  },
+
+  // Activities Preview Styles
+  activitiesPreview: {
+    backgroundColor: 'var(--white)',
+    borderRadius: 'var(--radius-lg)',
+    padding: 'var(--space-4)',
+    border: '1px solid var(--border-light)'
+  },
+  activitiesDescription: {
+    fontSize: 'var(--font-size-sm)',
+    color: 'var(--text-secondary)',
+    lineHeight: 'var(--line-height-relaxed)',
+    margin: '0 0 var(--space-4) 0'
+  },
+  activitiesFeatures: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: 'var(--space-3)'
+  },
+  featureItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 'var(--space-2)',
+    fontSize: 'var(--font-size-sm)',
+    color: 'var(--text-primary)'
+  },
+  featureIcon: {
+    fontSize: 'var(--font-size-lg)',
+    width: '24px',
+    textAlign: 'center'
   }
 };
 

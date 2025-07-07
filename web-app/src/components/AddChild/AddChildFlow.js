@@ -191,6 +191,8 @@ function AddChildFlow({ user, familyId, existingChildren = [], editingChild = nu
             onNext={handleNext}
             onBack={handleBack}
             onSkip={handleSkip}
+            onCancel={onCancel}
+            isEditing={!!editingChild}
           />
         );
       case 2:

@@ -26,7 +26,6 @@ function AddChildBasicInfo({ initialData, existingChildren = [], onNext, onCance
   
   // Save state management
   const [saveStatus, setSaveStatus] = useState(null); // 'saving', 'saved', 'error'
-  const [lastSaved, setLastSaved] = useState(null);
 
   // Update form data when initialData changes (for editing mode)
   useEffect(() => {
@@ -108,7 +107,7 @@ function AddChildBasicInfo({ initialData, existingChildren = [], onNext, onCance
       }
       
       setSaveStatus('saved');
-      setLastSaved(new Date());
+      // setLastSaved(new Date()); // Commented out - not used
       
       // Clear status after 2 seconds
       setTimeout(() => setSaveStatus(null), 2000);
@@ -620,11 +619,15 @@ function AddChildBasicInfo({ initialData, existingChildren = [], onNext, onCance
                       <div style={styles.uploadProgressText}>{Math.round(uploadProgress)}%</div>
                     </div>
                   </div>
-                ) : formData.profilePictureUrl ? (
+                ) : formData.profilePictureUrl && !formData.profilePictureUrl.startsWith('blob:') ? (
                   <img 
                     src={formData.profilePictureUrl} 
                     alt="Child preview" 
                     style={styles.photoPreviewSmall}
+                    onError={(e) => {
+                      console.log('Image failed to load:', e.target.src);
+                      setFormData(prev => ({ ...prev, profilePictureUrl: null }));
+                    }}
                   />
                 ) : (
                   <div style={styles.photoPlaceholderSmall}>
@@ -1010,14 +1013,15 @@ const styles = {
   },
   buttonSection: {
     position: 'fixed',
-    bottom: 0,
+    bottom: '70px', // Add space for bottom navigation
     left: 0,
     right: 0,
     padding: '20px',
     backgroundColor: 'white',
     borderTop: '1px solid #E5E5EA',
     display: 'flex',
-    gap: '15px'
+    gap: '15px',
+    zIndex: 100 // Ensure it appears above other elements
   },
   skipButton: {
     flex: 1,

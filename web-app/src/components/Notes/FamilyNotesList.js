@@ -4,7 +4,7 @@ import AddFamilyNote from './AddFamilyNote';
 import FamilyNotesModal from './FamilyNotesModal';
 import useFamilyNotes from '../../hooks/useFamilyNotes';
 
-const FamilyNotesList = ({ familyId, userId, userRole, maxDisplayed = null }) => {
+const FamilyNotesList = ({ familyId, userId, userRole, userData = null, familyData = null, maxDisplayed = null }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
   const [showAllModal, setShowAllModal] = useState(false);
@@ -34,9 +34,7 @@ const FamilyNotesList = ({ familyId, userId, userRole, maxDisplayed = null }) =>
   };
 
   const handleDeleteNote = async (noteId) => {
-    if (window.confirm('Are you sure you want to delete this note? This will remove it for everyone.')) {
-      await deleteNote(noteId);
-    }
+    await deleteNote(noteId);
   };
 
   const handleDismissNote = async (noteId) => {
@@ -61,28 +59,10 @@ const FamilyNotesList = ({ familyId, userId, userRole, maxDisplayed = null }) =>
   }
 
   return (
-    <div style={styles.container}>
-      {/* Header with Add Button */}
+    <div style={styles.container} className="family-notes-container">
+      {/* Clean Header */}
       <div style={styles.header}>
         <h3 style={styles.title}>Family Notes</h3>
-        <div style={styles.headerActions}>
-          {maxDisplayed && visibleNotes.length > 0 && (
-            <button 
-              className="btn btn-secondary btn-sm"
-              onClick={() => setShowAllModal(true)}
-              style={styles.viewAllButton}
-            >
-              View All
-            </button>
-          )}
-          <button 
-            className="btn btn-primary btn-sm"
-            onClick={() => setShowAddModal(true)}
-            style={styles.addButton}
-          >
-            Add Note +
-          </button>
-        </div>
       </div>
 
       {/* Notes List */}
@@ -93,39 +73,52 @@ const FamilyNotesList = ({ familyId, userId, userRole, maxDisplayed = null }) =>
           <p style={styles.emptySubtext}>
             Create the first family note to start communicating!
           </p>
-          <button 
-            className="btn btn-primary"
-            onClick={() => setShowAddModal(true)}
-            style={styles.emptyButton}
-          >
-            Add First Note
-          </button>
         </div>
       ) : (
-        <div style={styles.notesList}>
-          {displayedNotes.map((note) => (
-            <FamilyNoteCard
-              key={note.id}
-              note={note}
-              onDismiss={handleDismissNote}
-              onEdit={setEditingNote}
-              onDelete={handleDeleteNote}
-              canEdit={note.createdBy === userId}
-              canDelete={note.createdBy === userId || userRole === 'parent'}
-              userRole={userRole}
-            />
-          ))}
+        <div>
+          <div style={styles.notesList}>
+            {displayedNotes.map((note) => (
+              <FamilyNoteCard
+                key={note.id}
+                note={note}
+                onDismiss={handleDismissNote}
+                onEdit={setEditingNote}
+                onDelete={handleDeleteNote}
+                canEdit={note.createdBy === userId}
+                canDelete={note.createdBy === userId || userRole === 'parent'}
+                userRole={userRole}
+                userData={userData}
+                familyData={familyData}
+              />
+            ))}
+          </div>
           
-          {/* Show more indicator if there are more notes */}
+          {/* Footer 'View All' Link */}
           {maxDisplayed && visibleNotes.length > maxDisplayed && (
-            <div style={styles.showMore}>
-              <span style={styles.showMoreText}>
-                +{visibleNotes.length - maxDisplayed} more notes
-              </span>
+            <div style={styles.footer}>
+              <button 
+                style={styles.viewAllLink}
+                className="view-all-link"
+                onClick={() => setShowAllModal(true)}
+              >
+                See all {visibleNotes.length} messages →
+              </button>
             </div>
           )}
         </div>
       )}
+      
+      {/* Add Note Button - positioned below notes */}
+      <div style={styles.addButtonContainer}>
+        <button 
+          style={styles.addButton}
+          className="add-note-button"
+          onClick={() => setShowAddModal(true)}
+          title="Add Note"
+        >
+          Add Note
+        </button>
+      </div>
 
       {/* Add Note Modal */}
       {showAddModal && (
@@ -141,6 +134,10 @@ const FamilyNotesList = ({ familyId, userId, userRole, maxDisplayed = null }) =>
         <AddFamilyNote
           onSubmit={handleEditNote}
           onCancel={() => setEditingNote(null)}
+          onDelete={async (noteId) => {
+            await deleteNote(noteId);
+            setEditingNote(null);
+          }}
           initialNote={editingNote}
           userRole={userRole}
         />
@@ -165,42 +162,53 @@ const styles = {
     width: '100%'
   },
   header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 'var(--space-4)'
   },
   title: {
     fontSize: 'var(--font-size-lg)',
     fontWeight: 'var(--font-weight-semibold)',
     color: 'var(--text-primary)',
-    margin: 0
+    margin: 0,
+    textAlign: 'left'
   },
-  headerActions: {
+  addButtonContainer: {
     display: 'flex',
-    gap: 'var(--space-2)',
-    alignItems: 'center'
-  },
-  viewAllButton: {
-    fontSize: 'var(--font-size-sm)'
+    justifyContent: 'center',
+    marginTop: 'var(--space-4)'
   },
   addButton: {
-    fontSize: 'var(--font-size-sm)'
+    border: 'none',
+    borderRadius: 'var(--radius-md)',
+    padding: 'var(--space-2) var(--space-4)',
+    fontSize: 'var(--font-size-sm)',
+    fontWeight: 'var(--font-weight-medium)',
+    cursor: 'pointer',
+    transition: 'var(--transition-fast)',
+    backgroundColor: 'var(--primary-purple)',
+    color: 'var(--white)',
+    minWidth: '120px'
+  },
+  footer: {
+    textAlign: 'center',
+    marginTop: 'var(--space-4)',
+    borderTop: '1px solid var(--border-light)',
+    paddingTop: 'var(--space-3)'
+  },
+  viewAllLink: {
+    background: 'none',
+    border: 'none',
+    color: 'var(--primary-purple)',
+    fontSize: 'var(--font-size-sm)',
+    fontWeight: 'var(--font-weight-medium)',
+    cursor: 'pointer',
+    padding: 'var(--space-2) 0',
+    transition: 'opacity 0.2s ease',
+    width: '100%'
   },
   notesList: {
     display: 'flex',
     flexDirection: 'column',
     gap: 'var(--space-3)'
-  },
-  showMore: {
-    textAlign: 'center',
-    padding: 'var(--space-3)',
-    borderTop: '1px solid var(--border-light)'
-  },
-  showMoreText: {
-    fontSize: 'var(--font-size-sm)',
-    color: 'var(--text-secondary)',
-    fontStyle: 'italic'
   },
   emptyState: {
     textAlign: 'center',
@@ -221,9 +229,6 @@ const styles = {
     fontSize: 'var(--font-size-sm)',
     color: 'var(--text-secondary)',
     margin: '0 0 var(--space-4) 0'
-  },
-  emptyButton: {
-    fontSize: 'var(--font-size-sm)'
   },
   loading: {
     display: 'flex',
@@ -250,5 +255,48 @@ const styles = {
     fontSize: 'var(--font-size-sm)'
   }
 };
+
+// Add hover effects and responsive behavior
+if (typeof document !== 'undefined') {
+  const styleElement = document.createElement('style');
+  styleElement.textContent = `
+    /* Add button hover effects */
+    .family-notes-container .add-note-button:hover {
+      background-color: var(--primary-purple-dark, #5B21B6);
+      transform: translateY(-1px);
+    }
+    
+    .family-notes-container .add-note-button:active {
+      transform: translateY(0);
+    }
+    
+    /* View all link hover */
+    .family-notes-container .view-all-link:hover {
+      opacity: 0.8;
+      text-decoration: underline;
+    }
+    
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+      .family-notes-container .add-note-button {
+        padding: var(--space-2) var(--space-3);
+        font-size: var(--font-size-xs);
+        min-width: 100px;
+      }
+    }
+    
+    /* Ensure proper z-index stacking */
+    .family-notes-container {
+      position: relative;
+      z-index: 1;
+    }
+  `;
+  
+  // Only add if not already present
+  if (!document.querySelector('#family-notes-styles')) {
+    styleElement.id = 'family-notes-styles';
+    document.head.appendChild(styleElement);
+  }
+}
 
 export default FamilyNotesList;

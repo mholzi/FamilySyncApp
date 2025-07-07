@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
+import SupermarketSelector from './SupermarketSelector';
 import './AddShoppingList.css';
 
 const AddShoppingList = ({ onCancel, onCreate, creating }) => {
   const [name, setName] = useState('');
   const [budget, setBudget] = useState('');
+  const [selectedSupermarket, setSelectedSupermarket] = useState(null);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('Form submitted with name:', name, 'budget:', budget);
+    console.log('Form submitted with name:', name, 'budget:', budget, 'supermarket:', selectedSupermarket);
     
     if (!name.trim() || creating) {
       console.log('Form validation failed - name:', name.trim(), 'creating:', creating);
@@ -18,7 +20,8 @@ const AddShoppingList = ({ onCancel, onCreate, creating }) => {
       name: name.trim(),
       budget: budget ? parseFloat(budget) : null,
       scheduledFor: null,
-      priority: 'normal'
+      priority: 'normal',
+      supermarket: selectedSupermarket
     };
 
     console.log('Calling onCreate with:', listData);
@@ -50,6 +53,15 @@ const AddShoppingList = ({ onCancel, onCreate, creating }) => {
               onChange={(e) => setBudget(e.target.value)}
               step="0.01"
               min="0"
+              disabled={creating}
+            />
+          </div>
+          
+          <div className="form-field">
+            <SupermarketSelector
+              selectedSupermarket={selectedSupermarket}
+              onSelect={setSelectedSupermarket}
+              showTitle={true}
               disabled={creating}
             />
           </div>

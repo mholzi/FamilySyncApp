@@ -1,44 +1,56 @@
 import { useState, useEffect } from 'react';
-import { ROUTINE_TEMPLATES, getTemplateByAge, ACTIVITY_TYPES } from '../../utils/routineTemplates';
+import { ROUTINE_TEMPLATES, getTemplateByAge, ACTIVITY_TYPES, getAgeGroup } from '../../utils/routineTemplates';
 import { validateRoutine } from '../../utils/routineValidation';
 import TimelineEditor from './TimelineEditor';
-import TemplateSelector from './TemplateSelector';
 
 function RoutineBuilder({ childData, initialRoutine, onSave, onCancel }) {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [routine, setRoutine] = useState(initialRoutine || {
-    wakeUpTime: '07:00',
-    bedtime: '19:30',
-    mealTimes: {
-      breakfast: '07:30',
-      lunch: '12:00',
-      dinner: '17:30',
-      snacks: []
-    },
-    napTimes: [],
-    freePlayPeriods: []
-  });
   
-  const [showTemplates, setShowTemplates] = useState(!initialRoutine);
+  // Get age-appropriate initial routine values
+  const getInitialRoutine = () => {
+    if (initialRoutine) return initialRoutine;
+    
+    if (childData?.dateOfBirth) {
+      const ageTemplate = getTemplateByAge(childData.dateOfBirth);
+      if (ageTemplate) {
+        return ageTemplate.dailyRoutine;
+      }
+    }
+    
+    // Default fallback
+    return {
+      wakeUpTime: '07:00',
+      bedtime: '19:30',
+      mealTimes: {
+        breakfast: '07:30',
+        lunch: '12:00',
+        dinner: '17:30',
+        snacks: []
+      },
+      napTimes: [],
+      freePlayPeriods: []
+    };
+  };
+  
+  const [routine, setRoutine] = useState(getInitialRoutine());
   const [hasChanges, setHasChanges] = useState(false);
   const [validation, setValidation] = useState(null);
+  
+  // Determine if child is school age to hide nap functionality
+  const ageGroup = getAgeGroup(childData?.dateOfBirth);
+  const isSchoolAge = ageGroup === 'schoolAge' || ageGroup === 'teen';
 
-  // Auto-suggest template based on child's age
+  // Set template based on child's age
   useEffect(() => {
     if (childData?.dateOfBirth && !initialRoutine) {
       const suggestedTemplate = getTemplateByAge(childData.dateOfBirth);
       if (suggestedTemplate) {
         setSelectedTemplate(suggestedTemplate);
+        setRoutine(suggestedTemplate.dailyRoutine);
       }
     }
   }, [childData, initialRoutine]);
 
-  const handleTemplateSelect = (template) => {
-    setSelectedTemplate(template);
-    setRoutine(template.dailyRoutine);
-    setShowTemplates(false);
-    setHasChanges(true);
-  };
 
   const handleRoutineChange = (updatedRoutine) => {
     setRoutine(updatedRoutine);
@@ -78,13 +90,6 @@ function RoutineBuilder({ childData, initialRoutine, onSave, onCancel }) {
         </p>
       </div>
 
-      {showTemplates && (
-        <TemplateSelector
-          childAge={childData?.dateOfBirth}
-          onSelectTemplate={handleTemplateSelect}
-          onSkip={() => setShowTemplates(false)}
-        />
-      )}
 
       <div style={styles.routineEditor}>
         <div style={styles.basicTimes}>
@@ -174,9 +179,11 @@ function RoutineBuilder({ childData, initialRoutine, onSave, onCancel }) {
                 <div style={styles.summaryItem}>
                   🌙 Sleep: {validation.summary.sleepHours} hours
                 </div>
-                <div style={styles.summaryItem}>
-                  😴 Naps: {validation.summary.totalNaps}
-                </div>
+                {!isSchoolAge && (
+                  <div style={styles.summaryItem}>
+                    😴 Naps: {validation.summary.totalNaps}
+                  </div>
+                )}
                 <div style={styles.summaryItem}>
                   🎪 Free Play: {validation.summary.totalFreePlay} min
                 </div>

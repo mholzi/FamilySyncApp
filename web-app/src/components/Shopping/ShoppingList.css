@@ -30,6 +30,46 @@
   font-size: 14px;
 }
 
+.supermarket-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px;
+  background: #F8F9FA;
+  border-radius: 8px;
+  border: 1px solid #E5E7EB;
+}
+
+.supermarket-logo {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.supermarket-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.supermarket-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.supermarket-address {
+  font-size: 14px;
+  color: #6C757D;
+  line-height: 1.4;
+}
+
+.supermarket-phone {
+  font-size: 13px;
+  color: #007AFF;
+}
+
 .amount {
   font-size: 18px;
   font-weight: 600;
