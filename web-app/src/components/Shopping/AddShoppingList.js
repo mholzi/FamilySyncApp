@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import SupermarketSelector from './SupermarketSelector';
 import './AddShoppingList.css';
 
-const AddShoppingList = ({ onCancel, onCreate, creating }) => {
+const AddShoppingList = ({ onCancel, onCreate, creating, familyId, currentUser }) => {
   const [name, setName] = useState('');
   const [budget, setBudget] = useState('');
   const [selectedSupermarket, setSelectedSupermarket] = useState(null);
@@ -61,6 +61,8 @@ const AddShoppingList = ({ onCancel, onCreate, creating }) => {
             <SupermarketSelector
               selectedSupermarket={selectedSupermarket}
               onSelect={setSelectedSupermarket}
+              familyId={familyId}
+              currentUser={currentUser}
               showTitle={true}
               disabled={creating}
             />

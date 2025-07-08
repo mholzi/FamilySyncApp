@@ -1,166 +1,178 @@
 .supermarket-selector {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 16px;
 }
 
 .selector-title {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  padding-bottom: var(--space-2);
-  border-bottom: 1px solid var(--border-light);
+  gap: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #E5E7EB;
 }
 
 .title-icon {
-  font-size: var(--font-size-xl);
+  font-size: 20px;
 }
 
 .title-text {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
 }
 
 .title-subtitle {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-}
-
-.chain-selection {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  font-size: 14px;
+  color: #6C757D;
 }
 
 .field-label {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--text-primary);
-  margin-bottom: var(--space-2);
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+  display: block;
 }
 
-.chain-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: var(--space-3);
+.loading-supermarkets {
+  padding: 20px;
+  text-align: center;
+  color: #6C757D;
+  font-style: italic;
 }
 
-.chain-option {
+/* Family Supermarkets Section */
+.family-supermarkets {
+  margin-bottom: 16px;
+}
+
+.supermarket-list {
   display: flex;
   flex-direction: column;
+  gap: 8px;
+}
+
+.supermarket-option {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border: 2px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  background: var(--white);
+  padding: 12px;
+  border: 2px solid #E5E7EB;
+  border-radius: 8px;
+  background: white;
   cursor: pointer;
-  transition: var(--transition-normal);
-  min-height: 80px;
+  transition: all 0.2s;
+  text-align: left;
+  width: 100%;
 }
 
-.chain-option:hover {
-  border-color: var(--primary-purple);
+.supermarket-option:hover {
+  border-color: #007AFF;
+  background: #f8f9ff;
   transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.chain-option.selected {
-  background: #f8f7ff;
-  border-color: var(--primary-purple);
-  box-shadow: var(--shadow-sm);
+.supermarket-option.selected {
+  background: #f8f9ff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.chain-option:disabled {
+.supermarket-option:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
 }
 
-.chain-logo {
-  font-size: var(--font-size-xl);
-}
-
-.chain-name {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--text-primary);
-}
-
-.location-selection {
+.supermarket-info {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: 4px;
 }
 
-.location-options {
+.supermarket-header {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.location-option {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: var(--space-3);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  background: var(--white);
+  gap: 8px;
+}
+
+.supermarket-logo {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.supermarket-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.supermarket-address {
+  font-size: 14px;
+  color: #6C757D;
+  line-height: 1.4;
+}
+
+.selection-indicator {
+  font-size: 18px;
+  color: #007AFF;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+/* Add New Supermarket Section */
+.add-supermarket-section {
+  margin-top: 8px;
+}
+
+.add-supermarket-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+  border: 2px dashed #DEE2E6;
+  border-radius: 8px;
+  background: #F8F9FA;
+  color: #6C757D;
   cursor: pointer;
-  transition: var(--transition-fast);
-  text-align: left;
+  transition: all 0.2s;
+  font-size: 14px;
+  font-weight: 500;
 }
 
-.location-option:hover {
-  border-color: var(--primary-purple);
-  background: #f8f7ff;
+.add-supermarket-btn:hover {
+  border-color: #007AFF;
+  background: #f8f9ff;
+  color: #007AFF;
 }
 
-.location-option.selected {
-  border-color: var(--primary-purple);
-  background: #f8f7ff;
-  box-shadow: var(--shadow-sm);
-}
-
-.location-option:disabled {
+.add-supermarket-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.location-info {
-  flex: 1;
+.add-icon {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.add-text {
+  font-size: 14px;
+}
+
+/* Create Supermarket Form */
+.create-supermarket-form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-}
-
-.location-address {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--text-primary);
-}
-
-.location-phone {
-  font-size: var(--font-size-xs);
-  color: var(--text-secondary);
-}
-
-.location-indicator {
-  font-size: var(--font-size-lg);
-  color: var(--primary-purple);
-  font-weight: var(--font-weight-bold);
-}
-
-.custom-store-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  background: #fafbfc;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-light);
+  gap: 12px;
+  padding: 16px;
+  background: #F8F9FA;
+  border-radius: 8px;
+  border: 1px solid #E5E7EB;
 }
 
 .form-field {
@@ -169,41 +181,92 @@
 }
 
 .form-field input {
-  padding: var(--space-3);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  transition: var(--transition-fast);
+  padding: 12px 16px;
+  border: 1px solid #DEE2E6;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s;
 }
 
 .form-field input:focus {
   outline: none;
-  border-color: var(--primary-purple);
-  box-shadow: 0 0 0 3px rgba(123, 31, 162, 0.1);
+  border-color: #007AFF;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
 }
 
 .form-field input:disabled {
-  background: var(--gray-50);
-  color: var(--text-tertiary);
+  background: #F1F3F4;
+  color: #6C757D;
   cursor: not-allowed;
 }
 
+.form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.cancel-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1px solid #DEE2E6;
+  background: white;
+  color: #6C757D;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-btn:hover {
+  background: #F8F9FA;
+  border-color: #ADB5BD;
+}
+
+.cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.create-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  background: #007AFF;
+  color: white;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.create-btn:hover {
+  background: #0056CC;
+}
+
+.create-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+/* Selected Store Preview */
 .selected-store-preview {
-  padding: var(--space-4);
-  background: linear-gradient(135deg, #f8f7ff 0%, #f3f0ff 100%);
-  border: 1px solid var(--primary-purple);
-  border-radius: var(--radius-lg);
-  margin-top: var(--space-2);
+  padding: 16px;
+  background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+  border: 1px solid #007AFF;
+  border-radius: 8px;
+  margin-top: 8px;
 }
 
 .preview-header {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-3);
+  gap: 12px;
 }
 
 .preview-logo {
-  font-size: var(--font-size-xl);
+  font-size: 20px;
   flex-shrink: 0;
 }
 
@@ -211,62 +274,55 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 4px;
 }
 
 .preview-name {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
 }
 
 .preview-address {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-  line-height: var(--line-height-normal);
-}
-
-.preview-phone {
-  font-size: var(--font-size-xs);
-  color: var(--text-tertiary);
+  font-size: 14px;
+  color: #6C757D;
+  line-height: 1.4;
 }
 
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
-  .chain-grid {
-    grid-template-columns: repeat(2, 1fr);
+  .supermarket-option {
+    padding: 10px;
   }
   
-  .chain-option {
-    min-height: 70px;
-    padding: var(--space-2);
+  .supermarket-logo {
+    font-size: 16px;
   }
   
-  .chain-logo {
-    font-size: var(--font-size-lg);
+  .supermarket-name {
+    font-size: 14px;
   }
   
-  .location-option {
-    padding: var(--space-2);
+  .supermarket-address {
+    font-size: 13px;
   }
   
   .selected-store-preview {
-    padding: var(--space-3);
+    padding: 12px;
+  }
+  
+  .create-supermarket-form {
+    padding: 12px;
   }
 }
 
 @media (max-width: 480px) {
-  .chain-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .location-option {
+  .form-actions {
     flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-2);
   }
   
-  .location-indicator {
-    align-self: flex-end;
+  .cancel-btn,
+  .create-btn {
+    flex: none;
   }
 }

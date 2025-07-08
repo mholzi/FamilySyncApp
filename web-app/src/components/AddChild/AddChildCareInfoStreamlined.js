@@ -3,7 +3,7 @@ import { db, auth } from '../../firebase';
 import { doc, setDoc, updateDoc, getDoc } from 'firebase/firestore';
 import { COMMON_ALLERGIES, COMMON_MEDICATIONS, filterSuggestions } from '../../utils/dashboardStates';
 import BasicRoutineBuilder from '../RoutineBuilder/BasicRoutineBuilder';
-import AddChildSchoolSchedule from './AddChildSchoolSchedule';
+import AddChildSchoolScheduleTable from './AddChildSchoolScheduleTable';
 import RecurringActivitiesManager from '../Activities/RecurringActivitiesManager';
 
 function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCancel, isEditing = false }) {
@@ -24,6 +24,8 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
     // School schedule
     schoolSchedule: childData.schoolSchedule || null,
     scheduleType: childData.scheduleType || 'kindergarten',
+    pickupPerson: childData.pickupPerson || null,
+    schoolInfo: childData.schoolInfo || null,
     
     // Emergency contacts (optional)
     emergencyContacts: childData.emergencyContacts || []
@@ -164,6 +166,8 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
           emergencyContacts: updatedData.emergencyContacts || [],
           schoolSchedule: updatedData.schoolSchedule || null,
           scheduleType: updatedData.scheduleType || null,
+          pickupPerson: updatedData.pickupPerson || null,
+          schoolInfo: updatedData.schoolInfo || null,
           scheduleLastModified: updatedData.scheduleLastModified || null,
           lastUpdated: new Date()
         });
@@ -229,6 +233,8 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
         emergencyContacts: updatedData.emergencyContacts || childData.emergencyContacts || [],
         schoolSchedule: updatedData.schoolSchedule || childData.schoolSchedule || null,
         scheduleType: updatedData.scheduleType || childData.scheduleType || null,
+        pickupPerson: updatedData.pickupPerson || childData.pickupPerson || null,
+        schoolInfo: updatedData.schoolInfo || childData.schoolInfo || null,
         scheduleLastModified: updatedData.scheduleLastModified || null,
         // Metadata
         lastUpdated: new Date(),
@@ -346,6 +352,8 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
       ...formData,
       schoolSchedule: scheduleData.schoolSchedule,
       scheduleType: scheduleData.scheduleType,
+      pickupPerson: scheduleData.pickupPerson,
+      schoolInfo: scheduleData.schoolInfo,
       scheduleLastModified: scheduleData.lastModified
     };
 
@@ -570,11 +578,13 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
   // Show school schedule builder if active
   if (showSchoolScheduleBuilder) {
     return (
-      <AddChildSchoolSchedule
+      <AddChildSchoolScheduleTable
         childData={childData}
         initialData={{
           schoolSchedule: formData.schoolSchedule,
-          scheduleType: formData.scheduleType
+          scheduleType: formData.scheduleType,
+          pickupPerson: formData.pickupPerson,
+          schoolInfo: formData.schoolInfo
         }}
         onNext={handleSchoolScheduleSave}
         onBack={() => setShowSchoolScheduleBuilder(false)}

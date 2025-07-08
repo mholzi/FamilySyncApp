@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useFamily } from '../hooks/useFamily';
 import { useShopping } from '../hooks/useShopping';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -55,23 +55,30 @@ const ShoppingListPage = () => {
     }
   };
 
-  const activeLists = shoppingLists.filter(list => !list.isArchived && list.status !== 'paid-out');
-  
-  // Determine user role and filter lists accordingly
+  // Determine user role
   const userRole = userData?.role || (family?.parentUids?.includes(currentUser?.uid) ? 'parent' : 'aupair');
+
+  // Memoize filtered lists to prevent unnecessary re-renders and potential Firestore conflicts
+  const activeLists = useMemo(() => {
+    return shoppingLists.filter(list => !list.isArchived && list.status !== 'paid-out' && list.status !== 'needs-approval');
+  }, [shoppingLists]);
   
   // For parents: show pending approval lists
-  const pendingApproval = userRole === 'parent' 
-    ? shoppingLists.filter(list => list.status === 'needs-approval' || list.paymentStatus === 'approved')
-    : [];
+  const pendingApproval = useMemo(() => {
+    return userRole === 'parent' 
+      ? shoppingLists.filter(list => list.status === 'needs-approval' || list.paymentStatus === 'approved')
+      : [];
+  }, [shoppingLists, userRole]);
 
   // For au pairs: show payment tracking for receipts they uploaded
-  const paymentTracking = userRole === 'aupair' 
-    ? shoppingLists.filter(list => 
-        list.receiptUploadedBy === currentUser?.uid && 
-        (list.paymentStatus === 'pending' || list.paymentStatus === 'approved' || list.paymentStatus === 'paid-out' || list.paymentStatus === 'confirmed')
-      )
-    : [];
+  const paymentTracking = useMemo(() => {
+    return userRole === 'aupair' 
+      ? shoppingLists.filter(list => 
+          list.receiptUploadedBy === currentUser?.uid && 
+          (list.status === 'needs-approval' || list.paymentStatus === 'pending' || list.paymentStatus === 'approved' || list.paymentStatus === 'paid-out' || list.paymentStatus === 'confirmed')
+        )
+      : [];
+  }, [shoppingLists, userRole, currentUser?.uid]);
 
   if (loading) {
     return (
@@ -111,25 +118,8 @@ const ShoppingListPage = () => {
               list={list}
               familyId={family?.id}
               currentUser={currentUser}
+              family={family}
               mode="approval"
-            />
-          ))}
-        </div>
-      )}
-
-      {paymentTracking.length > 0 && (
-        <div className="payment-tracking-section">
-          <h2>Payment Tracking</h2>
-          <p className="section-description">Track the approval and payment status of your shopping receipts</p>
-          {paymentTracking.map(list => (
-            <PaymentStatusCard 
-              key={list.id}
-              list={list}
-              familyId={family?.id}
-              currentUser={currentUser}
-              onUpdate={() => {
-                // Optional: trigger a refresh of the shopping lists
-              }}
             />
           ))}
         </div>
@@ -155,17 +145,40 @@ const ShoppingListPage = () => {
               list={list}
               familyId={family?.id}
               currentUser={currentUser}
+              family={family}
               mode="active"
             />
           ))
         )}
       </div>
 
+      {paymentTracking.length > 0 && (
+        <div className="payment-tracking-section">
+          <h2>Payment Tracking</h2>
+          <p className="section-description">Track the approval and payment status of your shopping receipts</p>
+          <div className="payment-tracking-grid">
+            {paymentTracking.map(list => (
+              <PaymentStatusCard 
+                key={list.id}
+                list={list}
+                familyId={family?.id}
+                currentUser={currentUser}
+                onUpdate={() => {
+                  // Optional: trigger a refresh of the shopping lists
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {showAddList && (
         <AddShoppingList
           onCancel={() => setShowAddList(false)}
           onCreate={handleCreateList}
           creating={creating}
+          familyId={family?.id}
+          currentUser={currentUser}
         />
       )}
     </div>

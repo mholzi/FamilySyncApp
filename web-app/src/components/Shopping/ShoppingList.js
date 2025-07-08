@@ -7,12 +7,15 @@ import ReceiptUpload from './ReceiptUpload';
 import ApprovalInterface from './ApprovalInterface';
 import './ShoppingList.css';
 
-const ShoppingList = ({ list, familyId, currentUser, mode = 'active' }) => {
+const ShoppingList = ({ list, familyId, currentUser, family, mode = 'active' }) => {
   const [familyItems, setFamilyItems] = useState({});
   const [showAddItem, setShowAddItem] = useState(false);
   const [showItemDetails, setShowItemDetails] = useState(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [showApproval, setShowApproval] = useState(false);
+
+  // Determine user role
+  const userRole = family?.parentUids?.includes(currentUser?.uid) ? 'parent' : 'aupair';
 
   useEffect(() => {
     const loadFamilyItems = async () => {
@@ -165,41 +168,44 @@ const ShoppingList = ({ list, familyId, currentUser, mode = 'active' }) => {
           <h3>{list.name}</h3>
           {items.length > 0 && (
             <span className="progress">
-              {items.length - completedItems}/{items.length} items remaining
+              {items.length - completedItems === 0 
+                ? 'List completed' 
+                : `${items.length - completedItems}/${items.length} items remaining`
+              }
             </span>
-          )}
-          {list.supermarket && (
-            <div className="supermarket-info">
-              <span className="supermarket-logo">{list.supermarket.logo}</span>
-              <div className="supermarket-details">
-                <span className="supermarket-name">{list.supermarket.name}</span>
-                <span className="supermarket-address">{list.supermarket.location?.address}</span>
-                {list.supermarket.location?.phone && (
-                  <span className="supermarket-phone">📞 {list.supermarket.location.phone}</span>
-                )}
-              </div>
-            </div>
           )}
         </div>
         
-        <div className="list-actions">
-          {list.status === 'completed' && (
-            <button 
-              className="upload-receipt-btn"
-              onClick={() => setShowReceipt(true)}
-            >
-              📄 Receipt
-            </button>
-          )}
-          {allItemsCompleted && list.status !== 'completed' && (
-            <button 
-              className="complete-shopping-btn"
-              onClick={handleCompleteShopping}
-            >
-              ✅ Complete Shopping
-            </button>
-          )}
+        {allItemsCompleted && list.status !== 'completed' && (
+          <button 
+            className="complete-shopping-btn"
+            onClick={handleCompleteShopping}
+          >
+            Complete Shopping
+          </button>
+        )}
+        
+        {list.status === 'completed' && (
+          <button 
+            className="upload-receipt-btn"
+            onClick={() => setShowReceipt(true)}
+          >
+            Receipt
+          </button>
+        )}
+      </div>
+      
+      {list.supermarket && (
+        <div className="supermarket-info">
+          <span className="supermarket-logo">{list.supermarket.logo}</span>
+          <div className="supermarket-details">
+            <span className="supermarket-name">{list.supermarket.name}</span>
+            <span className="supermarket-address">{list.supermarket.location?.address}</span>
+          </div>
         </div>
+      )}
+      
+      <div className="list-actions">
       </div>
 
       <div className="items-list">
@@ -210,20 +216,20 @@ const ShoppingList = ({ list, familyId, currentUser, mode = 'active' }) => {
                 className="item-checkbox"
                 onClick={() => handleToggleItem(item.id, !item.isPurchased)}
               >
-                {item.isPurchased ? '✓' : '○'}
+                {item.isPurchased ? '✓' : ''}
               </button>
               
               <span className="item-name">
-                {item.name} {getItemDisplayIcon(item.name)}
+                {item.name}
               </span>
               
               {hasItemDetails(item.name) && (
                 <button
-                  className="details-btn"
+                  className="details-badge"
                   onClick={() => handleItemDetails(item.name)}
                   title="View details"
                 >
-                  💡
+                  Details
                 </button>
               )}
             </div>
@@ -258,6 +264,8 @@ const ShoppingList = ({ list, familyId, currentUser, mode = 'active' }) => {
           itemName={showItemDetails.itemName}
           familyItem={showItemDetails.familyItem}
           familyId={familyId}
+          currentUser={currentUser}
+          userRole={userRole}
           onSave={handleSaveItemDetails}
           onClose={() => setShowItemDetails(null)}
         />

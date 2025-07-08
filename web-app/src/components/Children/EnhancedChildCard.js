@@ -83,6 +83,50 @@ const EnhancedChildCard = ({
     return hours * 60 + minutes;
   };
 
+  // Get school events for today
+  const getSchoolEvents = () => {
+    if (!child.schoolSchedule) return [];
+    
+    const now = new Date();
+    const currentDay = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][now.getDay()];
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+    
+    const todaySchedule = child.schoolSchedule[currentDay];
+    if (!todaySchedule || todaySchedule.length === 0) return [];
+    
+    const schoolEvents = [];
+    
+    // Add school events that haven't ended yet
+    todaySchedule.forEach(block => {
+      const startMinutes = timeToMinutes(block.startTime);
+      const endMinutes = timeToMinutes(block.endTime);
+      
+      // If school hasn't started yet or is ongoing, show start time
+      if (startMinutes > currentTime) {
+        schoolEvents.push({
+          name: 'School Start',
+          time: block.startTime,
+          minutes: startMinutes,
+          icon: '🏫',
+          type: 'school-start'
+        });
+      }
+      
+      // If currently in school, show end time
+      if (currentTime >= startMinutes && currentTime < endMinutes) {
+        schoolEvents.push({
+          name: 'School End',
+          time: block.endTime,
+          minutes: endMinutes,
+          icon: '🏠',
+          type: 'school-end'
+        });
+      }
+    });
+    
+    return schoolEvents;
+  };
+
   // Get child's routine times for today from actual child data
   const getChildRoutines = () => {
     const now = new Date();
@@ -185,13 +229,17 @@ const EnhancedChildCard = ({
       });
     }
     
-    // Sort by time and filter to show only upcoming routines
-    let upcomingRoutines = routineEvents
-      .sort((a, b) => a.minutes - b.minutes)
-      .filter(routine => routine.minutes > currentTime);
+    // Get school events and merge with routine events
+    const schoolEvents = getSchoolEvents();
+    const allEvents = [...routineEvents, ...schoolEvents];
     
-    // If we have less than 2 routines for today, add tomorrow's routines
-    if (upcomingRoutines.length < 2) {
+    // Sort by time and filter to show only upcoming events
+    let upcomingEvents = allEvents
+      .sort((a, b) => a.minutes - b.minutes)
+      .filter(event => event.minutes > currentTime);
+    
+    // If we have less than 2 events for today, add tomorrow's routines
+    if (upcomingEvents.length < 2) {
       // Get tomorrow's routines in order
       const tomorrowRoutines = [];
       
@@ -230,11 +278,11 @@ const EnhancedChildCard = ({
       
       // Sort tomorrow's routines by time and add as many as needed to reach 2 total
       const sortedTomorrowRoutines = tomorrowRoutines.sort((a, b) => a.minutes - b.minutes);
-      const routinesNeeded = 2 - upcomingRoutines.length;
-      upcomingRoutines = upcomingRoutines.concat(sortedTomorrowRoutines.slice(0, routinesNeeded));
+      const routinesNeeded = 2 - upcomingEvents.length;
+      upcomingEvents = upcomingEvents.concat(sortedTomorrowRoutines.slice(0, routinesNeeded));
     }
     
-    return upcomingRoutines.slice(0, 2); // Return exactly 2 routines
+    return upcomingEvents.slice(0, 2); // Return exactly 2 events
   };
 
   // Check if child is currently marked as sleeping
@@ -284,11 +332,36 @@ const EnhancedChildCard = ({
     // await updateDoc(doc(db, 'children', child.id), { currentStatus: 'sleeping' });
   };
 
+  // Check if child is currently in school
+  const isInSchool = () => {
+    if (!child.schoolSchedule) return false;
+    
+    const now = new Date();
+    const currentDay = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][now.getDay()];
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+    
+    // Get today's school schedule
+    const todaySchedule = child.schoolSchedule[currentDay];
+    if (!todaySchedule || todaySchedule.length === 0) return false;
+    
+    // Check if current time falls within any school block
+    return todaySchedule.some(block => {
+      const startMinutes = timeToMinutes(block.startTime);
+      const endMinutes = timeToMinutes(block.endTime);
+      return currentTime >= startMinutes && currentTime <= endMinutes;
+    });
+  };
+
   // Get current status based on routine times
   const getCurrentStatus = () => {
     // Check if child is sleeping first
     if (isChildSleeping()) {
       return { text: 'Sleeping', color: '#6366F1', icon: '😴' };
+    }
+    
+    // Check if child is in school
+    if (isInSchool()) {
+      return { text: 'In School', color: '#FF9500', icon: '🏫' };
     }
     
     const nextRoutines = getChildRoutines();

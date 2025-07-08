@@ -86,36 +86,6 @@ service cloud.firestore {
                       isFamilyMember(request.resource.data.familyId);
     }
     
-    // Shopping Lists - family members only, with special approval rules
-    match /shoppingLists/{listId} {
-      allow read: if request.auth != null && 
-                    resource != null && 
-                    isFamilyMember(resource.data.familyId);
-      
-      // Parents can approve/pay out, au pairs can update status
-      allow update: if request.auth != null && 
-                      resource != null && 
-                      isFamilyMember(resource.data.familyId) &&
-                      (
-                        // Au pairs can mark as completed
-                        (resource.data.status == 'pending' && 
-                         request.resource.data.status == 'completed') ||
-                        // Parents can approve
-                        (resource.data.status == 'needs-approval' && 
-                         request.resource.data.status == 'approved' &&
-                         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'parent') ||
-                        // General updates by family members
-                        true
-                      );
-      
-      allow create: if request.auth != null && 
-                      isFamilyMember(request.resource.data.familyId);
-      
-      allow delete: if request.auth != null && 
-                      resource != null && 
-                      isFamilyMember(resource.data.familyId) &&
-                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'parent';
-    }
     
     // Notes - family members only, with child-specific access
     match /notes/{noteId} {

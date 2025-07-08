@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import AddChildBasicInfo from './AddChildBasicInfo';
 import AddChildCareInfoStreamlined from './AddChildCareInfoStreamlined';
 import AddChildRoutineInfo from './AddChildRoutineInfo';
-import AddChildSchoolSchedule from './AddChildSchoolSchedule';
+import AddChildSchoolScheduleTable from './AddChildSchoolScheduleTable';
 import AddChildComplete from './AddChildComplete';
 
 function AddChildFlow({ user, familyId, existingChildren = [], editingChild = null, onComplete, onCancel, isSaving = false }) {

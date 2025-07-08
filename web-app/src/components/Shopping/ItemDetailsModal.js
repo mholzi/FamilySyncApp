@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { uploadProductPhoto, validateImageFile } from '../../utils/shoppingPhotoUpload';
 import './ItemDetailsModal.css';
 
-const ItemDetailsModal = ({ itemName, familyItem, onSave, onClose, familyId }) => {
+const ItemDetailsModal = ({ itemName, familyItem, onSave, onClose, familyId, currentUser, userRole }) => {
   const [photoUrl, setPhotoUrl] = useState(familyItem?.referencePhotoUrl || '');
   const [notes, setNotes] = useState(familyItem?.guidanceNotes || '');
   const [photoFile, setPhotoFile] = useState(null);
@@ -56,6 +56,54 @@ const ItemDetailsModal = ({ itemName, familyItem, onSave, onClose, familyId }) =
     }
   };
 
+  // For au pairs, show read-only view
+  if (userRole === 'aupair') {
+    return (
+      <div className="item-details-overlay">
+        <div className="item-details-modal">
+          <h4>Item Details: {itemName}</h4>
+          
+          {familyItem?.referencePhotoUrl && (
+            <div className="form-field">
+              <label>📸 Product Photo</label>
+              <div className="photo-preview">
+                <img 
+                  src={familyItem.referencePhotoUrl} 
+                  alt={itemName} 
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }} 
+                />
+              </div>
+            </div>
+          )}
+          
+          {familyItem?.guidanceNotes && (
+            <div className="form-field">
+              <label>📝 Details</label>
+              <div className="notes-display">
+                {familyItem.guidanceNotes}
+              </div>
+            </div>
+          )}
+          
+          {!familyItem?.referencePhotoUrl && !familyItem?.guidanceNotes && (
+            <div className="no-details">
+              <p>No additional details available for this item.</p>
+            </div>
+          )}
+          
+          <div className="form-actions">
+            <button className="close-btn" onClick={onClose}>
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // For parents, show full editing interface
   return (
     <div className="item-details-overlay">
       <div className="item-details-modal">
@@ -117,7 +165,7 @@ const ItemDetailsModal = ({ itemName, familyItem, onSave, onClose, familyId }) =
         </div>
         
         <div className="form-field">
-          <label>📝 Notes for Emma</label>
+          <label>📝 Details</label>
           <textarea
             placeholder="Look for ORGANIC label. If not available: regular is fine. Ask store staff for help."
             value={notes}

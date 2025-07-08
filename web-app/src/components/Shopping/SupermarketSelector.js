@@ -1,134 +1,124 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getFamilySupermarkets, createFamilySupermarket, updateSupermarketLastUsed, getSupermarketLogo, getSupermarketColor } from '../../utils/familySupermarketsUtils';
 import './SupermarketSelector.css';
-
-// Common supermarket chains with sample locations
-const COMMON_SUPERMARKETS = {
-  'rewe': {
-    name: 'REWE',
-    logo: '🛒',
-    color: '#FF0000',
-    locations: [
-      { id: 'rewe_downtown', address: 'Hauptstraße 123, 10115 Berlin', phone: '+49 30 12345678' },
-      { id: 'rewe_westside', address: 'Kantstraße 45, 10625 Berlin', phone: '+49 30 87654321' },
-      { id: 'rewe_center', address: 'Friedrichstraße 200, 10117 Berlin', phone: '+49 30 11223344' }
-    ]
-  },
-  'edeka': {
-    name: 'EDEKA',
-    logo: '🍃',
-    color: '#0066CC',
-    locations: [
-      { id: 'edeka_center', address: 'Alexanderplatz 1, 10178 Berlin', phone: '+49 30 55667788' },
-      { id: 'edeka_south', address: 'Potsdamer Straße 180, 10783 Berlin', phone: '+49 30 99887766' }
-    ]
-  },
-  'aldi': {
-    name: 'ALDI',
-    logo: '💰',
-    color: '#0099CC',
-    locations: [
-      { id: 'aldi_nord', address: 'Müllerstraße 85, 13349 Berlin', phone: '+49 30 33445566' },
-      { id: 'aldi_east', address: 'Karl-Marx-Allee 100, 10243 Berlin', phone: '+49 30 77889900' }
-    ]
-  },
-  'lidl': {
-    name: 'Lidl',
-    logo: '🔵',
-    color: '#0050AA',
-    locations: [
-      { id: 'lidl_west', address: 'Kurfürstendamm 89, 10709 Berlin', phone: '+49 30 22334455' },
-      { id: 'lidl_center', address: 'Unter den Linden 50, 10117 Berlin', phone: '+49 30 66778899' }
-    ]
-  },
-  'kaufland': {
-    name: 'Kaufland',
-    logo: '🏪',
-    color: '#FF6600',
-    locations: [
-      { id: 'kaufland_big', address: 'Warschauer Straße 25, 10243 Berlin', phone: '+49 30 44556677' }
-    ]
-  },
-  'custom': {
-    name: 'Other Store',
-    logo: '🏬',
-    color: '#666666',
-    locations: []
-  }
-};
 
 const SupermarketSelector = ({ 
   selectedSupermarket, 
   onSelect, 
+  familyId,
+  currentUser,
   showTitle = true,
   disabled = false 
 }) => {
-  const [selectedChain, setSelectedChain] = useState(
-    selectedSupermarket?.chain || ''
+  const [familySupermarkets, setFamilySupermarkets] = useState([]);
+  const [selectedSupermarketId, setSelectedSupermarketId] = useState(
+    selectedSupermarket?.id || ''
   );
-  const [selectedLocation, setSelectedLocation] = useState(
-    selectedSupermarket?.location || null
-  );
-  const [customStore, setCustomStore] = useState({
-    name: selectedSupermarket?.chain === 'custom' ? selectedSupermarket.name : '',
-    address: selectedSupermarket?.chain === 'custom' ? selectedSupermarket.location?.address : '',
-    phone: selectedSupermarket?.chain === 'custom' ? selectedSupermarket.location?.phone : ''
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [newStore, setNewStore] = useState({
+    name: '',
+    address: ''
   });
 
-  const handleChainSelect = (chainKey) => {
-    setSelectedChain(chainKey);
-    setSelectedLocation(null);
-    
-    if (chainKey === 'custom') {
-      // For custom stores, we'll handle the selection after they fill out the form
-      return;
-    }
-    
-    const chain = COMMON_SUPERMARKETS[chainKey];
-    if (chain.locations.length === 1) {
-      // Auto-select if only one location
-      const location = chain.locations[0];
-      setSelectedLocation(location);
-      onSelect({
-        chain: chainKey,
-        name: chain.name,
-        logo: chain.logo,
-        color: chain.color,
-        location: location
-      });
-    }
-  };
+  // Load family supermarkets on component mount
+  useEffect(() => {
+    const loadSupermarkets = async () => {
+      if (!familyId) {
+        setLoading(false);
+        return;
+      }
 
-  const handleLocationSelect = (location) => {
-    setSelectedLocation(location);
-    const chain = COMMON_SUPERMARKETS[selectedChain];
+      try {
+        const supermarkets = await getFamilySupermarkets(familyId);
+        // Sort by lastUsed descending (most recently used first)
+        const sortedSupermarkets = supermarkets.sort((a, b) => {
+          const aTime = a.lastUsed?.toDate?.() || a.lastUsed || new Date(0);
+          const bTime = b.lastUsed?.toDate?.() || b.lastUsed || new Date(0);
+          return new Date(bTime) - new Date(aTime);
+        });
+        setFamilySupermarkets(sortedSupermarkets);
+      } catch (error) {
+        console.error('Error loading family supermarkets:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSupermarkets();
+  }, [familyId]);
+
+  const handleSupermarketSelect = async (supermarket) => {
+    setSelectedSupermarketId(supermarket.id);
+    
+    // Update last used timestamp
+    if (familyId) {
+      await updateSupermarketLastUsed(familyId, supermarket.id);
+    }
+    
+    // Convert to expected format
     onSelect({
-      chain: selectedChain,
-      name: chain.name,
-      logo: chain.logo,
-      color: chain.color,
-      location: location
+      id: supermarket.id,
+      name: supermarket.name,
+      logo: supermarket.logo,
+      color: supermarket.color,
+      location: {
+        id: supermarket.id,
+        address: supermarket.address
+      }
     });
   };
 
-  const handleCustomStoreSubmit = () => {
-    if (customStore.name.trim() && customStore.address.trim()) {
-      const customLocation = {
-        id: `custom_${Date.now()}`,
-        address: customStore.address.trim(),
-        phone: customStore.phone.trim() || null
+  const handleCreateStore = async () => {
+    if (!newStore.name.trim() || !newStore.address.trim() || creating || !familyId || !currentUser?.uid) {
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const storeData = {
+        name: newStore.name.trim(),
+        address: newStore.address.trim(),
+        logo: getSupermarketLogo(newStore.name),
+        color: getSupermarketColor(newStore.name)
       };
+
+      const createdStore = await createFamilySupermarket(familyId, storeData, currentUser.uid);
       
-      onSelect({
-        chain: 'custom',
-        name: customStore.name.trim(),
-        logo: '🏬',
-        color: '#666666',
-        location: customLocation
-      });
+      // Add to local state
+      setFamilySupermarkets(prev => [createdStore, ...prev]);
+      
+      // Auto-select the newly created store
+      handleSupermarketSelect(createdStore);
+      
+      // Reset form
+      setNewStore({ name: '', address: '' });
+      setShowCreateForm(false);
+    } catch (error) {
+      console.error('Error creating supermarket:', error);
+      alert('Failed to create supermarket. Please try again.');
+    } finally {
+      setCreating(false);
     }
   };
 
-  const chain = selectedChain ? COMMON_SUPERMARKETS[selectedChain] : null;
+  const selectedStore = familySupermarkets.find(store => store.id === selectedSupermarketId);
+
+  if (loading) {
+    return (
+      <div className="supermarket-selector">
+        {showTitle && (
+          <div className="selector-title">
+            <span className="title-icon">📍</span>
+            <span className="title-text">Select Supermarket</span>
+            <span className="title-subtitle">Choose where to shop</span>
+          </div>
+        )}
+        <div className="loading-supermarkets">Loading supermarkets...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="supermarket-selector">
@@ -140,49 +130,31 @@ const SupermarketSelector = ({
         </div>
       )}
 
-      {/* Chain Selection */}
-      <div className="chain-selection">
-        <label className="field-label">Supermarket Chain</label>
-        <div className="chain-grid">
-          {Object.entries(COMMON_SUPERMARKETS).map(([key, supermarket]) => (
-            <button
-              key={key}
-              type="button"
-              className={`chain-option ${selectedChain === key ? 'selected' : ''}`}
-              onClick={() => handleChainSelect(key)}
-              disabled={disabled}
-              style={{
-                borderColor: selectedChain === key ? supermarket.color : '#E5E5EA'
-              }}
-            >
-              <span className="chain-logo">{supermarket.logo}</span>
-              <span className="chain-name">{supermarket.name}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Location Selection for Chain Stores */}
-      {selectedChain && selectedChain !== 'custom' && chain?.locations.length > 1 && (
-        <div className="location-selection">
-          <label className="field-label">Choose Location</label>
-          <div className="location-options">
-            {chain.locations.map((location) => (
+      {/* Existing Family Supermarkets */}
+      {familySupermarkets.length > 0 && (
+        <div className="family-supermarkets">
+          <label className="field-label">Your Family's Supermarkets</label>
+          <div className="supermarket-list">
+            {familySupermarkets.map((supermarket) => (
               <button
-                key={location.id}
+                key={supermarket.id}
                 type="button"
-                className={`location-option ${selectedLocation?.id === location.id ? 'selected' : ''}`}
-                onClick={() => handleLocationSelect(location)}
+                className={`supermarket-option ${selectedSupermarketId === supermarket.id ? 'selected' : ''}`}
+                onClick={() => handleSupermarketSelect(supermarket)}
                 disabled={disabled}
+                style={{
+                  borderColor: selectedSupermarketId === supermarket.id ? supermarket.color : '#E5E5EA'
+                }}
               >
-                <div className="location-info">
-                  <div className="location-address">{location.address}</div>
-                  {location.phone && (
-                    <div className="location-phone">📞 {location.phone}</div>
-                  )}
+                <div className="supermarket-info">
+                  <div className="supermarket-header">
+                    <span className="supermarket-logo">{supermarket.logo}</span>
+                    <span className="supermarket-name">{supermarket.name}</span>
+                  </div>
+                  <div className="supermarket-address">{supermarket.address}</div>
                 </div>
-                <div className="location-indicator">
-                  {selectedLocation?.id === location.id ? '✓' : '→'}
+                <div className="selection-indicator">
+                  {selectedSupermarketId === supermarket.id ? '✓' : '→'}
                 </div>
               </button>
             ))}
@@ -190,57 +162,76 @@ const SupermarketSelector = ({
         </div>
       )}
 
-      {/* Custom Store Form */}
-      {selectedChain === 'custom' && (
-        <div className="custom-store-form">
-          <label className="field-label">Store Details</label>
-          
-          <div className="form-field">
-            <input
-              type="text"
-              placeholder="Store name (e.g., Local Market)"
-              value={customStore.name}
-              onChange={(e) => setCustomStore(prev => ({ ...prev, name: e.target.value }))}
-              onBlur={handleCustomStoreSubmit}
-              disabled={disabled}
-            />
+      {/* Add New Supermarket */}
+      <div className="add-supermarket-section">
+        {!showCreateForm ? (
+          <button
+            type="button"
+            className="add-supermarket-btn"
+            onClick={() => setShowCreateForm(true)}
+            disabled={disabled}
+          >
+            <span className="add-icon">+</span>
+            <span className="add-text">Add New Supermarket</span>
+          </button>
+        ) : (
+          <div className="create-supermarket-form">
+            <label className="field-label">New Supermarket</label>
+            
+            <div className="form-field">
+              <input
+                type="text"
+                placeholder="Supermarket name (e.g., REWE, Local Market)"
+                value={newStore.name}
+                onChange={(e) => setNewStore(prev => ({ ...prev, name: e.target.value }))}
+                disabled={disabled || creating}
+                autoFocus
+              />
+            </div>
+            
+            <div className="form-field">
+              <input
+                type="text"
+                placeholder="Full address"
+                value={newStore.address}
+                onChange={(e) => setNewStore(prev => ({ ...prev, address: e.target.value }))}
+                disabled={disabled || creating}
+              />
+            </div>
+            
+            <div className="form-actions">
+              <button
+                type="button"
+                className="cancel-btn"
+                onClick={() => {
+                  setShowCreateForm(false);
+                  setNewStore({ name: '', address: '' });
+                }}
+                disabled={disabled || creating}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="create-btn"
+                onClick={handleCreateStore}
+                disabled={disabled || creating || !newStore.name.trim() || !newStore.address.trim()}
+              >
+                {creating ? 'Creating...' : 'Create'}
+              </button>
+            </div>
           </div>
-          
-          <div className="form-field">
-            <input
-              type="text"
-              placeholder="Full address"
-              value={customStore.address}
-              onChange={(e) => setCustomStore(prev => ({ ...prev, address: e.target.value }))}
-              onBlur={handleCustomStoreSubmit}
-              disabled={disabled}
-            />
-          </div>
-          
-          <div className="form-field">
-            <input
-              type="text"
-              placeholder="Phone number (optional)"
-              value={customStore.phone}
-              onChange={(e) => setCustomStore(prev => ({ ...prev, phone: e.target.value }))}
-              onBlur={handleCustomStoreSubmit}
-              disabled={disabled}
-            />
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Selected Store Display */}
-      {selectedSupermarket && (
+      {/* Selected Store Preview */}
+      {selectedStore && (
         <div className="selected-store-preview">
           <div className="preview-header">
-            <span className="preview-logo">{selectedSupermarket.logo}</span>
+            <span className="preview-logo">{selectedStore.logo}</span>
             <div className="preview-info">
-              <div className="preview-name">{selectedSupermarket.name}</div>
-              <div className="preview-address">{selectedSupermarket.location?.address}</div>
-              {selectedSupermarket.location?.phone && (
-                <div className="preview-phone">📞 {selectedSupermarket.location.phone}</div>
-              )}
+              <div className="preview-name">{selectedStore.name}</div>
+              <div className="preview-address">{selectedStore.address}</div>
             </div>
           </div>
         </div>

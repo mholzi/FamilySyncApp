@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 
 function AddChildSchoolSchedule({ childData, initialData, onNext, onBack }) {
-  const [scheduleType, setScheduleType] = useState(initialData?.scheduleType || 'kindergarten');
+  // Get schedule type from childData since it's set in the add/edit child screen
+  const scheduleType = childData?.scheduleType || initialData?.scheduleType || 'kindergarten';
   const [schedule, setSchedule] = useState(initialData?.schoolSchedule || {
     monday: [],
     tuesday: [],
@@ -16,6 +17,21 @@ function AddChildSchoolSchedule({ childData, initialData, onNext, onBack }) {
   const [selectedBlock, setSelectedBlock] = useState(null);
   const [resizingBlock, setResizingBlock] = useState(null);
   const [resizeHandle, setResizeHandle] = useState(null); // 'top' or 'bottom'
+  
+  // School information state
+  const [schoolInfo, setSchoolInfo] = useState(initialData?.schoolInfo || {
+    address: '',
+    travelTime: ''
+  });
+  
+  // Pickup person state for each day
+  const [pickupPerson, setPickupPerson] = useState(initialData?.pickupPerson || {
+    monday: 'parent',
+    tuesday: 'parent',
+    wednesday: 'parent',
+    thursday: 'parent',
+    friday: 'parent'
+  });
   
   const calendarRef = useRef(null);
   
@@ -79,6 +95,53 @@ function AddChildSchoolSchedule({ childData, initialData, onNext, onBack }) {
       newSchedule[day] = [];
     });
     setSchedule(newSchedule);
+  };
+
+  // Update schedule for a specific day (simplified for table view)
+  const updateDaySchedule = (day, field, value) => {
+    if (!value) {
+      // If no value, clear the day
+      setSchedule(prev => ({
+        ...prev,
+        [day]: []
+      }));
+      return;
+    }
+
+    setSchedule(prev => {
+      const currentDaySchedule = prev[day] || [];
+      let updatedBlock;
+
+      if (currentDaySchedule.length === 0) {
+        // Create new block for this day
+        updatedBlock = {
+          id: Date.now(),
+          type: scheduleTypes[scheduleType].defaultBlocks[0],
+          startTime: field === 'startTime' ? value : '09:00',
+          endTime: field === 'endTime' ? value : '15:00',
+          color: scheduleTypes[scheduleType].color
+        };
+      } else {
+        // Update existing block
+        updatedBlock = {
+          ...currentDaySchedule[0],
+          [field]: value
+        };
+      }
+
+      return {
+        ...prev,
+        [day]: [updatedBlock]
+      };
+    });
+  };
+
+  // Clear schedule for a specific day
+  const clearDaySchedule = (day) => {
+    setSchedule(prev => ({
+      ...prev,
+      [day]: []
+    }));
   };
 
   // Add a new time block to a specific day
@@ -245,6 +308,8 @@ function AddChildSchoolSchedule({ childData, initialData, onNext, onBack }) {
     const scheduleData = {
       scheduleType,
       schoolSchedule: schedule,
+      schoolInfo,
+      pickupPerson,
       lastModified: new Date().toISOString()
     };
     onNext(scheduleData);
@@ -255,6 +320,8 @@ function AddChildSchoolSchedule({ childData, initialData, onNext, onBack }) {
     const scheduleData = {
       scheduleType,
       schoolSchedule: schedule,
+      schoolInfo,
+      pickupPerson,
       lastModified: new Date().toISOString()
     };
     onNext(scheduleData);
@@ -287,22 +354,32 @@ function AddChildSchoolSchedule({ childData, initialData, onNext, onBack }) {
           </p>
         </div>
 
-        {/* Schedule Type Selector */}
+        {/* School Information */}
         <div style={styles.section}>
-          <h3 style={styles.sectionTitle}>Schedule Type</h3>
-          <div style={styles.typeButtons}>
-            {Object.entries(scheduleTypes).map(([key, type]) => (
-              <button
-                key={key}
-                style={{
-                  ...styles.typeButton,
-                  ...(scheduleType === key ? styles.typeButtonActive : {})
-                }}
-                onClick={() => setScheduleType(key)}
-              >
-                {type.label}
-              </button>
-            ))}
+          <h3 style={styles.sectionTitle}>School Information</h3>
+          <div style={styles.schoolInfoGrid}>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>School Address</label>
+              <input
+                type="text"
+                value={schoolInfo.address}
+                onChange={(e) => setSchoolInfo(prev => ({ ...prev, address: e.target.value }))}
+                placeholder="123 Main St, City, State"
+                style={styles.textInput}
+              />
+            </div>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Travel Time (minutes)</label>
+              <input
+                type="number"
+                value={schoolInfo.travelTime}
+                onChange={(e) => setSchoolInfo(prev => ({ ...prev, travelTime: e.target.value }))}
+                placeholder="15"
+                min="1"
+                max="120"
+                style={styles.numberInput}
+              />
+            </div>
           </div>
         </div>
 
@@ -332,33 +409,38 @@ function AddChildSchoolSchedule({ childData, initialData, onNext, onBack }) {
           </div>
         </div>
 
-        {/* Weekly Calendar */}
+        {/* Weekly Schedule Table */}
         <div style={styles.section}>
           <h3 style={styles.sectionTitle}>Weekly Schedule</h3>
           <p style={styles.helpText}>
-            Drag time blocks to move them. Drag edges to resize. Click + to add blocks. Times from 7 AM to 6 PM.
+            Set school start and end times for each day. Leave times empty for days off.
           </p>
           
-          <div style={styles.calendar} ref={calendarRef}>
-            <div style={styles.timeColumn}>
-              <div style={styles.timeHeader}></div>
-              {Array.from({ length: 11 }, (_, i) => {
-                const hour = i + 7; // 7 AM to 5 PM (6 PM is at the end)
-                const displayHour = hour > 12 ? hour - 12 : hour;
-                const ampm = hour >= 12 ? 'PM' : 'AM';
-                return (
-                  <div key={hour} style={styles.timeSlot}>
-                    {`${displayHour}:00 ${ampm}`}
-                  </div>
-                );
-              })}
-              <div style={styles.timeSlot}>6:00 PM</div>
+          <div style={styles.scheduleTable}>
+            <div style={styles.tableHeader}>
+              <div style={styles.headerCell}>Day</div>
+              <div style={styles.headerCell}>Start Time</div>
+              <div style={styles.headerCell}>End Time</div>
+              <div style={styles.headerCell}>Pickup Person</div>
+              <div style={styles.headerCell}>Actions</div>
             </div>
 
             {days.map(day => (
               <div key={day} style={styles.dayColumn}>
                 <div style={styles.dayHeader}>
                   <span style={styles.dayLabel}>{dayLabels[day]}</span>
+                  <div style={styles.pickupSelector}>
+                    <label style={styles.pickupLabel}>Pickup:</label>
+                    <select
+                      value={pickupPerson[day]}
+                      onChange={(e) => setPickupPerson(prev => ({ ...prev, [day]: e.target.value }))}
+                      style={styles.pickupSelect}
+                    >
+                      <option value="parent">Parent</option>
+                      <option value="aupair">Au Pair</option>
+                      <option value="alone">Kid comes home alone</option>
+                    </select>
+                  </div>
                   <div style={styles.dayActions}>
                     <button 
                       style={styles.addButton}
@@ -552,19 +634,44 @@ function AddChildSchoolSchedule({ childData, initialData, onNext, onBack }) {
         {hasSchedule && (
           <div style={styles.summary}>
             <h3 style={styles.summaryTitle}>Schedule Summary</h3>
-            {days.map(day => (
-              schedule[day].length > 0 && (
-                <div key={day} style={styles.summaryDay}>
-                  <strong>{dayLabels[day]}:</strong>
-                  {schedule[day].map((block, index) => (
-                    <span key={block.id} style={styles.summaryBlock}>
-                      {index > 0 && ', '}
-                      {block.type} ({block.startTime}-{block.endTime})
+            
+            {/* School Information Summary */}
+            {(schoolInfo.address || schoolInfo.travelTime) && (
+              <div style={styles.summarySection}>
+                <h4 style={styles.summarySubtitle}>School Information</h4>
+                {schoolInfo.address && (
+                  <div style={styles.summaryItem}>
+                    <strong>Address:</strong> {schoolInfo.address}
+                  </div>
+                )}
+                {schoolInfo.travelTime && (
+                  <div style={styles.summaryItem}>
+                    <strong>Travel Time:</strong> {schoolInfo.travelTime} minutes
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Weekly Schedule Summary */}
+            <div style={styles.summarySection}>
+              <h4 style={styles.summarySubtitle}>Weekly Schedule</h4>
+              {days.map(day => (
+                schedule[day].length > 0 && (
+                  <div key={day} style={styles.summaryDay}>
+                    <strong>{dayLabels[day]}:</strong>
+                    {schedule[day].map((block, index) => (
+                      <span key={block.id} style={styles.summaryBlock}>
+                        {index > 0 && ', '}
+                        {block.type} ({block.startTime}-{block.endTime})
+                      </span>
+                    ))}
+                    <span style={styles.pickupInfo}>
+                      | Pickup: {pickupPerson[day] === 'parent' ? 'Parent' : pickupPerson[day] === 'aupair' ? 'Au Pair' : pickupPerson[day] === 'alone' ? 'Kid comes home alone' : 'Unknown'}
                     </span>
-                  ))}
-                </div>
-              )
-            ))}
+                  </div>
+                )
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -599,9 +706,10 @@ const styles = {
   container: {
     display: 'flex',
     flexDirection: 'column',
-    minHeight: '100vh',
+    height: '100vh',
     backgroundColor: '#F2F2F7',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+    overflow: 'hidden'
   },
   header: {
     display: 'flex',
@@ -630,7 +738,9 @@ const styles = {
   content: {
     flex: 1,
     padding: '20px',
-    paddingBottom: '100px'
+    paddingBottom: '120px',
+    overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch'
   },
   introSection: {
     textAlign: 'center',
@@ -668,26 +778,6 @@ const styles = {
     fontWeight: '600',
     color: '#000',
     margin: '0 0 15px 0'
-  },
-  typeButtons: {
-    display: 'flex',
-    gap: '10px'
-  },
-  typeButton: {
-    flex: 1,
-    padding: '12px',
-    borderRadius: '8px',
-    border: '1px solid #E5E5EA',
-    backgroundColor: 'white',
-    color: '#666',
-    fontSize: '16px',
-    fontWeight: '500',
-    cursor: 'pointer'
-  },
-  typeButtonActive: {
-    backgroundColor: '#007AFF',
-    color: 'white',
-    borderColor: '#007AFF'
   },
   quickSetRow: {
     display: 'flex',
@@ -950,7 +1040,9 @@ const styles = {
     borderTop: '1px solid #E5E5EA',
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
+    zIndex: 100,
+    boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.1)'
   },
   leftButtonGroup: {
     display: 'flex'
@@ -992,6 +1084,98 @@ const styles = {
   saveButtonDisabled: {
     backgroundColor: '#C7C7CC',
     cursor: 'not-allowed'
+  },
+  
+  // School Information Styles
+  schoolInfoGrid: {
+    display: 'grid',
+    gridTemplateColumns: '2fr 1fr',
+    gap: '20px',
+    marginBottom: '10px'
+  },
+  formGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+  label: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: '4px'
+  },
+  textInput: {
+    padding: '12px',
+    border: '1px solid #E5E5EA',
+    borderRadius: '8px',
+    fontSize: '16px',
+    backgroundColor: 'white',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+    ':focus': {
+      borderColor: '#007AFF'
+    }
+  },
+  numberInput: {
+    padding: '12px',
+    border: '1px solid #E5E5EA',
+    borderRadius: '8px',
+    fontSize: '16px',
+    backgroundColor: 'white',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+    width: '100%'
+  },
+  
+  // Pickup Person Styles
+  pickupSelector: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+    marginTop: '8px',
+    marginBottom: '8px'
+  },
+  pickupLabel: {
+    fontSize: '11px',
+    fontWeight: '600',
+    color: '#666',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  },
+  pickupSelect: {
+    padding: '6px 8px',
+    border: '1px solid #E5E5EA',
+    borderRadius: '6px',
+    fontSize: '12px',
+    backgroundColor: 'white',
+    color: '#333',
+    outline: 'none',
+    cursor: 'pointer',
+    transition: 'border-color 0.2s'
+  },
+  
+  // Summary Styles
+  summarySection: {
+    marginBottom: '20px'
+  },
+  summarySubtitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: '10px',
+    marginTop: '0'
+  },
+  summaryItem: {
+    fontSize: '14px',
+    color: '#666',
+    marginBottom: '5px',
+    lineHeight: '1.4'
+  },
+  pickupInfo: {
+    fontSize: '12px',
+    color: '#666',
+    marginLeft: '8px',
+    fontStyle: 'italic'
   }
 };
 

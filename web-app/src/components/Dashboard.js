@@ -11,7 +11,7 @@ import { DashboardStates, getDashboardState } from '../utils/dashboardStates';
 import DashboardWelcome from './DashboardWelcome';
 import AddChildFlow from './AddChild/AddChildFlow';
 import { collection, addDoc, doc, updateDoc, deleteDoc, Timestamp, getDoc, query, onSnapshot } from 'firebase/firestore';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { processAndUploadPhoto } from '../utils/optimizedPhotoUpload';
 import LoadingProgress from './LoadingProgress';
 import SmartCalendarPage from '../pages/SmartCalendarPage';
@@ -25,15 +25,25 @@ import UpcomingEventsForMe from './Dashboard/UpcomingEventsForMe';
 import RecurringActivitiesManager from './Activities/RecurringActivitiesManager';
 import TimeOffRequest from './Requests/TimeOffRequest';
 import RequestsList from './Requests/RequestsList';
+import ShoppingListTaskCard from './Shopping/ShoppingListTaskCard';
+import ErrorBoundary from './ErrorBoundary';
 
 function Dashboard({ user }) {
+  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard', 'add_child', 'edit_child', 'welcome', 'smart_calendar', 'profile', 'activities'
+
   // Use custom hooks to fetch data
   const { userData, familyData, children, loading: familyLoading } = useFamily(user.uid);
   const { tasks, loading: tasksLoading } = useTasks(userData?.familyId, user.uid);
   const { events, loading: eventsLoading } = useCalendar(userData?.familyId, user.uid);
-  const { shoppingLists, loading: shoppingLoading } = useShopping(userData?.familyId);
+  
+  // Only fetch shopping data when on dashboard view to prevent duplicate listeners
+  const { shoppingLists, loading: shoppingLoading } = useShopping(currentView === 'dashboard' ? userData?.familyId : null);
 
-  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard', 'add_child', 'edit_child', 'welcome', 'smart_calendar', 'profile', 'activities'
+  // Memoize filtered shopping lists to prevent unnecessary re-renders and potential Firestore conflicts
+  const activeShoppingLists = useMemo(() => {
+    return shoppingLists.filter(list => !list.isArchived && list.status !== 'paid-out' && list.status !== 'needs-approval');
+  }, [shoppingLists]);
+  
   const [isAddingChild, setIsAddingChild] = useState(false);
   const [editingChild, setEditingChild] = useState(null);
   const [isSavingChild, setIsSavingChild] = useState(false);
@@ -628,84 +638,112 @@ function Dashboard({ user }) {
       {/* Main Content */}
       <div style={styles.content}>
         {/* Household Todos (Parent-Au Pair) */}
-        <section style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <h2 style={styles.sectionTitle}>
-              {userRole === 'parent' 
-                ? `Household Tasks for Au Pair ${householdTodos.length > 0 ? `(${householdTodos.length})` : ''}` 
-                : 'Your Daily Contributions'
-              }
-            </h2>
-            {userRole === 'parent' && (
-              <button style={styles.headerButton} onClick={handleAddTodo}>
-                Add Task
-              </button>
-            )}
-          </div>
-          <div style={styles.tasksContainer}>
-            {householdTodos.length === 0 ? (
-              <div style={styles.emptyStateFullWidth}>
-                <div style={styles.emptyStateIcon}>✅</div>
-                <p style={styles.emptyStateTitle}>All Tasks Completed!</p>
-                <p style={styles.emptyStateSubtext}>
-                  {userRole === 'parent' 
-                    ? 'Great work! All household tasks have been completed. Your au pair is doing an excellent job!'
-                    : 'Fantastic work! You\'ve completed all your assigned tasks. Enjoy your well-deserved break! 🎉'
-                  }
-                </p>
-              </div>
-            ) : (
-              householdTodos.map((todo) => (
-                <SimpleTodoCard
-                  key={todo.id}
-                  todo={todo}
-                  userRole={userRole}
-                  familyId={userData?.familyId}
-                  userId={user.uid}
-                  onToggleComplete={(todoId, newStatus) => {
-                    console.log(`Todo ${todoId} status changed to ${newStatus}`);
-                  }}
+        <ErrorBoundary
+          fallback={
+            <div style={styles.errorCard}>
+              <h3>Unable to load tasks</h3>
+              <p>There was an issue loading your tasks and shopping lists. Please refresh the page.</p>
+            </div>
+          }
+        >
+          <section style={styles.section}>
+            <div style={styles.sectionHeader}>
+              <h2 style={styles.sectionTitle}>
+                {userRole === 'parent' 
+                  ? `Tasks & Shopping for Au Pair` 
+                  : 'Your Daily Contributions'
+                }
+              </h2>
+              {userRole === 'parent' && (
+                <button style={styles.headerButton} onClick={handleAddTodo}>
+                  Add Task
+                </button>
+              )}
+            </div>
+            <div style={styles.tasksContainer}>
+              {/* Shopping List Task Cards */}
+              {activeShoppingLists.map((list) => (
+                <ShoppingListTaskCard
+                  key={`shopping-${list.id}`}
+                  list={list}
+                  onNavigate={setCurrentView}
                 />
-              ))
-            )}
-          </div>
-        </section>
-
-        {/* Children's Overview */}
-        <section style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <h2 style={styles.sectionTitle}>Children's Overview</h2>
-            {userRole === 'parent' && (
-              <button style={styles.headerButton} onClick={handleAddChild}>
-                Add Child
-              </button>
-            )}
-          </div>
-          <div style={styles.childrenContainer}>
-            {children.length === 0 ? (
-              <div style={styles.emptyState}>
-                <div style={styles.emptyStateIcon}>👶</div>
-                <p>Ready to add your children?</p>
-                {userRole === 'parent' && (
-                  <button style={styles.emptyStateButton} onClick={handleAddChild}>
-                    Add Child
-                  </button>
-                )}
-              </div>
-            ) : (
-              children
-                .filter((child, index, arr) => arr.findIndex(c => c.id === child.id) === index) // Remove duplicates
-                .map((child) => (
-                  <EnhancedChildCard
-                    key={child.id}
-                    child={child}
-                    onEditChild={handleEditChild}
+              ))}
+              
+              {/* Household Todo Cards */}
+              {householdTodos.length === 0 && activeShoppingLists.length === 0 ? (
+                <div style={styles.emptyStateFullWidth}>
+                  <div style={styles.emptyStateIcon}>✅</div>
+                  <p style={styles.emptyStateTitle}>All Tasks Completed!</p>
+                  <p style={styles.emptyStateSubtext}>
+                    {userRole === 'parent' 
+                      ? 'Great work! All household tasks have been completed. Your au pair is doing an excellent job!'
+                      : 'Fantastic work! You\'ve completed all your assigned tasks. Enjoy your well-deserved break! 🎉'
+                    }
+                  </p>
+                </div>
+              ) : (
+                householdTodos.map((todo) => (
+                  <SimpleTodoCard
+                    key={todo.id}
+                    todo={todo}
                     userRole={userRole}
+                    familyId={userData?.familyId}
+                    userId={user.uid}
+                    onToggleComplete={(todoId, newStatus) => {
+                      console.log(`Todo ${todoId} status changed to ${newStatus}`);
+                    }}
                   />
                 ))
-            )}
-          </div>
-        </section>
+              )}
+            </div>
+          </section>
+        </ErrorBoundary>
+
+        {/* Children's Overview */}
+        <ErrorBoundary
+          fallback={
+            <div style={styles.errorCard}>
+              <h3>Unable to load children's overview</h3>
+              <p>There was an issue loading the children's information. Please refresh the page.</p>
+            </div>
+          }
+        >
+          <section style={styles.section}>
+            <div style={styles.sectionHeader}>
+              <h2 style={styles.sectionTitle}>Children's Overview</h2>
+              {userRole === 'parent' && (
+                <button style={styles.headerButton} onClick={handleAddChild}>
+                  Add Child
+                </button>
+              )}
+            </div>
+            <div style={styles.childrenContainer}>
+              {children.length === 0 ? (
+                <div style={styles.emptyState}>
+                  <div style={styles.emptyStateIcon}>👶</div>
+                  <p>Ready to add your children?</p>
+                  {userRole === 'parent' && (
+                    <button style={styles.emptyStateButton} onClick={handleAddChild}>
+                      Add Child
+                    </button>
+                  )}
+                </div>
+              ) : (
+                children
+                  .filter((child, index, arr) => arr.findIndex(c => c.id === child.id) === index) // Remove duplicates
+                  .map((child) => (
+                    <EnhancedChildCard
+                      key={child.id}
+                      child={child}
+                      onEditChild={handleEditChild}
+                      userRole={userRole}
+                    />
+                  ))
+              )}
+            </div>
+          </section>
+        </ErrorBoundary>
 
         {/* Recurring Activities Management - Only for Parents */}
         {userRole === 'parent' && (
@@ -769,137 +807,48 @@ function Dashboard({ user }) {
         )}
 
         {/* Upcoming Events for Me */}
-        <section style={styles.section}>
-          <UpcomingEventsForMe 
-            children={children}
-            userRole={userRole}
-            activities={events}
-            familyId={userData?.familyId}
-            maxEvents={5}
-          />
-        </section>
+        <ErrorBoundary
+          fallback={
+            <div style={styles.errorCard}>
+              <h3>Unable to load upcoming events</h3>
+              <p>There was an issue loading your upcoming events. Please refresh the page.</p>
+            </div>
+          }
+        >
+          <section style={styles.section}>
+            <UpcomingEventsForMe 
+              children={children}
+              userRole={userRole}
+              activities={events}
+              familyId={userData?.familyId}
+              maxEvents={5}
+            />
+          </section>
+        </ErrorBoundary>
 
         {/* Family Notes Section */}
-        <section style={styles.section}>
-          <div style={styles.bottomCard}>
-            <FamilyNotesList
-              familyId={userData?.familyId}
-              userId={user.uid}
-              userRole={userRole}
-              userData={userData}
-              familyData={familyData}
-              maxDisplayed={3}
-            />
-          </div>
-        </section>
+        <ErrorBoundary
+          fallback={
+            <div style={styles.errorCard}>
+              <h3>Unable to load family notes</h3>
+              <p>There was an issue loading the family notes. Please refresh the page.</p>
+            </div>
+          }
+        >
+          <section style={styles.section}>
+            <div style={styles.bottomCard}>
+              <FamilyNotesList
+                familyId={userData?.familyId}
+                userId={user.uid}
+                userRole={userRole}
+                userData={userData}
+                familyData={familyData}
+                maxDisplayed={3}
+              />
+            </div>
+          </section>
+        </ErrorBoundary>
 
-        {/* Shopping List Section */}
-        <section style={styles.section}>
-          <div style={styles.bottomCard}>
-            <div style={styles.cardHeader}>
-              <h3 style={styles.bottomTitle}>Shopping List</h3>
-              <button 
-                style={styles.viewAllButton}
-                onClick={() => setCurrentView('shopping')}
-              >
-                View All
-              </button>
-            </div>
-            <div style={styles.shoppingList}>
-              {shoppingLists.length === 0 ? (
-                <div style={styles.emptyStateSmall}>
-                  <p>No shopping lists</p>
-                  <button 
-                    style={styles.createButton}
-                    onClick={() => setCurrentView('shopping')}
-                  >
-                    Create first list
-                  </button>
-                </div>
-              ) : (
-                (() => {
-                  const activeLists = shoppingLists.filter(list => !list.isArchived && list.status !== 'paid-out');
-                  
-                  if (activeLists.length === 0) {
-                    return (
-                      <div style={styles.allClearState}>
-                        <div style={styles.allClearIcon}>✨</div>
-                        <p style={styles.allClearText}>All shopping done!</p>
-                        <p style={styles.allClearSubtext}>Great job keeping the household stocked</p>
-                        <button 
-                          style={styles.createButton}
-                          onClick={() => setCurrentView('shopping')}
-                        >
-                          Create new list
-                        </button>
-                      </div>
-                    );
-                  }
-                  
-                  // Check if all active lists are completed
-                  const allCompleted = activeLists.every(list => {
-                    const items = Array.isArray(list.items) 
-                      ? list.items 
-                      : Object.values(list.items || {});
-                    return items.length > 0 && items.every(item => item.isPurchased);
-                  });
-                  
-                  if (allCompleted) {
-                    return (
-                      <div style={styles.allClearState}>
-                        <div style={styles.allClearIcon}>🎉</div>
-                        <p style={styles.allClearText}>All shopping completed!</p>
-                        <p style={styles.allClearSubtext}>{activeLists.length} {activeLists.length === 1 ? 'list' : 'lists'} finished</p>
-                        <div style={styles.completedListsPreview}>
-                          {activeLists.map(list => (
-                            <div 
-                              key={list.id}
-                              style={styles.completedListItem}
-                              onClick={() => setCurrentView('shopping')}
-                            >
-                              {list.name} ✓
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  }
-                  
-                  return activeLists.map((list) => {
-                    const items = Array.isArray(list.items) 
-                      ? list.items 
-                      : Object.values(list.items || {});
-                    
-                    const completedItems = items.filter(item => item.isPurchased).length;
-                    const totalItems = items.length;
-                    const remainingItems = totalItems - completedItems;
-                    
-                    return (
-                      <div 
-                        key={list.id} 
-                        style={styles.shoppingListItem}
-                        onClick={() => setCurrentView('shopping')}
-                      >
-                        <div style={styles.listHeader}>
-                          <span style={styles.listName}>{list.name}</span>
-                          {list.status === 'needs-approval' && userRole === 'parent' && (
-                            <span style={styles.approvalBadge}>Needs Approval</span>
-                          )}
-                        </div>
-                        <div style={styles.progressIndicator}>
-                          {remainingItems > 0 
-                            ? `${remainingItems}/${totalItems} items remaining`
-                            : `${totalItems}/${totalItems} items completed ✓`
-                          }
-                        </div>
-                      </div>
-                    );
-                  });
-                })()
-              )}
-            </div>
-          </div>
-        </section>
 
         {/* Au Pair Invitation Reminder - Only show if no au pair is linked and user is parent */}
         {children.length > 0 && 
@@ -1565,6 +1514,16 @@ const styles = {
     fontWeight: 'var(--font-weight-medium)',
     cursor: 'pointer',
     transition: 'var(--transition-fast)'
+  },
+
+  // Error Card Styles
+  errorCard: {
+    backgroundColor: '#fef2f2',
+    border: '1px solid #fecaca',
+    borderRadius: 'var(--radius-lg)',
+    padding: 'var(--space-4)',
+    margin: 'var(--space-3) 0',
+    textAlign: 'center'
   },
 
   // Invitation Popup Styles

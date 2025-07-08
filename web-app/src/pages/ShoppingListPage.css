@@ -69,6 +69,31 @@
   margin-top: 0;
 }
 
+.payment-tracking-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 16px;
+  width: 100%;
+}
+
+.payment-tracking-grid > * {
+  grid-column: span 1;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .payment-tracking-grid {
+    gap: 12px; /* Smaller gap on mobile for better fit */
+  }
+}
+
+@media (max-width: 480px) {
+  .payment-tracking-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px;
+  }
+}
+
 .active-lists h2 {
   color: #333;
   font-size: 18px;

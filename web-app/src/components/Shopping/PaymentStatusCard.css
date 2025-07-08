@@ -2,9 +2,14 @@
   background: white;
   border-radius: 12px;
   padding: 16px;
-  margin-bottom: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   border-left: 4px solid #ddd;
+  height: fit-content;
+  display: block;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .payment-status-card.status-pending {
@@ -27,15 +32,29 @@
 .payment-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 0;
+  min-width: 0;
+  width: auto;
 }
 
-.payment-info h4 {
-  margin: 0 0 4px 0;
+.payment-header h4 {
+  margin: 0;
+  padding: 0;
   font-size: 16px;
   font-weight: 600;
   color: #333;
+  text-align: left;
+  align-self: flex-start;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.payment-amount {
+  margin-bottom: 8px;
 }
 
 .amount {
@@ -47,7 +66,6 @@
 .status-badge {
   display: flex;
   align-items: center;
-  gap: 6px;
   background: #f5f5f5;
   padding: 6px 12px;
   border-radius: 20px;
@@ -75,47 +93,26 @@
   color: #558b2f;
 }
 
-.status-icon {
-  font-size: 14px;
-}
-
-.receipt-info,
-.approval-info,
-.payout-info,
-.confirmation-info {
-  margin-bottom: 8px;
-}
-
-.receipt-date,
-.approval-date,
-.payout-date,
-.confirmation-date {
-  font-size: 13px;
-  color: #666;
-}
-
-.confirm-section {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #eee;
-}
-
-.confirm-prompt {
-  margin: 0 0 12px 0;
-  font-size: 14px;
-  color: #555;
+.top-right-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
 }
 
 .confirm-payment-btn {
   background: #4CAF50;
   color: white;
   border: none;
-  padding: 10px 16px;
-  border-radius: 6px;
-  font-size: 14px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
 }
 
 .confirm-payment-btn:hover {
@@ -129,11 +126,29 @@
 
 @media (max-width: 768px) {
   .payment-header {
-    flex-direction: column;
+    /* Keep horizontal layout on mobile */
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
     gap: 8px;
   }
   
+  .payment-header h4 {
+    font-size: 14px;
+    flex: 1;
+  }
+  
+  .top-right-actions {
+    flex-shrink: 0;
+  }
+  
+  .confirm-payment-btn {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+  
   .status-badge {
-    align-self: flex-start;
+    font-size: 11px;
+    padding: 4px 8px;
   }
 }
