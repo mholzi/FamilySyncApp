@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createEventOverride, deleteEventOverride } from '../../utils/eventOverridesUtils';
+import { PICKUP_PERSON_OPTIONS, pickupPersonToResponsibility, responsibilityToPickupPerson } from '../../utils/schoolPickupUtils';
 
 const EditEventModal = ({ event, familyId, onClose, onSave }) => {
   const [formData, setFormData] = useState({
@@ -58,7 +59,9 @@ const EditEventModal = ({ event, familyId, onClose, onSave }) => {
         }
       };
 
-      await createEventOverride(familyId, overrideData);
+      console.log('Creating event override with data:', overrideData);
+      const overrideId = await createEventOverride(familyId, overrideData);
+      console.log('Event override created with ID:', overrideId);
       onSave();
       onClose();
     } catch (error) {
@@ -109,6 +112,7 @@ const EditEventModal = ({ event, familyId, onClose, onSave }) => {
       case 'parent': return 'Parent';
       case 'au_pair': return 'Au Pair';
       case 'shared': return 'Shared';
+      case 'aware': return 'Awareness';
       default: return 'Au Pair';
     }
   };
@@ -117,7 +121,9 @@ const EditEventModal = ({ event, familyId, onClose, onSave }) => {
     <div style={styles.overlay}>
       <div style={styles.modal}>
         <div style={styles.header}>
-          <h3 style={styles.title}>Edit Event</h3>
+          <h3 style={styles.title}>
+            {event.type === 'routine' ? 'Edit Routine Event' : 'Edit Event'}
+          </h3>
           <button style={styles.closeButton} onClick={onClose}>×</button>
         </div>
 
@@ -134,86 +140,147 @@ const EditEventModal = ({ event, familyId, onClose, onSave }) => {
           </div>
 
           <div style={styles.form}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Event Title</label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => handleChange('title', e.target.value)}
-                style={styles.input}
-                placeholder="e.g., Breakfast, School Drop-off"
-              />
-            </div>
+            {(() => {
+              // Helper function to check if event is a meal or bedtime
+              const isMealOrBedtimeEvent = event.title && (
+                event.title.toLowerCase().includes('breakfast') ||
+                event.title.toLowerCase().includes('lunch') ||
+                event.title.toLowerCase().includes('dinner') ||
+                event.title.toLowerCase().includes('snack') ||
+                event.title.toLowerCase().includes('bedtime')
+              );
+              
+              // Only show title and description fields if NOT a school pickup event AND NOT a meal/bedtime event
+              const showTitleAndDescription = event.type !== 'school_pickup' && !isMealOrBedtimeEvent;
+              
+              return (
+                <>
+                  {showTitleAndDescription && (
+                    <>
+                      <div style={styles.formGroup}>
+                        <label style={styles.label}>Event Title</label>
+                        <input
+                          type="text"
+                          value={formData.title}
+                          onChange={(e) => handleChange('title', e.target.value)}
+                          style={styles.input}
+                          placeholder={event.type === 'routine' ? "e.g., Breakfast, Wake Up, Bedtime" : "e.g., School Drop-off, Appointment"}
+                        />
+                      </div>
 
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Description</label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => handleChange('description', e.target.value)}
-                style={styles.textarea}
-                placeholder="Additional details about this event"
-                rows={3}
-              />
-            </div>
+                      <div style={styles.formGroup}>
+                        <label style={styles.label}>Description</label>
+                        <textarea
+                          value={formData.description}
+                          onChange={(e) => handleChange('description', e.target.value)}
+                          style={styles.textarea}
+                          placeholder={event.type === 'routine' ? "Modify instructions for this routine event" : "Additional details about this event"}
+                          rows={3}
+                        />
+                      </div>
+                    </>
+                  )}
 
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Time</label>
-              <input
-                type="time"
-                value={formData.time}
-                onChange={(e) => handleChange('time', e.target.value)}
-                style={styles.input}
-              />
-            </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Time</label>
+                    <input
+                      type="time"
+                      value={formData.time}
+                      onChange={(e) => handleChange('time', e.target.value)}
+                      style={styles.input}
+                    />
+                  </div>
 
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Responsibility</label>
-              <div style={styles.responsibilityOptions}>
-                {['au_pair', 'parent', 'shared'].map(option => (
-                  <button
-                    key={option}
-                    type="button"
-                    style={{
-                      ...styles.responsibilityButton,
-                      ...(formData.responsibility === option ? styles.responsibilityButtonActive : {})
-                    }}
-                    onClick={() => handleChange('responsibility', option)}
-                  >
-                    {getResponsibilityLabel(option)}
-                  </button>
-                ))}
-              </div>
-            </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>
+                      {event.type === 'school_pickup' ? 'Pickup Person' : 'Responsibility'}
+                    </label>
+                    <div style={styles.responsibilityOptions}>
+                      {event.type === 'school_pickup' 
+                        ? PICKUP_PERSON_OPTIONS.map(option => {
+                            const currentPickupPerson = responsibilityToPickupPerson(formData.responsibility);
+                            return (
+                              <button
+                                key={option.value}
+                                type="button"
+                                style={{
+                                  ...styles.responsibilityButton,
+                                  ...(currentPickupPerson === option.value ? styles.responsibilityButtonActive : {})
+                                }}
+                                onClick={() => handleChange('responsibility', pickupPersonToResponsibility(option.value))}
+                              >
+                                {option.label}
+                              </button>
+                            );
+                          })
+                        : (() => {
+                            // For meal and bedtime events, exclude 'aware' option
+                            const responsibilityOptions = isMealOrBedtimeEvent 
+                              ? ['au_pair', 'parent', 'shared']
+                              : ['au_pair', 'parent', 'shared', 'aware'];
+                            
+                            return responsibilityOptions.map(option => (
+                              <button
+                                key={option}
+                                type="button"
+                                style={{
+                                  ...styles.responsibilityButton,
+                                  ...(formData.responsibility === option ? styles.responsibilityButtonActive : {})
+                                }}
+                                onClick={() => handleChange('responsibility', option)}
+                              >
+                                {getResponsibilityLabel(option)}
+                              </button>
+                            ));
+                          })()
+                      }
+                    </div>
+                  </div>
 
-            {formData.location !== undefined && (
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Location</label>
-                <input
-                  type="text"
-                  value={formData.location}
-                  onChange={(e) => handleChange('location', e.target.value)}
-                  style={styles.input}
-                  placeholder="Location for this event"
-                />
-              </div>
-            )}
+                  {/* Only show location field if NOT a school pickup event AND NOT a meal/bedtime event */}
+                  {event.type !== 'school_pickup' && !isMealOrBedtimeEvent && (
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Location</label>
+                      <input
+                        type="text"
+                        value={formData.location}
+                        onChange={(e) => handleChange('location', e.target.value)}
+                        style={styles.input}
+                        placeholder={event.type === 'routine' ? "e.g., Kitchen, Child's Room, Living Room" : "Location for this event"}
+                      />
+                    </div>
+                  )}
 
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Additional Notes</label>
-              <textarea
-                value={formData.additionalInfo}
-                onChange={(e) => handleChange('additionalInfo', e.target.value)}
-                style={styles.textarea}
-                placeholder="Any special instructions or changes for this occurrence"
-                rows={2}
-              />
-            </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Additional Notes</label>
+                    <textarea
+                      value={formData.additionalInfo}
+                      onChange={(e) => handleChange('additionalInfo', e.target.value)}
+                      style={styles.textarea}
+                      placeholder={
+                        isMealOrBedtimeEvent 
+                          ? event.title && event.title.toLowerCase().includes('bedtime')
+                            ? "Special bedtime routine instructions or notes"
+                            : "Special cooking instructions or dietary notes for this meal"
+                          : event.type === 'routine' 
+                            ? "Special instructions for this routine event today/tomorrow" 
+                            : "Any special instructions or changes for this occurrence"
+                      }
+                      rows={2}
+                    />
+                  </div>
+                </>
+              );
+            })()}
           </div>
 
           <div style={styles.notice}>
             <span style={styles.noticeIcon}>ℹ️</span>
             <span style={styles.noticeText}>
-              Changes only apply to this specific occurrence ({event.isToday ? 'today' : 'tomorrow'})
+              {event.type === 'routine' 
+                ? `Changes only apply to this specific occurrence (${event.isToday ? 'today' : 'tomorrow'}). The routine itself remains unchanged for future days.`
+                : `Changes only apply to this specific occurrence (${event.isToday ? 'today' : 'tomorrow'})`
+              }
             </span>
           </div>
         </div>
@@ -370,7 +437,7 @@ const styles = {
   responsibilityButtonActive: {
     backgroundColor: 'var(--primary-purple)',
     color: 'var(--white)',
-    borderColor: 'var(--primary-purple)'
+    border: '1px solid var(--primary-purple)'
   },
   notice: {
     display: 'flex',

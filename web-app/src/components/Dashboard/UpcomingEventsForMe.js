@@ -195,6 +195,8 @@ const UpcomingEventsForMe = ({
         return { label: 'Au Pair', color: '#10b981' };
       case 'shared':
         return { label: 'Shared', color: '#f59e0b' };
+      case 'aware':
+        return { label: 'Awareness', color: '#8b5cf6' };
       default:
         return { label: 'Au Pair', color: '#10b981' };
     }
@@ -211,6 +213,11 @@ const UpcomingEventsForMe = ({
     // The component will re-render due to the event overrides subscription
     setShowEditModal(false);
     setEditingEvent(null);
+    
+    // Force a small delay to ensure Firestore has time to propagate the change
+    setTimeout(() => {
+      console.log('Event override saved, current overrides:', Object.keys(eventOverrides));
+    }, 100);
   };
 
   // Get all upcoming events for the au pair from all children
@@ -275,13 +282,11 @@ const UpcomingEventsForMe = ({
 
       // Filter based on user role and event filter
       const shouldShow = (activity) => {
-        if (userRole === 'parent') return true;
-        
         if (eventFilter === 'all') {
           // Show all family events regardless of responsibility
           return true;
         } else {
-          // Show only au pair's responsibilities (my events)
+          // For both parents and au pairs, "my events" / "au pair events" shows au pair responsibilities
           return responsibilities[activity] === 'au_pair' || responsibilities[activity] === 'shared';
         }
       };
@@ -445,6 +450,95 @@ const UpcomingEventsForMe = ({
             originalResponsibility: responsibilities.bedtime
           });
         }
+      }
+    });
+
+    // Add school pickup events based on schedule and pickup person
+    children.forEach((child, childIndex) => {
+      if (!child.schoolSchedule || !child.pickupPerson) return;
+
+      const now = new Date();
+      const currentDay = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][now.getDay()];
+      const childColor = getChildColor(child.id, childIndex);
+
+      // Get today's school schedule
+      const todaySchedule = child.schoolSchedule[currentDay];
+      if (!todaySchedule || todaySchedule.length === 0) return;
+
+      // Get today's pickup person
+      const todayPickupPerson = child.pickupPerson[currentDay];
+      if (!todayPickupPerson) return;
+
+      // Filter based on user role and pickup person
+      const shouldShowPickup = () => {
+        if (userRole === 'parent') {
+          // Parents always see all pickup events regardless of who's responsible
+          return true;
+        } else {
+          // Au pairs see pickups they're responsible for, "alone" events (for awareness), or if they want to see all events
+          return eventFilter === 'all' || todayPickupPerson === 'aupair' || todayPickupPerson === 'alone';
+        }
+      };
+
+      if (shouldShowPickup()) {
+        // Process each school block for pickup times
+        todaySchedule.forEach(block => {
+          const endTime = timeToMinutes(block.endTime);
+          
+          // Only show upcoming pickup times
+          if (endTime > currentTime) {
+            // Create pickup event details based on pickup person
+            let pickupTitle = 'School Pickup';
+            let pickupDescription = `Pick up ${child.name} from school`;
+            let pickupResponsibility = null;
+
+            if (todayPickupPerson === 'parent') {
+              pickupTitle = 'School Pickup (Parent)';
+              pickupDescription = `Parent picks up ${child.name} from school`;
+              pickupResponsibility = 'parent';
+            } else if (todayPickupPerson === 'aupair') {
+              pickupTitle = 'School Pickup';
+              pickupDescription = `Pick up ${child.name} from school`;
+              pickupResponsibility = 'au_pair';
+            } else if (todayPickupPerson === 'alone') {
+              pickupTitle = 'School End';
+              pickupDescription = `${child.name} comes home alone from school`;
+              pickupResponsibility = 'aware'; // Special responsibility type for awareness
+            }
+
+            // Enhanced display for travel time and school address
+            let schoolAddress = null;
+            let enhancedAdditionalInfo = null;
+            
+            if (todayPickupPerson === 'alone') {
+              // For "alone" pickups, don't show location or additional info
+              schoolAddress = null;
+              enhancedAdditionalInfo = null;
+            } else {
+              // For actual pickups, show school address and travel time
+              schoolAddress = child.schoolInfo?.address || 'School';
+              const travelTime = child.schoolInfo?.travelTime;
+              if (travelTime) {
+                enhancedAdditionalInfo = `⏱️ Travel time: ${travelTime} minutes - Plan ahead for pickup!`;
+              }
+            }
+
+            addEventToGroup({
+              title: pickupTitle,
+              time: block.endTime,
+              minutes: endTime,
+              child: child,
+              childColor: childColor,
+              type: 'school_pickup',
+              isToday: true,
+              description: pickupDescription,
+              location: schoolAddress,
+              additionalInfo: enhancedAdditionalInfo,
+              responsibility: pickupResponsibility,
+              originalResponsibility: pickupResponsibility
+            });
+          }
+        });
       }
     });
 
@@ -622,13 +716,11 @@ const UpcomingEventsForMe = ({
         };
 
         const shouldShow = (activity) => {
-          if (userRole === 'parent') return true;
-          
           if (eventFilter === 'all') {
             // Show all family events regardless of responsibility
             return true;
           } else {
-            // Show only au pair's responsibilities (my events)
+            // For both parents and au pairs, "my events" / "au pair events" shows au pair responsibilities
             return responsibilities[activity] === 'au_pair' || responsibilities[activity] === 'shared';
           }
         };
@@ -670,6 +762,79 @@ const UpcomingEventsForMe = ({
             originalResponsibility: responsibilities.breakfast
           });
         }
+
+        // Add tomorrow's school pickup events
+        if (child.schoolSchedule && child.pickupPerson) {
+          const tomorrowDay = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'][(new Date().getDay())];
+          const tomorrowSchedule = child.schoolSchedule[tomorrowDay];
+          const tomorrowPickupPerson = child.pickupPerson[tomorrowDay];
+
+          if (tomorrowSchedule && tomorrowSchedule.length > 0 && tomorrowPickupPerson) {
+            const shouldShowTomorrowPickup = () => {
+              if (userRole === 'parent') {
+                // Parents always see all pickup events regardless of who's responsible
+                return true;
+              } else {
+                // Au pairs see pickups they're responsible for, "alone" events (for awareness), or if they want to see all events
+                return eventFilter === 'all' || tomorrowPickupPerson === 'aupair' || tomorrowPickupPerson === 'alone';
+              }
+            };
+
+            if (shouldShowTomorrowPickup()) {
+              tomorrowSchedule.forEach(block => {
+                let pickupTitle = 'School Pickup';
+                let pickupDescription = `Pick up ${child.name} from school`;
+                let pickupResponsibility = null;
+
+                if (tomorrowPickupPerson === 'parent') {
+                  pickupTitle = 'School Pickup (Parent)';
+                  pickupDescription = `Parent picks up ${child.name} from school`;
+                  pickupResponsibility = 'parent';
+                } else if (tomorrowPickupPerson === 'aupair') {
+                  pickupTitle = 'School Pickup';
+                  pickupDescription = `Pick up ${child.name} from school`;
+                  pickupResponsibility = 'au_pair';
+                } else if (tomorrowPickupPerson === 'alone') {
+                  pickupTitle = 'School End';
+                  pickupDescription = `${child.name} comes home alone from school`;
+                  pickupResponsibility = 'aware'; // Special responsibility type for awareness
+                }
+
+                // Enhanced display for travel time and school address
+                let schoolAddress = null;
+                let enhancedAdditionalInfo = null;
+                
+                if (tomorrowPickupPerson === 'alone') {
+                  // For "alone" pickups, don't show location or additional info
+                  schoolAddress = null;
+                  enhancedAdditionalInfo = null;
+                } else {
+                  // For actual pickups, show school address and travel time
+                  schoolAddress = child.schoolInfo?.address || 'School';
+                  const travelTime = child.schoolInfo?.travelTime;
+                  if (travelTime) {
+                    enhancedAdditionalInfo = `⏱️ Travel time: ${travelTime} minutes - Plan ahead for pickup!`;
+                  }
+                }
+
+                addEventToGroup({
+                  title: pickupTitle,
+                  time: block.endTime,
+                  minutes: timeToMinutes(block.endTime),
+                  child: child,
+                  childColor: childColor,
+                  type: 'school_pickup',
+                  isToday: false,
+                  description: pickupDescription,
+                  location: schoolAddress,
+                  additionalInfo: enhancedAdditionalInfo,
+                  responsibility: pickupResponsibility,
+                  originalResponsibility: pickupResponsibility
+                });
+              });
+            }
+          }
+        }
       });
     }
 
@@ -710,28 +875,26 @@ const UpcomingEventsForMe = ({
     <div style={styles.container} className="upcoming-events-container">
       <div style={styles.header}>
         <h3 style={styles.title}>Upcoming Events</h3>
-        {userRole === 'aupair' && (
-          <div style={styles.filterButtons}>
-            <button
-              style={{
-                ...styles.filterButton,
-                ...(eventFilter === 'my' ? styles.filterButtonActive : {})
-              }}
-              onClick={() => setEventFilter('my')}
-            >
-              My Events
-            </button>
-            <button
-              style={{
-                ...styles.filterButton,
-                ...(eventFilter === 'all' ? styles.filterButtonActive : {})
-              }}
-              onClick={() => setEventFilter('all')}
-            >
-              All Family Events
-            </button>
-          </div>
-        )}
+        <div style={styles.filterButtons}>
+          <button
+            style={{
+              ...styles.filterButton,
+              ...(eventFilter === 'my' ? styles.filterButtonActive : {})
+            }}
+            onClick={() => setEventFilter('my')}
+          >
+            {userRole === 'aupair' ? 'My Events' : 'Au Pair Events'}
+          </button>
+          <button
+            style={{
+              ...styles.filterButton,
+              ...(eventFilter === 'all' ? styles.filterButtonActive : {})
+            }}
+            onClick={() => setEventFilter('all')}
+          >
+            All Family Events
+          </button>
+        </div>
       </div>
       
       <div style={styles.eventsList}>
@@ -754,15 +917,6 @@ const UpcomingEventsForMe = ({
                   {event.title}
                   {event.isModified && <span style={styles.modifiedBadge}>Modified</span>}
                 </div>
-                {userRole === 'parent' && (
-                  <button
-                    style={styles.editButton}
-                    onClick={() => handleEditEvent(event)}
-                    title="Edit this event"
-                  >
-                    ✏️
-                  </button>
-                )}
               </div>
               
               <div style={styles.eventDescription}>{event.description}</div>
@@ -809,6 +963,17 @@ const UpcomingEventsForMe = ({
               }}>
                 {getResponsibilityInfo(event.responsibility).label}
               </div>
+            )}
+
+            {/* Edit button for parents */}
+            {userRole === 'parent' && (
+              <button
+                style={styles.editButton}
+                onClick={() => handleEditEvent(event)}
+                title="Edit this event"
+              >
+                Edit
+              </button>
             )}
           </div>
         ))}
@@ -952,15 +1117,19 @@ const styles = {
     letterSpacing: '0.5px'
   },
   editButton: {
-    background: 'none',
     border: 'none',
-    fontSize: 'var(--font-size-base)',
+    borderRadius: 'var(--radius-md)',
+    padding: 'var(--space-2) var(--space-3)',
+    fontSize: 'var(--font-size-xs)',
+    fontWeight: 'var(--font-weight-medium)',
     cursor: 'pointer',
-    padding: 'var(--space-1)',
-    borderRadius: 'var(--radius-sm)',
     transition: 'var(--transition-fast)',
-    color: 'var(--text-secondary)',
-    opacity: 0.7
+    minWidth: '80px',
+    backgroundColor: '#f3f4f6',
+    color: 'var(--text-primary)',
+    position: 'absolute',
+    bottom: '10px',
+    right: '10px'
   },
   responsibilityBadge: {
     display: 'inline-block',

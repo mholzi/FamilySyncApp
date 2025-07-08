@@ -2,7 +2,7 @@ import React from 'react';
 
 const BottomNavigation = ({ currentView, onNavigate, pendingApprovalCount = 0 }) => {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t" style={{ borderColor: 'var(--border-light)' }}>
+    <nav className="fixed bottom-0 left-0 right-0 bg-white" style={{ borderTop: '1px solid var(--border-light)' }}>
       <div className="flex">
         <div 
           className={`flex-1 flex flex-col items-center p-3 cursor-pointer transition-colors ${
