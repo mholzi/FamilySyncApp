@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { getNextOccurrences } from '../../utils/recurringActivityTemplates';
+import { subscribeToEventOverrides, getEventOverride, applyEventOverride } from '../../utils/eventOverridesUtils';
+import EditEventModal from './EditEventModal';
 
 // Import child color utility from EnhancedChildCard
 const CHILD_COLORS = [
@@ -37,6 +39,9 @@ const UpcomingEventsForMe = ({
 }) => {
   const [recurringActivities, setRecurringActivities] = useState([]);
   const [babysittingRequests, setBabysittingRequests] = useState([]);
+  const [eventOverrides, setEventOverrides] = useState({});
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // Fetch recurring activities from Firestore
   useEffect(() => {
@@ -139,6 +144,28 @@ const UpcomingEventsForMe = ({
       }
     };
   }, [familyId]);
+
+  // Fetch event overrides for one-off modifications
+  useEffect(() => {
+    if (!familyId) {
+      setEventOverrides({});
+      return;
+    }
+
+    const unsubscribe = subscribeToEventOverrides(familyId, (overrides) => {
+      setEventOverrides(overrides);
+    });
+
+    return () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        try {
+          unsubscribe();
+        } catch (error) {
+          console.warn('Error unsubscribing from event overrides:', error);
+        }
+      }
+    };
+  }, [familyId]);
   // Convert time string "HH:MM" to minutes since midnight
   const timeToMinutes = (timeStr) => {
     if (!timeStr) return 0;
@@ -168,27 +195,35 @@ const UpcomingEventsForMe = ({
 
     // Helper function to add event to groups
     const addEventToGroup = (eventData) => {
+      // Check for event overrides
+      const date = eventData.isToday ? new Date().toDateString() : new Date(Date.now() + 86400000).toDateString();
+      const override = getEventOverride(eventOverrides, eventData.type, date, eventData.child.id, eventData.time);
+      
+      // Apply override (this will return null if event is cancelled)
+      const finalEvent = applyEventOverride(eventData, override);
+      if (!finalEvent) return; // Skip cancelled events
+      
       // Create a grouping key based on title, time, type, and day
-      const groupKey = `${eventData.title}-${eventData.time}-${eventData.type}-${eventData.isToday}`;
+      const groupKey = `${finalEvent.title}-${finalEvent.time}-${finalEvent.type}-${finalEvent.isToday}`;
       
       if (eventGroups.has(groupKey)) {
         // Add child to existing group only if not already present
         const existingGroup = eventGroups.get(groupKey);
-        const childExists = existingGroup.children.some(childData => childData.child.id === eventData.child.id);
+        const childExists = existingGroup.children.some(childData => childData.child.id === finalEvent.child.id);
         
         if (!childExists) {
           existingGroup.children.push({
-            child: eventData.child,
-            childColor: eventData.childColor
+            child: finalEvent.child,
+            childColor: finalEvent.childColor
           });
         }
       } else {
         // Create new group
         eventGroups.set(groupKey, {
-          ...eventData,
+          ...finalEvent,
           children: [{
-            child: eventData.child,
-            childColor: eventData.childColor
+            child: finalEvent.child,
+            childColor: finalEvent.childColor
           }],
           id: groupKey // Use group key as ID
         });

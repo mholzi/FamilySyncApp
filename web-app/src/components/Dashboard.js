@@ -779,8 +779,8 @@ function Dashboard({ user }) {
           />
         </section>
 
-        {/* Bottom Section */}
-        <div style={styles.bottomContainer}>
+        {/* Family Notes Section */}
+        <section style={styles.section}>
           <div style={styles.bottomCard}>
             <FamilyNotesList
               familyId={userData?.familyId}
@@ -791,7 +791,10 @@ function Dashboard({ user }) {
               maxDisplayed={3}
             />
           </div>
-          
+        </section>
+
+        {/* Shopping List Section */}
+        <section style={styles.section}>
           <div style={styles.bottomCard}>
             <div style={styles.cardHeader}>
               <h3 style={styles.bottomTitle}>Shopping List</h3>
@@ -896,7 +899,8 @@ function Dashboard({ user }) {
               )}
             </div>
           </div>
-        </div>
+        </section>
+
         {/* Au Pair Invitation Reminder - Only show if no au pair is linked and user is parent */}
         {children.length > 0 && 
          userRole === 'parent' && 
