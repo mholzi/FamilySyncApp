@@ -2,12 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { updateDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { getUserName } from '../../utils/userUtils';
-import PaymentTracker from './PaymentTracker';
 import './ApprovalInterface.css';
 
 const ApprovalInterface = ({ list, familyId, currentUser, onClose }) => {
   const [approving, setApproving] = useState(false);
-  const [showPaymentTracker, setShowPaymentTracker] = useState(false);
   const [uploaderName, setUploaderName] = useState('...');
 
   useEffect(() => {
@@ -21,30 +19,10 @@ const ApprovalInterface = ({ list, familyId, currentUser, onClose }) => {
     fetchUploaderName();
   }, [list.receiptUploadedBy]);
 
-  const handleApprove = async () => {
+  const handleMarkPaidDirectly = async () => {
     if (approving) return;
 
     setApproving(true);
-    try {
-      const listRef = doc(db, 'families', familyId, 'shopping', list.id);
-      
-      await updateDoc(listRef, {
-        status: 'approved',
-        paymentStatus: 'approved',
-        approvedBy: currentUser.uid,
-        approvedAt: Timestamp.now()
-      });
-
-      setShowPaymentTracker(true);
-    } catch (error) {
-      console.error('Error approving shopping:', error);
-      alert('Failed to approve. Please try again.');
-    } finally {
-      setApproving(false);
-    }
-  };
-
-  const handleMarkPaid = async () => {
     try {
       const listRef = doc(db, 'families', familyId, 'shopping', list.id);
       
@@ -59,18 +37,12 @@ const ApprovalInterface = ({ list, familyId, currentUser, onClose }) => {
     } catch (error) {
       console.error('Error marking as paid:', error);
       alert('Failed to mark as paid. Please try again.');
+    } finally {
+      setApproving(false);
     }
   };
 
-  if (showPaymentTracker) {
-    return (
-      <PaymentTracker
-        list={list}
-        onMarkPaid={handleMarkPaid}
-        onClose={onClose}
-      />
-    );
-  }
+
 
   return (
     <div className="approval-overlay">
@@ -110,10 +82,10 @@ const ApprovalInterface = ({ list, familyId, currentUser, onClose }) => {
         <div className="approval-actions">
           <button 
             className="approve-btn"
-            onClick={handleApprove}
+            onClick={handleMarkPaidDirectly}
             disabled={approving}
           >
-            {approving ? 'Approving...' : '✅ Approve'}
+            {approving ? 'Processing...' : '💰 Mark as Paid'}
           </button>
         </div>
       </div>

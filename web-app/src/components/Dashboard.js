@@ -10,7 +10,7 @@ import { updateTaskStatus } from '../utils/familyUtils';
 import { DashboardStates, getDashboardState } from '../utils/dashboardStates';
 import DashboardWelcome from './DashboardWelcome';
 import AddChildFlow from './AddChild/AddChildFlow';
-import { collection, addDoc, doc, updateDoc, deleteDoc, Timestamp, getDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, deleteDoc, Timestamp, getDoc, query, onSnapshot } from 'firebase/firestore';
 import { useState, useEffect } from 'react';
 import { processAndUploadPhoto } from '../utils/optimizedPhotoUpload';
 import LoadingProgress from './LoadingProgress';
@@ -47,6 +47,10 @@ function Dashboard({ user }) {
   // State for household todos
   const [householdTodos, setHouseholdTodos] = useState([]);
   const [todosLoading, setTodosLoading] = useState(true);
+  
+  // State for time-off requests (for au pair visibility check)
+  const [timeOffRequests, setTimeOffRequests] = useState([]);
+  const [requestsLoading, setRequestsLoading] = useState(true);
 
   const loading = familyLoading || tasksLoading || eventsLoading || shoppingLoading || todosLoading;
 
@@ -86,6 +90,61 @@ function Dashboard({ user }) {
 
     return () => clearInterval(interval);
   }, [userData?.familyId, userData?.role]);
+
+  // Fetch time-off requests for au pairs to determine section visibility
+  useEffect(() => {
+    // Determine user role inside the effect to avoid initialization error
+    const currentUserRole = userData?.role || (familyData?.parentUids?.includes(user.uid) ? 'parent' : 'aupair');
+    
+    if (!userData?.familyId || !user.uid || currentUserRole !== 'aupair') {
+      setRequestsLoading(false);
+      return;
+    }
+
+    const fetchRequests = async () => {
+      try {
+        const { useTimeOffRequests } = await import('../utils/requestUtils');
+        // We need to set up a listener manually since we can't use hooks conditionally
+        const q = query(
+          collection(db, 'families', userData.familyId, 'timeOffRequests')
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          const requestsData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          
+          // Filter for au pair relevant requests
+          const now = new Date();
+          const in72Hours = new Date(now.getTime() + (72 * 60 * 60 * 1000));
+          
+          const relevantRequests = requestsData.filter(req => {
+            // Pending requests
+            if (req.status === 'pending') return true;
+            
+            // Accepted requests in next 72 hours
+            if (req.status === 'accepted') {
+              const startTime = req.startTime?.toDate ? req.startTime.toDate() : new Date(req.startTime);
+              return startTime >= now && startTime <= in72Hours;
+            }
+            
+            return false;
+          });
+          
+          setTimeOffRequests(relevantRequests);
+          setRequestsLoading(false);
+        });
+
+        return () => unsubscribe();
+      } catch (error) {
+        console.error('Error fetching time-off requests:', error);
+        setRequestsLoading(false);
+      }
+    };
+
+    fetchRequests();
+  }, [userData?.familyId, user.uid, userData?.role, familyData?.parentUids]);
 
   // Determine dashboard state
   const dashboardState = getDashboardState(userData, children, tasks);
@@ -634,14 +693,16 @@ function Dashboard({ user }) {
                 )}
               </div>
             ) : (
-              children.map((child) => (
-                <EnhancedChildCard
-                  key={child.id}
-                  child={child}
-                  onEditChild={handleEditChild}
-                  userRole={userRole}
-                />
-              ))
+              children
+                .filter((child, index, arr) => arr.findIndex(c => c.id === child.id) === index) // Remove duplicates
+                .map((child) => (
+                  <EnhancedChildCard
+                    key={child.id}
+                    child={child}
+                    onEditChild={handleEditChild}
+                    userRole={userRole}
+                  />
+                ))
             )}
           </div>
         </section>
@@ -681,29 +742,31 @@ function Dashboard({ user }) {
           </section>
         )}
 
-        {/* Time-Off Requests Section */}
-        <section style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <h2 style={styles.sectionTitle}>
-              {userRole === 'parent' ? 'Babysitting & Time-Off' : 'Babysitting'}
-            </h2>
-            {userRole === 'parent' && (
-              <button 
-                style={styles.headerButton} 
-                onClick={() => setShowTimeOffRequest(true)}
-              >
-                + New Request
-              </button>
-            )}
-          </div>
-          <RequestsList
-            familyId={userData?.familyId}
-            userId={user.uid}
-            userRole={userRole}
-            children={children}
-            familyData={familyData}
-          />
-        </section>
+        {/* Time-Off Requests Section - Show for parents always, for au pairs only if there are requests */}
+        {(userRole === 'parent' || (userRole === 'aupair' && timeOffRequests.length > 0)) && (
+          <section style={styles.section}>
+            <div style={styles.sectionHeader}>
+              <h2 style={styles.sectionTitle}>
+                {userRole === 'parent' ? 'Babysitting & Time-Off' : 'Babysitting'}
+              </h2>
+              {userRole === 'parent' && (
+                <button 
+                  style={styles.headerButton} 
+                  onClick={() => setShowTimeOffRequest(true)}
+                >
+                  + New Request
+                </button>
+              )}
+            </div>
+            <RequestsList
+              familyId={userData?.familyId}
+              userId={user.uid}
+              userRole={userRole}
+              children={children}
+              familyData={familyData}
+            />
+          </section>
+        )}
 
         {/* Upcoming Events for Me */}
         <section style={styles.section}>

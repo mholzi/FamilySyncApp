@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { storage, auth, db } from '../../firebase';
 import { ref, uploadBytesResumable, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, setDoc, updateDoc, getDoc } from 'firebase/firestore';
+import { processAndUploadPhoto } from '../../utils/optimizedPhotoUpload';
 
 function AddChildBasicInfo({ initialData, existingChildren = [], onNext, onCancel, onDelete = null, isEditing = false }) {
   const [formData, setFormData] = useState({

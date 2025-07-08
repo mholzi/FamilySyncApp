@@ -123,8 +123,8 @@ export const onShoppingComplete =
           }
         } catch (error) {
           logger.error("Error sending shopping notifications", {
-          familyId, error,
-        });
+            familyId, error,
+          });
         }
       }
     }

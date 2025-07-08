@@ -51,10 +51,28 @@ export const useFamily = (userId) => {
             id: doc.id,
             ...doc.data()
           }));
-          console.log('Children fetched:', childrenData.length, 'children');
-          setChildren(childrenData);
+          
+          // Deduplicate children by ID to prevent React key warnings
+          const uniqueChildren = childrenData.reduce((acc, child) => {
+            const existingIndex = acc.findIndex(existing => existing.id === child.id);
+            if (existingIndex >= 0) {
+              // Keep the most recent version (last in the array)
+              acc[existingIndex] = child;
+            } else {
+              acc.push(child);
+            }
+            return acc;
+          }, []);
+          
+          console.log('Children fetched:', uniqueChildren.length, 'unique children');
+          setChildren(uniqueChildren);
         }, (error) => {
           console.error('Error listening to children:', error);
+          // Clean up the previous listener before setting up fallback
+          if (unsubscribeChildren) {
+            unsubscribeChildren();
+          }
+          
           // Fallback: try without isActive filter
           const fallbackQuery = query(
             collection(db, 'children'),
@@ -66,8 +84,20 @@ export const useFamily = (userId) => {
               id: doc.id,
               ...doc.data()
             }));
-            console.log('Children fetched (fallback):', childrenData.length, 'children');
-            setChildren(childrenData);
+            
+            // Deduplicate children by ID
+            const uniqueChildren = childrenData.reduce((acc, child) => {
+              const existingIndex = acc.findIndex(existing => existing.id === child.id);
+              if (existingIndex >= 0) {
+                acc[existingIndex] = child;
+              } else {
+                acc.push(child);
+              }
+              return acc;
+            }, []);
+            
+            console.log('Children fetched (fallback):', uniqueChildren.length, 'unique children');
+            setChildren(uniqueChildren);
           });
         });
 

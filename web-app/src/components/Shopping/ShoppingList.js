@@ -143,7 +143,7 @@ const ShoppingList = ({ list, familyId, currentUser, mode = 'active' }) => {
           className="review-btn"
           onClick={() => setShowApproval(true)}
         >
-          Review & Approve
+          💰 Mark as Paid
         </button>
         
         {showApproval && (
