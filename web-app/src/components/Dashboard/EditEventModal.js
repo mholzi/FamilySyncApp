@@ -15,23 +15,17 @@ const EditEventModal = ({ event, familyId, onClose, onSave }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Determine the responsibility from the event
+  // Initialize form data with current event values (including any overrides)
   useEffect(() => {
-    // Try to determine responsibility from the event
-    let responsibility = 'au_pair';
-    
-    if (event.type === 'routine') {
-      // Check the original responsibility from routine
-      if (event.originalResponsibility) {
-        responsibility = event.originalResponsibility;
-      } else if (event.description?.includes('parent')) {
-        responsibility = 'parent';
-      } else if (event.description?.includes('Coordinate with parents') || event.additionalInfo?.includes('Coordinate with parents')) {
-        responsibility = 'shared';
-      }
-    }
-    
-    setFormData(prev => ({ ...prev, responsibility }));
+    setFormData({
+      title: event.title || '',
+      description: event.description || '',
+      time: event.time || '',
+      responsibility: event.responsibility || 'au_pair',
+      location: event.location || '',
+      additionalInfo: event.additionalInfo || '',
+      cancelled: false
+    });
   }, [event]);
 
   const handleChange = (field, value) => {
