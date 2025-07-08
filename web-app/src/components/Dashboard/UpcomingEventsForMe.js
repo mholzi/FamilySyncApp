@@ -919,7 +919,30 @@ const UpcomingEventsForMe = ({
                 </div>
               </div>
               
-              <div style={styles.eventDescription}>{event.description}</div>
+              {/* Dynamic description for meal events based on responsibility */}
+              <div style={styles.eventDescription}>
+                {(() => {
+                  // Check if this is a meal event
+                  const isMealEvent = event.title && (
+                    event.title.toLowerCase().includes('breakfast') ||
+                    event.title.toLowerCase().includes('lunch') ||
+                    event.title.toLowerCase().includes('dinner') ||
+                    event.title.toLowerCase().includes('snack')
+                  );
+                  
+                  if (isMealEvent && event.responsibility === 'parent') {
+                    // For meal events where parent is responsible
+                    const mealName = event.title.toLowerCase().includes('breakfast') ? 'Breakfast' :
+                                   event.title.toLowerCase().includes('lunch') ? 'Lunch' :
+                                   event.title.toLowerCase().includes('dinner') ? 'Dinner' :
+                                   event.title.toLowerCase().includes('snack') ? 'Snack' : 'Meal';
+                    return `${mealName} gets prepared by parents`;
+                  }
+                  
+                  // For all other events, use original description
+                  return event.description;
+                })()}
+              </div>
               
               {/* Dynamic location display for school pickup events */}
               {(() => {
@@ -943,7 +966,7 @@ const UpcomingEventsForMe = ({
                 return null;
               })()}
               
-              {/* Dynamic additional info display for school pickup events */}
+              {/* Dynamic additional info display */}
               {(() => {
                 // For school pickup events, always show travel time if au pair is responsible
                 if (event.type === 'school_pickup' && event.responsibility === 'au_pair') {
@@ -956,7 +979,23 @@ const UpcomingEventsForMe = ({
                       </div>
                     );
                   }
-                } else if (event.additionalInfo) {
+                }
+                
+                // Check if this is a meal event
+                const isMealEvent = event.title && (
+                  event.title.toLowerCase().includes('breakfast') ||
+                  event.title.toLowerCase().includes('lunch') ||
+                  event.title.toLowerCase().includes('dinner') ||
+                  event.title.toLowerCase().includes('snack')
+                );
+                
+                // For meal events with parent responsibility, don't show "Coordinate with parents" message
+                if (isMealEvent && event.responsibility === 'parent') {
+                  return null; // Don't show any additional info
+                }
+                
+                // For all other events with additional info
+                if (event.additionalInfo) {
                   return (
                     <div style={styles.additionalInfo}>
                       <span style={styles.infoIcon}>💡</span>
@@ -964,6 +1003,7 @@ const UpcomingEventsForMe = ({
                     </div>
                   );
                 }
+                
                 return null;
               })()}
             </div>
