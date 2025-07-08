@@ -88,7 +88,7 @@ export const applyEventOverride = (event, override) => {
     ...event,
     title: override.title || event.title,
     description: override.description || event.description,
-    time: override.time || event.time,
+    time: override.newTime || override.time || event.time, // Use newTime if available, fallback to time, then original
     responsibility: override.responsibility || event.responsibility,
     location: override.location || event.location,
     additionalInfo: override.additionalInfo || event.additionalInfo,

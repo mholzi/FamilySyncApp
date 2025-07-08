@@ -43,8 +43,14 @@ const EditEventModal = ({ event, familyId, onClose, onSave }) => {
         eventTitle: event.title,
         date: date,
         childId: event.children[0]?.child.id || 'all',
-        time: event.time,
-        ...formData,
+        time: event.time, // Keep original time for ID generation (override matching)
+        // Store all form data including the new time as individual fields
+        title: formData.title,
+        description: formData.description,
+        newTime: formData.time, // Store the new time separately
+        responsibility: formData.responsibility,
+        location: formData.location,
+        additionalInfo: formData.additionalInfo,
         originalEvent: {
           title: event.title,
           description: event.description,
