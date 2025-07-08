@@ -921,19 +921,51 @@ const UpcomingEventsForMe = ({
               
               <div style={styles.eventDescription}>{event.description}</div>
               
-              {event.location && (
-                <div style={styles.eventLocation}>
-                  <span style={styles.locationLabel}>Location:</span>
-                  <span style={styles.locationText}>{event.location}</span>
-                </div>
-              )}
+              {/* Dynamic location display for school pickup events */}
+              {(() => {
+                // For school pickup events, always show location if au pair is responsible
+                if (event.type === 'school_pickup' && event.responsibility === 'au_pair') {
+                  const schoolAddress = event.child?.schoolInfo?.address || event.location || 'School';
+                  return (
+                    <div style={styles.eventLocation}>
+                      <span style={styles.locationLabel}>Location:</span>
+                      <span style={styles.locationText}>{schoolAddress}</span>
+                    </div>
+                  );
+                } else if (event.location) {
+                  return (
+                    <div style={styles.eventLocation}>
+                      <span style={styles.locationLabel}>Location:</span>
+                      <span style={styles.locationText}>{event.location}</span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
               
-              {event.additionalInfo && (
-                <div style={styles.additionalInfo}>
-                  <span style={styles.infoIcon}>💡</span>
-                  <span style={styles.infoText}>{event.additionalInfo}</span>
-                </div>
-              )}
+              {/* Dynamic additional info display for school pickup events */}
+              {(() => {
+                // For school pickup events, always show travel time if au pair is responsible
+                if (event.type === 'school_pickup' && event.responsibility === 'au_pair') {
+                  const travelTime = event.child?.schoolInfo?.travelTime;
+                  if (travelTime) {
+                    return (
+                      <div style={styles.additionalInfo}>
+                        <span style={styles.infoIcon}>⏱️</span>
+                        <span style={styles.infoText}>Travel time: {travelTime} minutes - Plan ahead for pickup!</span>
+                      </div>
+                    );
+                  }
+                } else if (event.additionalInfo) {
+                  return (
+                    <div style={styles.additionalInfo}>
+                      <span style={styles.infoIcon}>💡</span>
+                      <span style={styles.infoText}>{event.additionalInfo}</span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
 
             {/* Child indicators - overlapping badges */}
