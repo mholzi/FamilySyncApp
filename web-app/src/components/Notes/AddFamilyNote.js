@@ -51,7 +51,7 @@ const AddFamilyNote = ({ onSubmit, onCancel, onDelete, initialNote = null, userR
     }
   };
 
-  const templates = [
+  const parentTemplates = [
     { text: "Today the kids are allowed to watch a film", category: "kids" },
     { text: "Late pickup today at 6 PM", category: "schedule" },
     { text: "Special dinner rules - no dessert until vegetables are finished", category: "rules" },
@@ -59,6 +59,19 @@ const AddFamilyNote = ({ onSubmit, onCancel, onDelete, initialNote = null, userR
     { text: "Kids can have friends over this afternoon", category: "kids" },
     { text: "Early bedtime tonight", category: "kids" }
   ];
+
+  const auPairTemplates = [
+    { text: "The children had a great day and ate all their meals", category: "kids" },
+    { text: "Running a bit late for pickup - will be there by [time]", category: "schedule" },
+    { text: "Need clarification on bedtime routine for tonight", category: "kids" },
+    { text: "Completed all scheduled activities today", category: "general" },
+    { text: "One of the children seems unwell - please advise", category: "kids" },
+    { text: "Tomorrow's school items are packed and ready", category: "schedule" },
+    { text: "Had to handle a small incident - everything is fine now", category: "kids" },
+    { text: "Children would like to invite a friend over - is this okay?", category: "kids" }
+  ];
+
+  const templates = userRole === 'parent' ? parentTemplates : auPairTemplates;
 
   const applyTemplate = (template) => {
     setContent(template.text);
