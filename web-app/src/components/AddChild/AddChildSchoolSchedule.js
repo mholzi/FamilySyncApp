@@ -250,6 +250,21 @@ function AddChildSchoolSchedule({ childData, initialData, onNext, onBack }) {
     onNext(scheduleData);
   };
 
+  // Handle save (same as continue but with different visual feedback)
+  const handleSave = () => {
+    const scheduleData = {
+      scheduleType,
+      schoolSchedule: schedule,
+      lastModified: new Date().toISOString()
+    };
+    onNext(scheduleData);
+  };
+
+  // Handle cancel
+  const handleCancel = () => {
+    onBack();
+  };
+
   // Validate schedule
   const hasSchedule = Object.values(schedule).some(daySchedule => daySchedule.length > 0);
 
@@ -555,19 +570,26 @@ function AddChildSchoolSchedule({ childData, initialData, onNext, onBack }) {
       </div>
 
       <div style={styles.buttonSection}>
-        <button style={styles.skipButton} onClick={() => onNext({})}>
-          Skip for Now
-        </button>
-        <button 
-          style={{
-            ...styles.continueButton,
-            ...(hasSchedule ? {} : styles.continueButtonDisabled)
-          }}
-          onClick={handleContinue}
-          disabled={!hasSchedule}
-        >
-          Continue
-        </button>
+        <div style={styles.leftButtonGroup}>
+          <button style={styles.skipButton} onClick={() => onNext({})}>
+            Skip for Now
+          </button>
+        </div>
+        <div style={styles.rightButtonGroup}>
+          <button style={styles.cancelButton} onClick={handleCancel}>
+            Cancel
+          </button>
+          <button 
+            style={{
+              ...styles.saveButton,
+              ...(hasSchedule ? {} : styles.saveButtonDisabled)
+            }}
+            onClick={handleSave}
+            disabled={!hasSchedule}
+          >
+            Save
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -927,11 +949,18 @@ const styles = {
     backgroundColor: 'white',
     borderTop: '1px solid #E5E5EA',
     display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  leftButtonGroup: {
+    display: 'flex'
+  },
+  rightButtonGroup: {
+    display: 'flex',
     gap: '15px'
   },
   skipButton: {
-    flex: 1,
-    padding: '15px',
+    padding: '15px 20px',
     borderRadius: '8px',
     border: '1px solid #E5E5EA',
     backgroundColor: 'white',
@@ -940,9 +969,18 @@ const styles = {
     fontWeight: '500',
     cursor: 'pointer'
   },
-  continueButton: {
-    flex: 2,
-    padding: '15px',
+  cancelButton: {
+    padding: '15px 20px',
+    borderRadius: '8px',
+    border: '1px solid #FF3B30',
+    backgroundColor: 'white',
+    color: '#FF3B30',
+    fontSize: '16px',
+    fontWeight: '500',
+    cursor: 'pointer'
+  },
+  saveButton: {
+    padding: '15px 30px',
     borderRadius: '8px',
     border: 'none',
     backgroundColor: '#007AFF',
@@ -951,7 +989,7 @@ const styles = {
     fontWeight: '600',
     cursor: 'pointer'
   },
-  continueButtonDisabled: {
+  saveButtonDisabled: {
     backgroundColor: '#C7C7CC',
     cursor: 'not-allowed'
   }
