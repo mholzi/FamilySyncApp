@@ -76,7 +76,7 @@ const FamilyNotesList = ({ familyId, userId, userRole, userData = null, familyDa
         </div>
       ) : (
         <div>
-          <div style={styles.notesList}>
+          <div style={styles.notesList} className="notes-grid">
             {displayedNotes.map((note) => (
               <FamilyNoteCard
                 key={note.id}
@@ -206,8 +206,8 @@ const styles = {
     width: '100%'
   },
   notesList: {
-    display: 'flex',
-    flexDirection: 'column',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, 1fr)',
     gap: 'var(--space-3)'
   },
   emptyState: {
@@ -282,6 +282,11 @@ if (typeof document !== 'undefined') {
         padding: var(--space-2) var(--space-3);
         font-size: var(--font-size-xs);
         min-width: 100px;
+      }
+      
+      /* Single column layout on mobile */
+      .family-notes-container .notes-grid {
+        grid-template-columns: 1fr !important;
       }
     }
     

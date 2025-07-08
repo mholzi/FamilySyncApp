@@ -159,15 +159,9 @@ function AddChildFlow({ user, familyId, existingChildren = [], editingChild = nu
       console.log('Processed edit data:', editData);
       setChildData(editData);
     } else {
-      const savedDraft = localStorage.getItem('childDraft');
-      if (savedDraft) {
-        try {
-          const parsedDraft = JSON.parse(savedDraft);
-          setChildData(prev => ({ ...prev, ...parsedDraft }));
-        } catch (error) {
-          console.error('Error loading draft:', error);
-        }
-      }
+      // For new children, clear any existing draft data and start fresh
+      localStorage.removeItem('childDraft');
+      setChildData(getInitialChildData());
     }
   }, [editingChild]);
 

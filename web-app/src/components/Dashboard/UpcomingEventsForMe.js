@@ -42,6 +42,7 @@ const UpcomingEventsForMe = ({
   const [eventOverrides, setEventOverrides] = useState({});
   const [editingEvent, setEditingEvent] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [eventFilter, setEventFilter] = useState('my'); // 'my' or 'all'
 
   // Fetch recurring activities from Firestore
   useEffect(() => {
@@ -185,6 +186,33 @@ const UpcomingEventsForMe = ({
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
+  // Get responsibility display info
+  const getResponsibilityInfo = (responsibility) => {
+    switch (responsibility) {
+      case 'parent':
+        return { label: 'Parent', color: '#3b82f6' };
+      case 'au_pair':
+        return { label: 'Au Pair', color: '#10b981' };
+      case 'shared':
+        return { label: 'Shared', color: '#f59e0b' };
+      default:
+        return { label: 'Au Pair', color: '#10b981' };
+    }
+  };
+
+  // Handle edit event
+  const handleEditEvent = (event) => {
+    setEditingEvent(event);
+    setShowEditModal(true);
+  };
+
+  // Handle save event changes
+  const handleSaveEventChanges = () => {
+    // The component will re-render due to the event overrides subscription
+    setShowEditModal(false);
+    setEditingEvent(null);
+  };
+
   // Get all upcoming events for the au pair from all children
   const getUpcomingEvents = () => {
     const now = new Date();
@@ -245,10 +273,17 @@ const UpcomingEventsForMe = ({
         bedtime: 'parent'
       };
 
-      // Filter based on user role
+      // Filter based on user role and event filter
       const shouldShow = (activity) => {
         if (userRole === 'parent') return true;
-        return responsibilities[activity] === 'au_pair' || responsibilities[activity] === 'shared';
+        
+        if (eventFilter === 'all') {
+          // Show all family events regardless of responsibility
+          return true;
+        } else {
+          // Show only au pair's responsibilities (my events)
+          return responsibilities[activity] === 'au_pair' || responsibilities[activity] === 'shared';
+        }
       };
 
       const childColor = getChildColor(child.id, childIndex);
@@ -267,7 +302,9 @@ const UpcomingEventsForMe = ({
             isToday: true,
             description: 'Help children wake up and get ready for the day',
             location: null,
-            additionalInfo: null
+            additionalInfo: null,
+            responsibility: responsibilities.wakeUp,
+            originalResponsibility: responsibilities.wakeUp
           });
         }
       }
@@ -286,7 +323,9 @@ const UpcomingEventsForMe = ({
             isToday: true,
             description: 'Prepare and serve breakfast',
             location: null,
-            additionalInfo: 'Check if there are any special dietary requirements for today'
+            additionalInfo: 'Check if there are any special dietary requirements for today',
+            responsibility: responsibilities.breakfast,
+            originalResponsibility: responsibilities.breakfast
           });
         }
       }
@@ -310,7 +349,9 @@ const UpcomingEventsForMe = ({
               isToday: true,
               description: 'Prepare lunch',
               location: null,
-              additionalInfo: routine.mealTimes.lunch.length === 0 ? 'Usually provided at school' : null
+              additionalInfo: routine.mealTimes.lunch.length === 0 ? 'Usually provided at school' : null,
+              responsibility: responsibilities.lunch,
+              originalResponsibility: responsibilities.lunch
             });
           }
         });
@@ -330,7 +371,9 @@ const UpcomingEventsForMe = ({
             isToday: true,
             description: 'Help prepare dinner',
             location: null,
-            additionalInfo: responsibilities.dinner === 'shared' ? 'Coordinate with parents' : null
+            additionalInfo: responsibilities.dinner === 'shared' ? 'Coordinate with parents' : null,
+            responsibility: responsibilities.dinner,
+            originalResponsibility: responsibilities.dinner
           });
         }
       }
@@ -350,7 +393,9 @@ const UpcomingEventsForMe = ({
               isToday: true,
               description: 'Prepare snack',
               location: null,
-              additionalInfo: null
+              additionalInfo: null,
+              responsibility: responsibilities.snacks,
+              originalResponsibility: responsibilities.snacks
             });
           }
         });
@@ -372,7 +417,9 @@ const UpcomingEventsForMe = ({
                 isToday: true,
                 description: 'Put children down for nap',
                 location: null,
-                additionalInfo: `Duration: ${nap.duration} minutes${nap.isFlexible ? ' (flexible timing)' : ''}`
+                additionalInfo: `Duration: ${nap.duration} minutes${nap.isFlexible ? ' (flexible timing)' : ''}`,
+                responsibility: responsibilities.naps,
+                originalResponsibility: responsibilities.naps
               });
             }
           }
@@ -393,7 +440,9 @@ const UpcomingEventsForMe = ({
             isToday: true,
             description: 'Help with bedtime routine',
             location: null,
-            additionalInfo: responsibilities.bedtime === 'shared' ? 'Coordinate with parents' : null
+            additionalInfo: responsibilities.bedtime === 'shared' ? 'Coordinate with parents' : null,
+            responsibility: responsibilities.bedtime,
+            originalResponsibility: responsibilities.bedtime
           });
         }
       }
@@ -574,7 +623,14 @@ const UpcomingEventsForMe = ({
 
         const shouldShow = (activity) => {
           if (userRole === 'parent') return true;
-          return responsibilities[activity] === 'au_pair' || responsibilities[activity] === 'shared';
+          
+          if (eventFilter === 'all') {
+            // Show all family events regardless of responsibility
+            return true;
+          } else {
+            // Show only au pair's responsibilities (my events)
+            return responsibilities[activity] === 'au_pair' || responsibilities[activity] === 'shared';
+          }
         };
 
         const childColor = getChildColor(child.id, childIndex);
@@ -591,7 +647,9 @@ const UpcomingEventsForMe = ({
             isToday: false,
             description: 'Help children wake up and get ready for the day',
             location: null,
-            additionalInfo: null
+            additionalInfo: null,
+            responsibility: responsibilities.wakeUp,
+            originalResponsibility: responsibilities.wakeUp
           });
         }
 
@@ -607,7 +665,9 @@ const UpcomingEventsForMe = ({
             isToday: false,
             description: 'Prepare and serve breakfast',
             location: null,
-            additionalInfo: 'Check if there are any special dietary requirements for tomorrow'
+            additionalInfo: 'Check if there are any special dietary requirements for tomorrow',
+            responsibility: responsibilities.breakfast,
+            originalResponsibility: responsibilities.breakfast
           });
         }
       });
@@ -631,7 +691,7 @@ const UpcomingEventsForMe = ({
     return (
       <div style={styles.container}>
         <div style={styles.header}>
-          <h3 style={styles.title}>Upcoming Events for Me</h3>
+          <h3 style={styles.title}>Upcoming Events</h3>
         </div>
         <div style={styles.emptyState}>
           <div style={styles.emptyIcon}>🎯</div>
@@ -649,7 +709,29 @@ const UpcomingEventsForMe = ({
   return (
     <div style={styles.container} className="upcoming-events-container">
       <div style={styles.header}>
-        <h3 style={styles.title}>Upcoming Events for Me</h3>
+        <h3 style={styles.title}>Upcoming Events</h3>
+        {userRole === 'aupair' && (
+          <div style={styles.filterButtons}>
+            <button
+              style={{
+                ...styles.filterButton,
+                ...(eventFilter === 'my' ? styles.filterButtonActive : {})
+              }}
+              onClick={() => setEventFilter('my')}
+            >
+              My Events
+            </button>
+            <button
+              style={{
+                ...styles.filterButton,
+                ...(eventFilter === 'all' ? styles.filterButtonActive : {})
+              }}
+              onClick={() => setEventFilter('all')}
+            >
+              All Family Events
+            </button>
+          </div>
+        )}
       </div>
       
       <div style={styles.eventsList}>
@@ -657,16 +739,30 @@ const UpcomingEventsForMe = ({
           <div key={event.id} style={styles.eventCard} className="event-card">
             {/* Time and Day indicator */}
             <div style={styles.timeSection}>
-              <div style={styles.timeDisplay}>{formatTime(event.time)}</div>
-              <div style={styles.dayIndicator}>
-                {event.isToday ? 'Today' : 'Tomorrow'}
+              <div style={styles.timeContent}>
+                <div style={styles.timeDisplay}>{formatTime(event.time)}</div>
+                <div style={styles.dayIndicator}>
+                  {event.isToday ? 'Today' : 'Tomorrow'}
+                </div>
               </div>
             </div>
 
             {/* Event content */}
             <div style={styles.eventContent}>
               <div style={styles.eventHeader}>
-                <div style={styles.eventTitle}>{event.title}</div>
+                <div style={styles.eventTitle}>
+                  {event.title}
+                  {event.isModified && <span style={styles.modifiedBadge}>Modified</span>}
+                </div>
+                {userRole === 'parent' && (
+                  <button
+                    style={styles.editButton}
+                    onClick={() => handleEditEvent(event)}
+                    title="Edit this event"
+                  >
+                    ✏️
+                  </button>
+                )}
               </div>
               
               <div style={styles.eventDescription}>{event.description}</div>
@@ -703,9 +799,30 @@ const UpcomingEventsForMe = ({
                 </div>
               ))}
             </div>
+
+            {/* Responsibility indicator */}
+            {event.responsibility && (
+              <div style={{
+                ...styles.responsibilityBadge,
+                backgroundColor: `${getResponsibilityInfo(event.responsibility).color}15`,
+                color: getResponsibilityInfo(event.responsibility).color
+              }}>
+                {getResponsibilityInfo(event.responsibility).label}
+              </div>
+            )}
           </div>
         ))}
       </div>
+
+      {/* Edit Event Modal */}
+      {showEditModal && editingEvent && (
+        <EditEventModal
+          event={editingEvent}
+          familyId={familyId}
+          onClose={() => setShowEditModal(false)}
+          onSave={handleSaveEventChanges}
+        />
+      )}
     </div>
   );
 };
@@ -715,14 +832,45 @@ const styles = {
     width: '100%'
   },
   header: {
-    marginBottom: 'var(--space-4)'
+    marginBottom: 'var(--space-4)',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 'var(--space-3)'
   },
   title: {
     fontSize: 'var(--font-size-lg)',
     fontWeight: 'var(--font-weight-semibold)',
     color: 'var(--text-primary)',
     margin: 0,
-    textAlign: 'left'
+    textAlign: 'left',
+    flex: 1
+  },
+  filterButtons: {
+    display: 'flex',
+    gap: 'var(--space-2)',
+    backgroundColor: '#f8f9fa',
+    padding: '2px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-light)'
+  },
+  filterButton: {
+    padding: 'var(--space-2) var(--space-3)',
+    border: 'none',
+    borderRadius: 'var(--radius-sm)',
+    backgroundColor: 'transparent',
+    color: 'var(--text-secondary)',
+    fontSize: 'var(--font-size-sm)',
+    fontWeight: 'var(--font-weight-medium)',
+    cursor: 'pointer',
+    transition: 'var(--transition-fast)',
+    whiteSpace: 'nowrap'
+  },
+  filterButtonActive: {
+    backgroundColor: 'var(--white)',
+    color: 'var(--primary-purple)',
+    boxShadow: 'var(--shadow-sm)'
   },
   eventsList: {
     display: 'flex',
@@ -739,7 +887,8 @@ const styles = {
     position: 'relative',
     display: 'flex',
     gap: 'var(--space-4)',
-    alignItems: 'flex-start'
+    alignItems: 'flex-start',
+    paddingBottom: '50px' // Add extra space for the responsibility badge
   },
   timeSection: {
     display: 'flex',
@@ -747,6 +896,11 @@ const styles = {
     alignItems: 'center',
     minWidth: '60px',
     textAlign: 'center'
+  },
+  timeContent: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center'
   },
   timeDisplay: {
     fontSize: 'var(--font-size-lg)',
@@ -774,14 +928,53 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: 'var(--space-2)'
+    gap: 'var(--space-2)',
+    marginBottom: 'var(--space-2)'
   },
   eventTitle: {
     fontSize: 'var(--font-size-base)',
     fontWeight: 'var(--font-weight-semibold)',
     color: 'var(--text-primary)',
     lineHeight: 'var(--line-height-tight)',
-    flex: 1
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 'var(--space-2)'
+  },
+  modifiedBadge: {
+    fontSize: 'var(--font-size-xs)',
+    fontWeight: 'var(--font-weight-medium)',
+    color: '#f59e0b',
+    backgroundColor: '#fef3c7',
+    padding: '2px 6px',
+    borderRadius: 'var(--radius-sm)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  },
+  editButton: {
+    background: 'none',
+    border: 'none',
+    fontSize: 'var(--font-size-base)',
+    cursor: 'pointer',
+    padding: 'var(--space-1)',
+    borderRadius: 'var(--radius-sm)',
+    transition: 'var(--transition-fast)',
+    color: 'var(--text-secondary)',
+    opacity: 0.7
+  },
+  responsibilityBadge: {
+    display: 'inline-block',
+    padding: '2px 6px',
+    borderRadius: 'var(--radius-sm)',
+    fontSize: 'var(--font-size-xs)',
+    fontWeight: 'var(--font-weight-medium)',
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: '0.3px',
+    opacity: 0.8,
+    position: 'absolute',
+    bottom: '10px',
+    left: '10px' // 10px margin from the left edge
   },
   eventDescription: {
     fontSize: 'var(--font-size-sm)',

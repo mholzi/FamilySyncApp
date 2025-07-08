@@ -179,9 +179,6 @@ const EditEventModal = ({ event, familyId, onClose, onSave }) => {
                     }}
                     onClick={() => handleChange('responsibility', option)}
                   >
-                    <span style={styles.responsibilityIcon}>
-                      {option === 'au_pair' ? '👩‍🎓' : option === 'parent' ? '👨‍👩‍👧' : '🤝'}
-                    </span>
                     {getResponsibilityLabel(option)}
                   </button>
                 ))}
@@ -365,17 +362,15 @@ const styles = {
     cursor: 'pointer',
     transition: 'var(--transition-fast)',
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
-    gap: 'var(--space-1)'
+    justifyContent: 'center',
+    fontSize: 'var(--font-size-sm)',
+    fontWeight: 'var(--font-weight-medium)'
   },
   responsibilityButtonActive: {
     backgroundColor: 'var(--primary-purple)',
     color: 'var(--white)',
     borderColor: 'var(--primary-purple)'
-  },
-  responsibilityIcon: {
-    fontSize: 'var(--font-size-xl)'
   },
   notice: {
     display: 'flex',
