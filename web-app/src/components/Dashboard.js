@@ -6,15 +6,15 @@ import { useShopping } from '../hooks/useShopping';
 import SimpleTodoCard from './HouseholdTodos/SimpleTodoCard';
 import AddTodo from './HouseholdTodos/AddTodo';
 import { getTodaysHouseholdTodos, autoResetCompletedTasks } from '../utils/householdTodosUtils';
-import { updateTaskStatus } from '../utils/familyUtils';
 import { DashboardStates, getDashboardState } from '../utils/dashboardStates';
 import DashboardWelcome from './DashboardWelcome';
 import AddChildFlow from './AddChild/AddChildFlow';
-import { collection, addDoc, doc, updateDoc, deleteDoc, Timestamp, getDoc, query, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, deleteDoc, Timestamp, getDoc, query, onSnapshot, where } from 'firebase/firestore';
 import { useState, useEffect, useMemo } from 'react';
 import { processAndUploadPhoto } from '../utils/optimizedPhotoUpload';
 import LoadingProgress from './LoadingProgress';
 import SmartCalendarPage from '../pages/SmartCalendarPage';
+import CalendarPage from '../pages/CalendarPage';
 import ShoppingListPage from '../pages/ShoppingListPage';
 import ProfileIcon from './Profile/ProfileIcon';
 import ProfilePage from './Profile/ProfilePage';
@@ -43,6 +43,29 @@ function Dashboard({ user }) {
   const activeShoppingLists = useMemo(() => {
     return shoppingLists.filter(list => !list.isArchived && list.status !== 'paid-out' && list.status !== 'needs-approval');
   }, [shoppingLists]);
+
+  // Filter shopping lists for today's tasks (today and overdue)
+  const todayShoppingLists = useMemo(() => {
+    const today = new Date();
+    const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    
+    return activeShoppingLists.filter(list => {
+      // If no scheduling, show in todo section (backward compatibility)
+      if (!list.scheduledFor && !list.scheduledOption) return true;
+      
+      // If "this week", show in todo section
+      if (list.scheduledOption === 'this-week') return true;
+      
+      // If has scheduled date, check if today or overdue
+      if (list.scheduledFor) {
+        const scheduledDate = new Date(list.scheduledFor);
+        const scheduleDay = new Date(scheduledDate.getFullYear(), scheduledDate.getMonth(), scheduledDate.getDate());
+        return scheduleDay <= todayDay; // Today or overdue
+      }
+      
+      return true;
+    });
+  }, [activeShoppingLists]);
   
   const [isAddingChild, setIsAddingChild] = useState(false);
   const [editingChild, setEditingChild] = useState(null);
@@ -52,6 +75,7 @@ function Dashboard({ user }) {
   const [editingTodo, setEditingTodo] = useState(null);
   const [showInvitePopup, setShowInvitePopup] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
+  const [recurringActivities, setRecurringActivities] = useState([]);
   const [showTimeOffRequest, setShowTimeOffRequest] = useState(false);
   
   // State for household todos
@@ -60,7 +84,6 @@ function Dashboard({ user }) {
   
   // State for time-off requests (for au pair visibility check)
   const [timeOffRequests, setTimeOffRequests] = useState([]);
-  const [requestsLoading, setRequestsLoading] = useState(true);
 
   const loading = familyLoading || tasksLoading || eventsLoading || shoppingLoading || todosLoading;
 
@@ -107,13 +130,12 @@ function Dashboard({ user }) {
     const currentUserRole = userData?.role || (familyData?.parentUids?.includes(user.uid) ? 'parent' : 'aupair');
     
     if (!userData?.familyId || !user.uid || currentUserRole !== 'aupair') {
-      setRequestsLoading(false);
       return;
     }
 
     const fetchRequests = async () => {
       try {
-        const { useTimeOffRequests } = await import('../utils/requestUtils');
+        await import('../utils/requestUtils');
         // We need to set up a listener manually since we can't use hooks conditionally
         const q = query(
           collection(db, 'families', userData.familyId, 'timeOffRequests')
@@ -143,18 +165,66 @@ function Dashboard({ user }) {
           });
           
           setTimeOffRequests(relevantRequests);
-          setRequestsLoading(false);
         });
 
         return () => unsubscribe();
       } catch (error) {
         console.error('Error fetching time-off requests:', error);
-        setRequestsLoading(false);
       }
     };
 
     fetchRequests();
   }, [userData?.familyId, user.uid, userData?.role, familyData?.parentUids]);
+
+  // Fetch recurring activities
+  useEffect(() => {
+    if (!userData?.familyId) {
+      setRecurringActivities([]);
+      return;
+    }
+
+    let unsubscribe = null;
+
+    try {
+      const activitiesQuery = query(
+        collection(db, 'recurringActivities'),
+        where('familyId', '==', userData.familyId)
+      );
+
+      unsubscribe = onSnapshot(
+        activitiesQuery, 
+        (snapshot) => {
+          try {
+            const activitiesData = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            setRecurringActivities(activitiesData);
+          } catch (error) {
+            console.warn('Error processing recurring activities snapshot:', error);
+            setRecurringActivities([]);
+          }
+        },
+        (error) => {
+          console.warn('Error fetching recurring activities:', error);
+          setRecurringActivities([]);
+        }
+      );
+    } catch (error) {
+      console.warn('Error setting up recurring activities listener:', error);
+      setRecurringActivities([]);
+    }
+
+    return () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        try {
+          unsubscribe();
+        } catch (error) {
+          console.warn('Error unsubscribing from recurring activities:', error);
+        }
+      }
+    };
+  }, [userData?.familyId]);
 
   // Determine dashboard state
   const dashboardState = getDashboardState(userData, children, tasks);
@@ -493,15 +563,6 @@ function Dashboard({ user }) {
 
 
 
-  // Helper function to format time
-  const formatTime = (date) => {
-    if (!date) return '';
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: false 
-    });
-  };
 
   if (loading) {
     return <div style={styles.loading}>Loading...</div>;
@@ -562,11 +623,11 @@ function Dashboard({ user }) {
     );
   }
 
-  // Show smart calendar
+  // Show calendar
   if (currentView === 'smart_calendar') {
     return (
       <div style={styles.appContainer}>
-        <SmartCalendarPage user={user} />
+        <CalendarPage user={user} />
         <BottomNavigation 
           currentView={currentView} 
           onNavigate={setCurrentView} 
@@ -662,7 +723,7 @@ function Dashboard({ user }) {
             </div>
             <div style={styles.tasksContainer}>
               {/* Shopping List Task Cards */}
-              {activeShoppingLists.map((list) => (
+              {todayShoppingLists.map((list) => (
                 <ShoppingListTaskCard
                   key={`shopping-${list.id}`}
                   list={list}
@@ -671,7 +732,7 @@ function Dashboard({ user }) {
               ))}
               
               {/* Household Todo Cards */}
-              {householdTodos.length === 0 && activeShoppingLists.length === 0 ? (
+              {householdTodos.length === 0 && todayShoppingLists.length === 0 ? (
                 <div style={styles.emptyStateFullWidth}>
                   <div style={styles.emptyStateIcon}>✅</div>
                   <p style={styles.emptyStateTitle}>All Tasks Completed!</p>
@@ -738,6 +799,7 @@ function Dashboard({ user }) {
                       child={child}
                       onEditChild={handleEditChild}
                       userRole={userRole}
+                      recurringActivities={recurringActivities}
                     />
                   ))
               )}
@@ -822,6 +884,7 @@ function Dashboard({ user }) {
               activities={events}
               familyId={userData?.familyId}
               maxEvents={5}
+              recurringActivities={recurringActivities}
             />
           </section>
         </ErrorBoundary>

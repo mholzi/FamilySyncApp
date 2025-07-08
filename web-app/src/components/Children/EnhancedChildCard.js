@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getNextOccurrences } from '../../utils/recurringActivityTemplates';
 
 // Default color palette for children
 const CHILD_COLORS = [
@@ -32,49 +33,50 @@ const EnhancedChildCard = ({
   child, 
   childIndex = 0, // Fallback index if no child ID
   onEditChild,
-  userRole = 'parent'
+  userRole = 'parent',
+  recurringActivities = [] // Add recurring activities prop
 }) => {
   const [imageError, setImageError] = useState(false);
   const [isSleeping, setIsSleeping] = useState(false);
   
   // Get consistent color for this child
   const childColor = getChildColor(child.id, childIndex);
-  // Calculate age
-  const calculateAge = (dateOfBirth) => {
-    if (!dateOfBirth) return 0;
-    const birthDate = dateOfBirth.toDate ? dateOfBirth.toDate() : new Date(dateOfBirth);
-    const today = new Date();
-    const diffTime = Math.abs(today - birthDate);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays < 365) {
-      const months = Math.floor(diffDays / 30);
-      return months > 0 ? `${months}m` : `${Math.floor(diffDays / 7)}w`;
-    } else {
-      const years = Math.floor(diffDays / 365);
-      const remainingMonths = Math.floor((diffDays % 365) / 30);
-      return remainingMonths > 0 ? `${years}y ${remainingMonths}m` : `${years}y`;
-    }
-  };
+  // Calculate age - unused function
+  // const calculateAge = (dateOfBirth) => {
+  //   if (!dateOfBirth) return 0;
+  //   const birthDate = dateOfBirth.toDate ? dateOfBirth.toDate() : new Date(dateOfBirth);
+  //   const today = new Date();
+  //   const diffTime = Math.abs(today - birthDate);
+  //   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  //   
+  //   if (diffDays < 365) {
+  //     const months = Math.floor(diffDays / 30);
+  //     return months > 0 ? `${months}m` : `${Math.floor(diffDays / 7)}w`;
+  //   } else {
+  //     const years = Math.floor(diffDays / 365);
+  //     const remainingMonths = Math.floor((diffDays % 365) / 30);
+  //     return remainingMonths > 0 ? `${years}y ${remainingMonths}m` : `${years}y`;
+  //   }
+  // };
 
 
-  const calculateAgeInMonths = (dateOfBirth) => {
-    if (!dateOfBirth) return 0;
-    const birthDate = dateOfBirth.toDate ? dateOfBirth.toDate() : new Date(dateOfBirth);
-    const today = new Date();
-    return Math.floor((today - birthDate) / (1000 * 60 * 60 * 24 * 30.44));
-  };
+  // const calculateAgeInMonths = (dateOfBirth) => {
+  //   if (!dateOfBirth) return 0;
+  //   const birthDate = dateOfBirth.toDate ? dateOfBirth.toDate() : new Date(dateOfBirth);
+  //   const today = new Date();
+  //   return Math.floor((today - birthDate) / (1000 * 60 * 60 * 24 * 30.44));
+  // };
 
-  // Format time for display
-  const formatTime = (date) => {
-    if (!date) return '';
-    const eventDate = date.toDate ? date.toDate() : new Date(date);
-    return eventDate.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: false 
-    });
-  };
+  // Format time for display - unused function
+  // const formatTime = (date) => {
+  //   if (!date) return '';
+  //   const eventDate = date.toDate ? date.toDate() : new Date(date);
+  //   return eventDate.toLocaleTimeString('en-US', { 
+  //     hour: '2-digit', 
+  //     minute: '2-digit',
+  //     hour12: false 
+  //   });
+  // };
 
   // Convert time string "HH:MM" to minutes since midnight
   const timeToMinutes = (timeStr) => {
@@ -231,7 +233,42 @@ const EnhancedChildCard = ({
     
     // Get school events and merge with routine events
     const schoolEvents = getSchoolEvents();
-    const allEvents = [...routineEvents, ...schoolEvents];
+    
+    // Get recurring activities for this child
+    const activityEvents = [];
+    recurringActivities.forEach(activity => {
+      // Check if this activity is assigned to the current child
+      if (activity.assignedChildren && activity.assignedChildren.includes(child.id)) {
+        try {
+          // Get next occurrences for this activity
+          const nextOccurrences = getNextOccurrences(activity, 3);
+          
+          nextOccurrences.forEach(occurrence => {
+            const occurrenceDate = occurrence.date.toDateString();
+            const isToday = occurrenceDate === new Date().toDateString();
+            const isTomorrow = occurrenceDate === new Date(Date.now() + 86400000).toDateString();
+            
+            // Add today's and tomorrow's activities
+            if (isToday || isTomorrow) {
+              activityEvents.push({
+                name: activity.name,
+                time: occurrence.time,
+                minutes: timeToMinutes(occurrence.time),
+                icon: activity.icon || '🏃',
+                isActivity: true,
+                isTomorrow: isTomorrow,
+                location: activity.location?.name || activity.location?.address,
+                transportation: activity.transportation
+              });
+            }
+          });
+        } catch (error) {
+          console.warn('Error processing recurring activity for child card:', error, activity);
+        }
+      }
+    });
+    
+    const allEvents = [...routineEvents, ...schoolEvents, ...activityEvents];
     
     // Sort by time and filter to show only upcoming events
     let upcomingEvents = allEvents
@@ -454,7 +491,10 @@ const EnhancedChildCard = ({
               <div key={`${routine.name}-${routine.time}`} style={styles.activityItem}>
                 <div style={styles.activityRow}>
                   <div style={styles.activityName}>
-                    {routine.name}
+                    {routine.isActivity && routine.icon} {routine.name}
+                    {routine.isActivity && routine.location && (
+                      <div style={styles.activityLocation}>📍 {routine.location}</div>
+                    )}
                   </div>
                   <div style={styles.activityTime}>
                     {routine.isTomorrow && (
@@ -466,6 +506,18 @@ const EnhancedChildCard = ({
                     )}
                   </div>
                 </div>
+                {routine.isActivity && routine.transportation && (
+                  <div style={styles.transportationInfo}>
+                    {routine.transportation.dropoff === 'au_pair' && '🚗 Drop-off: Au Pair'}
+                    {routine.transportation.pickup === 'au_pair' && (
+                      routine.transportation.dropoff === 'au_pair' ? ' | Pick-up: Au Pair' : '🚗 Pick-up: Au Pair'
+                    )}
+                    {routine.transportation.dropoff === 'child_alone' && '🚶 Child goes alone'}
+                    {routine.transportation.pickup === 'child_alone' && (
+                      routine.transportation.dropoff !== 'child_alone' ? ' | Child returns alone' : ''
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -723,6 +775,22 @@ const styles = {
     minWidth: '80px',
     backgroundColor: 'var(--primary-purple)',
     color: 'var(--white)'
+  },
+
+  activityLocation: {
+    fontSize: 'var(--font-size-xs)',
+    color: 'var(--text-tertiary)',
+    marginTop: 'var(--space-1)'
+  },
+
+  transportationInfo: {
+    fontSize: 'var(--font-size-xs)',
+    color: 'var(--text-secondary)',
+    marginTop: 'var(--space-1)',
+    padding: 'var(--space-1) var(--space-2)',
+    backgroundColor: 'var(--gray-50)',
+    borderRadius: 'var(--radius-sm)',
+    borderLeft: '3px solid var(--primary-purple)'
   }
 };
 
