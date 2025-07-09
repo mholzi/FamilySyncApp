@@ -7,7 +7,8 @@ const SimpleTodoCard = ({
   userRole,
   familyId,
   userId,
-  onToggleComplete 
+  onToggleComplete,
+  onEdit 
 }) => {
   const [isCompleting, setIsCompleting] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -79,7 +80,8 @@ const SimpleTodoCard = ({
           ...styles.taskCard, 
           ...(isCompleted ? styles.taskCardCompleted : {}),
           ...(isOverdue ? styles.taskCardOverdue : {}),
-          cursor: 'pointer'
+          cursor: 'pointer',
+          position: 'relative'
         }}
         onClick={() => setShowDetailModal(true)}
         title="Click to view task details"
@@ -92,6 +94,14 @@ const SimpleTodoCard = ({
           }
         }}
       >
+        {/* Help Request Badge */}
+        {todo.helpRequests?.length > 0 && (
+          <div style={styles.helpRequestBadge}>
+            <span style={styles.helpRequestCount}>
+              {todo.helpRequests.length}
+            </span>
+          </div>
+        )}
         {/* Header with title and due date on the right */}
         <div style={styles.taskHeader}>
           <div style={styles.titleRow}>
@@ -107,6 +117,12 @@ const SimpleTodoCard = ({
               </span>
             )}
           </div>
+          {/* Category below title */}
+          {todo.category && (
+            <span style={{...getCategoryBadgeStyle(todo.category, todo.priority), marginTop: '8px', display: 'inline-block'}}>
+              {todo.category.charAt(0).toUpperCase() + todo.category.slice(1)}
+            </span>
+          )}
           {todo.description && (
             <div style={{...styles.taskDescription, marginTop: '10px'}}>
               {todo.description}
@@ -123,15 +139,19 @@ const SimpleTodoCard = ({
           )}
         </div>
         
-        {/* Bottom row with category tag on left and done button on right */}
+        {/* Bottom row with both buttons */}
         <div style={styles.bottomRow}>
-          <div style={styles.leftBottomSection}>
-            {todo.category && (
-              <span style={getCategoryBadgeStyle(todo.category, todo.priority)}>
-                {todo.category.charAt(0).toUpperCase() + todo.category.slice(1)}
-              </span>
-            )}
-          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent card click
+              setShowDetailModal(true);
+            }}
+            style={{
+              ...styles.taskButton
+            }}
+          >
+            Details
+          </button>
           <button 
             style={{
               ...styles.doneButton,
@@ -146,42 +166,6 @@ const SimpleTodoCard = ({
             {isCompleting ? '...' : getButtonText()}
           </button>
         </div>
-        
-        {/* Task Details Access - Always Available */}
-        <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e5e7eb' }}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation(); // Prevent card click
-              setShowDetailModal(true);
-            }}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              background: '#f8fafc',
-              color: '#475569',
-              border: '1px solid #e2e8f0',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = '#f1f5f9';
-              e.target.style.borderColor = '#cbd5e1';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = '#f8fafc';
-              e.target.style.borderColor = '#e2e8f0';
-            }}
-          >
-            <span>View Task Details</span>
-          </button>
-        </div>
       </div>
 
       {/* Enhanced Task Detail Modal */}
@@ -192,9 +176,11 @@ const SimpleTodoCard = ({
           userRole={userRole}
           onClose={() => setShowDetailModal(false)}
           onTaskUpdate={onToggleComplete}
-          onEdit={() => {
+          onEdit={(task) => {
             setShowDetailModal(false);
-            // Could add onEdit prop later if needed
+            if (onEdit) {
+              onEdit(task);
+            }
           }}
         />
       )}
@@ -291,7 +277,7 @@ const styles = {
     fontSize: 'var(--font-size-xs)',
     color: 'var(--primary-purple)',
     backgroundColor: '#f3f4f6',
-    padding: 'var(--space-2) var(--space-3)',
+    padding: '2px var(--space-2)',
     borderRadius: 'var(--radius-md)',
     fontWeight: 'var(--font-weight-medium)',
     minWidth: '80px',
@@ -326,6 +312,18 @@ const styles = {
     alignItems: 'center',
     gap: 'var(--space-2)'
   },
+  taskButton: {
+    border: '1px solid #e2e8f0',
+    borderRadius: 'var(--radius-md)',
+    padding: 'var(--space-2) var(--space-3)',
+    fontSize: 'var(--font-size-xs)',
+    fontWeight: 'var(--font-weight-medium)',
+    cursor: 'pointer',
+    transition: 'var(--transition-fast)',
+    minWidth: '80px',
+    backgroundColor: '#f8fafc',
+    color: '#475569'
+  },
   doneButton: {
     border: 'none',
     borderRadius: 'var(--radius-md)',
@@ -350,6 +348,26 @@ const styles = {
     backgroundColor: '#f3f4f6',
     padding: 'var(--space-1) var(--space-2)',
     borderRadius: 'var(--radius-sm)'
+  },
+  helpRequestBadge: {
+    position: 'absolute',
+    top: '-8px',
+    right: '-8px',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    borderRadius: '50%',
+    width: '20px',
+    height: '20px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '10px',
+    fontWeight: 'bold',
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+    zIndex: 1
+  },
+  helpRequestCount: {
+    lineHeight: 1
   }
 };
 

@@ -569,6 +569,11 @@ function Dashboard({ user }) {
     setEditingTodo(null);
   };
 
+  const handleEditTodo = (todo) => {
+    setEditingTodo(todo);
+    setShowAddTodo(true);
+  };
+
 
   const handleCloseTodo = () => {
     setShowAddTodo(false);
@@ -761,6 +766,7 @@ function Dashboard({ user }) {
                     onToggleComplete={(todoId, newStatus) => {
                       console.log(`Todo ${todoId} status changed to ${newStatus}`);
                     }}
+                    onEdit={handleEditTodo}
                   />
                 ))
               )}
@@ -856,46 +862,13 @@ function Dashboard({ user }) {
               userRole={userRole}
               activities={events}
               familyId={userData?.familyId}
-              maxEvents={5}
+              userId={user?.uid}
+              maxEvents={15}
               recurringActivities={recurringActivities}
             />
           </section>
         </ErrorBoundary>
 
-        {/* Recurring Activities Management - Only for Parents */}
-        {userRole === 'parent' && (
-          <section style={styles.section}>
-            <div style={styles.sectionHeader}>
-              <h2 style={styles.sectionTitle}>Recurring Activities</h2>
-              <button 
-                style={styles.headerButton} 
-                onClick={() => setCurrentView('activities')}
-              >
-                Manage Activities
-              </button>
-            </div>
-            <div style={styles.activitiesPreview}>
-              <p style={styles.activitiesDescription}>
-                Set up regular schedules for sports, lessons, appointments, and other recurring activities. 
-                Your au pair will see these in their upcoming events.
-              </p>
-              <div style={styles.activitiesFeatures}>
-                <div style={styles.featureItem}>
-                  <span style={styles.featureIcon}>📅</span>
-                  <span>Weekly & custom schedules</span>
-                </div>
-                <div style={styles.featureItem}>
-                  <span style={styles.featureIcon}>📍</span>
-                  <span>Locations & contact info</span>
-                </div>
-                <div style={styles.featureItem}>
-                  <span style={styles.featureIcon}>🎒</span>
-                  <span>Required items & preparation</span>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
 
 
         {/* Family Notes Section */}
@@ -915,7 +888,7 @@ function Dashboard({ user }) {
                 userRole={userRole}
                 userData={userData}
                 familyData={familyData}
-                maxDisplayed={3}
+                maxDisplayed={4}
               />
             </div>
           </section>

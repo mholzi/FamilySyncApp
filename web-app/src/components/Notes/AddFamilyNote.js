@@ -57,7 +57,10 @@ const AddFamilyNote = ({ onSubmit, onCancel, onDelete, initialNote = null, userR
     { text: "Special dinner rules - no dessert until vegetables are finished", category: "rules" },
     { text: "School event tomorrow - remember permission slip", category: "schedule" },
     { text: "Kids can have friends over this afternoon", category: "kids" },
-    { text: "Early bedtime tonight", category: "kids" }
+    { text: "Early bedtime tonight", category: "kids" },
+    { text: "Thank you for handling the emergency so well", category: "thankyou" },
+    { text: "Thanks for teaching [child name] that new skill", category: "thankyou" },
+    { text: "Appreciate you staying late yesterday", category: "thankyou" }
   ];
 
   const auPairTemplates = [
@@ -68,7 +71,10 @@ const AddFamilyNote = ({ onSubmit, onCancel, onDelete, initialNote = null, userR
     { text: "One of the children seems unwell - please advise", category: "kids" },
     { text: "Tomorrow's school items are packed and ready", category: "schedule" },
     { text: "Had to handle a small incident - everything is fine now", category: "kids" },
-    { text: "Children would like to invite a friend over - is this okay?", category: "kids" }
+    { text: "Children would like to invite a friend over - is this okay?", category: "kids" },
+    { text: "Thank you for the lovely family dinner", category: "thankyou" },
+    { text: "Thanks for understanding the schedule change", category: "thankyou" },
+    { text: "Appreciate your help with homework", category: "thankyou" }
   ];
 
   const templates = userRole === 'parent' ? parentTemplates : auPairTemplates;
@@ -112,13 +118,23 @@ const AddFamilyNote = ({ onSubmit, onCancel, onDelete, initialNote = null, userR
             <textarea
               className="form-input"
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={(e) => setContent(e.target.value.slice(0, 500))}
               placeholder="Enter your family message..."
               rows={3}
               style={styles.textarea}
               disabled={isSubmitting}
               required
+              maxLength={500}
             />
+            <div style={styles.characterCount}>
+              <span style={{
+                color: content.length > 450 ? '#ef4444' : 
+                       content.length > 400 ? '#f97316' : 
+                       '#6b7280'
+              }}>
+                {content.length}/500
+              </span>
+            </div>
           </div>
 
           <div style={styles.formRow}>
@@ -128,10 +144,10 @@ const AddFamilyNote = ({ onSubmit, onCancel, onDelete, initialNote = null, userR
                 className="form-input"
                 value={priority}
                 onChange={(e) => setPriority(e.target.value)}
-                disabled={isSubmitting || (userRole === 'aupair' && priority === 'important')}
+                disabled={isSubmitting}
               >
                 <option value="normal">Normal</option>
-                {userRole === 'parent' && <option value="important">Important</option>}
+                <option value="important">Important</option>
                 <option value="urgent">Urgent</option>
               </select>
             </div>
@@ -148,6 +164,7 @@ const AddFamilyNote = ({ onSubmit, onCancel, onDelete, initialNote = null, userR
                 <option value="kids">Kids</option>
                 <option value="schedule">Schedule</option>
                 <option value="rules">Rules</option>
+                <option value="thankyou">Thank you</option>
               </select>
             </div>
           </div>
@@ -273,6 +290,11 @@ const styles = {
   textarea: {
     minHeight: '80px',
     resize: 'vertical'
+  },
+  characterCount: {
+    marginTop: 'var(--space-1)',
+    fontSize: 'var(--font-size-xs)',
+    textAlign: 'right'
   },
   actions: {
     display: 'flex',

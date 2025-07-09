@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import AddChildBasicInfo from './AddChildBasicInfo';
 import AddChildCareInfoStreamlined from './AddChildCareInfoStreamlined';
-import AddChildRoutineInfo from './AddChildRoutineInfo';
-import AddChildSchoolScheduleTable from './AddChildSchoolScheduleTable';
-import AddChildComplete from './AddChildComplete';
+// import AddChildRoutineInfo from './AddChildRoutineInfo';
+// import AddChildSchoolScheduleTable from './AddChildSchoolScheduleTable';
+import AutoSaveIndicator from './AutoSaveIndicator';
 
 function AddChildFlow({ user, familyId, existingChildren = [], editingChild = null, onComplete, onCancel, isSaving = false }) {
   const [currentStep, setCurrentStep] = useState(0);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [successChildName, setSuccessChildName] = useState('');
+  const [globalSaveStatus, setGlobalSaveStatus] = useState(null); // 'saving', 'saved', 'error'
   
   // Initialize with different data based on edit mode
   const getInitialChildData = () => {
@@ -58,44 +61,26 @@ function AddChildFlow({ user, familyId, existingChildren = [], editingChild = nu
 
   const handleNext = (stepData) => {
     setChildData(prev => ({ ...prev, ...stepData }));
-    setCurrentStep(prev => prev + 1);
+    
+    // If we're on step 1 (care info), show success and return to dashboard
+    if (currentStep === 1) {
+      setSuccessChildName(childData.name);
+      setShowSuccessMessage(true);
+      
+      // Show success message for 2 seconds then return to dashboard
+      setTimeout(() => {
+        onComplete({ ...childData, ...stepData });
+      }, 2000);
+    } else {
+      setCurrentStep(prev => prev + 1);
+    }
   };
 
   const handleBack = () => {
     setCurrentStep(prev => prev - 1);
   };
 
-  const handleComplete = (finalData) => {
-    const completeChildData = { ...childData, ...finalData };
-    onComplete(completeChildData);
-  };
-
-  const handleCompleteFlow = (action) => {
-    if (action === 'add_another') {
-      // Reset form and start over with new tempId
-      setChildData({
-        tempId: `child_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        name: '',
-        dateOfBirth: null,
-        phoneNumber: '',
-        profilePictureUrl: null,
-        allergies: [],
-        medications: [],
-        emergencyContacts: [],
-        carePreferences: {
-          napTimes: [],
-          bedtime: null,
-          mealPreferences: []
-        },
-        schoolSchedule: null,
-        scheduleType: null
-      });
-      setCurrentStep(0);
-    } else {
-      // Go back to dashboard
-      onComplete(childData);
-    }
-  };
+  // Removed - no longer needed with 2-step flow
 
   const handleDelete = () => {
     // Pass delete request to parent with child ID
@@ -104,10 +89,16 @@ function AddChildFlow({ user, familyId, existingChildren = [], editingChild = nu
 
   const handleSkip = (stepData = {}) => {
     const finalData = { ...childData, ...stepData };
-    // Move to completion step
     setChildData(finalData);
+    
+    // Show success message and return to dashboard
     if (currentStep === 1) {
-      setCurrentStep(2); // Skip to completion
+      setSuccessChildName(childData.name);
+      setShowSuccessMessage(true);
+      
+      setTimeout(() => {
+        onComplete(finalData);
+      }, 2000);
     }
   };
 
@@ -158,6 +149,9 @@ function AddChildFlow({ user, familyId, existingChildren = [], editingChild = nu
       
       console.log('Processed edit data:', editData);
       setChildData(editData);
+      
+      // For edit mode, jump directly to Step 2 (Care Info)
+      setCurrentStep(1);
     } else {
       // For new children, clear any existing draft data and start fresh
       localStorage.removeItem('childDraft');
@@ -176,6 +170,7 @@ function AddChildFlow({ user, familyId, existingChildren = [], editingChild = nu
             onCancel={onCancel}
             onDelete={editingChild ? handleDelete : null}
             isEditing={!!editingChild}
+            onSaveStatusChange={setGlobalSaveStatus}
           />
         );
       case 1:
@@ -187,13 +182,7 @@ function AddChildFlow({ user, familyId, existingChildren = [], editingChild = nu
             onSkip={handleSkip}
             onCancel={onCancel}
             isEditing={!!editingChild}
-          />
-        );
-      case 2:
-        return (
-          <AddChildComplete
-            childData={childData}
-            onComplete={handleCompleteFlow}
+            onSaveStatusChange={setGlobalSaveStatus}
           />
         );
       default:
@@ -203,10 +192,26 @@ function AddChildFlow({ user, familyId, existingChildren = [], editingChild = nu
 
   return (
     <div style={styles.container}>
+      {/* Global Auto-Save Indicator */}
+      <AutoSaveIndicator saveStatus={globalSaveStatus} />
+      
       {renderStep()}
       
+      {/* Success Message */}
+      {showSuccessMessage && (
+        <div style={styles.successOverlay}>
+          <div style={styles.successContent}>
+            <div style={styles.successIcon}>✅</div>
+            <div style={styles.successText}>
+              {editingChild ? 'Changes saved successfully!' : `${successChildName} added successfully!`}
+            </div>
+            <div style={styles.successSubtext}>Returning to dashboard...</div>
+          </div>
+        </div>
+      )}
+      
       {/* Loading Overlay */}
-      {isSaving && (
+      {isSaving && !showSuccessMessage && (
         <div style={styles.loadingOverlay}>
           <div style={styles.loadingContent}>
             <div style={styles.loadingSpinner}></div>
@@ -269,6 +274,42 @@ const styles = {
     fontSize: '14px',
     color: '#666',
     lineHeight: '1.4'
+  },
+  
+  // Success Message Styles
+  successOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000
+  },
+  successContent: {
+    backgroundColor: 'white',
+    borderRadius: '16px',
+    padding: '30px',
+    textAlign: 'center',
+    maxWidth: '300px',
+    width: '90%'
+  },
+  successIcon: {
+    fontSize: '48px',
+    marginBottom: '15px'
+  },
+  successText: {
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: '8px'
+  },
+  successSubtext: {
+    fontSize: '14px',
+    color: '#666'
   }
 };
 

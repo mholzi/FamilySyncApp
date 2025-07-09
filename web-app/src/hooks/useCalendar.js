@@ -19,10 +19,9 @@ export const useCalendar = (familyId, userId) => {
       
       const eventsQuery = query(
         collection(db, 'families', familyId, 'calendar'),
-        where('attendees', 'array-contains', userId),
         where('startTime', '>=', Timestamp.fromDate(now)),
         orderBy('startTime', 'asc'),
-        limit(5)
+        limit(50) // Add reasonable limit for performance
       );
 
       const unsubscribe = onSnapshot(eventsQuery, (snapshot) => {

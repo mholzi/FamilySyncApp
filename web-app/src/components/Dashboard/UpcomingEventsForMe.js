@@ -3,6 +3,7 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { getNextOccurrences } from '../../utils/recurringActivityTemplates';
 import { subscribeToEventOverrides, getEventOverride, applyEventOverride } from '../../utils/eventOverridesUtils';
+import { useCalendar } from '../../hooks/useCalendar';
 import EditEventModal from './EditEventModal';
 
 // Import child color utility from EnhancedChildCard
@@ -35,6 +36,7 @@ const UpcomingEventsForMe = ({
   userRole = 'aupair',
   activities = [],
   familyId = null,
+  userId = null,
   maxEvents = 5,
   recurringActivities = []
 }) => {
@@ -44,6 +46,8 @@ const UpcomingEventsForMe = ({
   const [showEditModal, setShowEditModal] = useState(false);
   const [eventFilter, setEventFilter] = useState('my'); // 'my' or 'all'
 
+  // Get calendar events using the useCalendar hook
+  const { events: calendarEvents, loading: calendarLoading, error: calendarError } = useCalendar(familyId, userId);
 
   // Fetch accepted babysitting requests from Firestore
   useEffect(() => {
@@ -217,6 +221,7 @@ const UpcomingEventsForMe = ({
 
     // Process routine events from all children
     children.forEach((child, childIndex) => {
+      if (!child) return; // Skip null or undefined children
       const routine = child.carePreferences?.dailyRoutine;
       if (!routine) return;
 
@@ -507,7 +512,7 @@ const UpcomingEventsForMe = ({
 
     // Add school pickup events based on schedule and pickup person
     children.forEach((child, childIndex) => {
-      if (!child.schoolSchedule || !child.pickupPerson) return;
+      if (!child || !child.schoolSchedule || !child.pickupPerson) return;
 
       const now = new Date();
       const currentDay = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][now.getDay()];
@@ -695,6 +700,83 @@ const UpcomingEventsForMe = ({
       }
     });
 
+    // Add calendar events (5th event type - doctor appointments, playdates, etc.)
+    if (calendarEvents && calendarEvents.length > 0) {
+      calendarEvents.forEach((event) => {
+        try {
+          // Filter by attendees - only show events where user is in attendees array
+          if (!event.attendees || !event.attendees.includes(userId)) {
+            return;
+          }
+
+          const startTime = event.startTime;
+          const eventTime = timeToMinutes(startTime.toTimeString().slice(0, 5));
+          const eventDate = startTime.toDateString();
+          const isToday = eventDate === currentDate;
+          
+          // Only show today's events that are upcoming, or future events
+          if ((isToday && eventTime > currentTime) || startTime > new Date()) {
+            // Apply role-based filtering
+            const shouldShowCalendarEvent = () => {
+              if (eventFilter === 'all') return true;
+              // Show if user role matches event responsibility or event is shared
+              return event.responsibility === userRole || event.responsibility === 'shared';
+            };
+            
+            if (shouldShowCalendarEvent()) {
+              // Process each assigned child for color coding
+              if (event.childrenIds && event.childrenIds.length > 0) {
+                event.childrenIds.forEach(childId => {
+                  const child = children.find(c => c.id === childId);
+                  if (child) {
+                    const childColor = getChildColor(child.id);
+                    
+                    addEventToGroup({
+                      title: event.title,
+                      time: startTime.toTimeString().slice(0, 5),
+                      minutes: eventTime,
+                      child: child,
+                      childColor: childColor,
+                      type: 'calendar_event',
+                      isToday: isToday,
+                      description: event.description || event.title,
+                      location: event.location || null,
+                      additionalInfo: null,
+                      responsibility: event.responsibility || 'parent',
+                      originalResponsibility: event.responsibility || 'parent'
+                    });
+                  }
+                });
+              } else {
+                // If no specific children assigned, assign to first child for consistency
+                const defaultChild = children[0];
+                if (defaultChild) {
+                  const childColor = getChildColor(defaultChild.id);
+                  
+                  addEventToGroup({
+                    title: event.title,
+                    time: startTime.toTimeString().slice(0, 5),
+                    minutes: eventTime,
+                    child: defaultChild,
+                    childColor: childColor,
+                    type: 'calendar_event',
+                    isToday: isToday,
+                    description: event.description || event.title,
+                    location: event.location || null,
+                    additionalInfo: null,
+                    responsibility: event.responsibility || 'parent',
+                    originalResponsibility: event.responsibility || 'parent'
+                  });
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('Error processing calendar event:', error, event);
+        }
+      });
+    }
+
     // Add accepted babysitting requests
     babysittingRequests.forEach((request) => {
       try {
@@ -754,6 +836,7 @@ const UpcomingEventsForMe = ({
     // Add tomorrow's events if we need more to reach maxEvents
     if (eventGroups.size < maxEvents) {
       children.forEach((child, childIndex) => {
+        if (!child) return; // Skip null or undefined children
         const routine = child.carePreferences?.dailyRoutine;
         if (!routine) return;
 

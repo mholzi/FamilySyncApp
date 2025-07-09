@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from '../../firebase';
+import { auth, db } from '../../firebase';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { completeHouseholdTodo, confirmHouseholdTodo } from '../../utils/householdTodosUtils';
 import { useAuPairExperience } from '../../hooks/useAuPairExperience';
 import TaskInstructions from './TaskInstructions/TaskInstructions';
@@ -27,6 +28,9 @@ const TaskDetailModal = ({
   const [isConfirming, setIsConfirming] = useState(false);
   const [completionPhotos, setCompletionPhotos] = useState([]);
   const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('success'); // 'success' or 'error'
+  const [respondingToRequest, setRespondingToRequest] = useState(null);
+  const [responseText, setResponseText] = useState('');
 
   // Get au pair experience for learning mode
   const { 
@@ -38,6 +42,7 @@ const TaskDetailModal = ({
   const handleCompleteTask = async () => {
     if (!user) return;
     
+    console.log('Au pair attempting to complete task with notes:', completionNotes);
     setIsCompleting(true);
     try {
       await completeHouseholdTodo(familyId, task.id, {
@@ -51,6 +56,7 @@ const TaskDetailModal = ({
       }
 
       setMessage('Task completed! 🎉');
+      setMessageType('success');
       setTimeout(() => {
         onTaskUpdate?.();
         onClose();
@@ -58,6 +64,7 @@ const TaskDetailModal = ({
     } catch (error) {
       console.error('Error completing task:', error);
       setMessage('Error completing task. Please try again.');
+      setMessageType('error');
     } finally {
       setIsCompleting(false);
     }
@@ -70,6 +77,7 @@ const TaskDetailModal = ({
     try {
       await confirmHouseholdTodo(familyId, task.id, user.uid);
       setMessage('Task confirmed! ✅');
+      setMessageType('success');
       setTimeout(() => {
         onTaskUpdate?.();
         onClose();
@@ -77,6 +85,7 @@ const TaskDetailModal = ({
     } catch (error) {
       console.error('Error confirming task:', error);
       setMessage('Error confirming task. Please try again.');
+      setMessageType('error');
     } finally {
       setIsConfirming(false);
     }
@@ -91,9 +100,67 @@ const TaskDetailModal = ({
     }, 1500);
   };
 
-  const handleHelpSuccess = (msg) => {
+  const handleHelpSuccess = (msg, type = 'success') => {
+    console.log('🔍 Debug: handleHelpSuccess called with:', { msg, type });
     setMessage(msg);
-    setShowHelpRequest(false);
+    setMessageType(type);
+    if (type === 'success') {
+      setShowHelpRequest(false);
+      // Clear message after 3 seconds for success
+      setTimeout(() => {
+        setMessage('');
+      }, 3000);
+    }
+    // If type is 'error', keep the modal open so user can retry
+  };
+
+  const handleRespond = (requestId, index) => {
+    setRespondingToRequest(index);
+    setResponseText('');
+  };
+
+  const handleSubmitResponse = async () => {
+    if (!responseText.trim() || !user) return;
+
+    try {
+      // Update the help request with response
+      const updatedHelpRequests = [...task.helpRequests];
+      const requestIndex = respondingToRequest;
+      
+      updatedHelpRequests[requestIndex] = {
+        ...updatedHelpRequests[requestIndex],
+        response: responseText.trim(),
+        responseBy: user.uid,
+        responseAt: new Date(),
+        resolved: true
+      };
+
+      // Update the task in Firestore
+      const taskRef = doc(db, 'families', familyId, 'householdTodos', task.id);
+      await updateDoc(taskRef, {
+        helpRequests: updatedHelpRequests,
+        updatedAt: serverTimestamp()
+      });
+
+      setMessage('Response sent successfully! 📝');
+      setMessageType('success');
+      setRespondingToRequest(null);
+      setResponseText('');
+      
+      // Refresh the task data
+      setTimeout(() => {
+        onTaskUpdate?.();
+      }, 1000);
+    } catch (error) {
+      console.error('Error submitting response:', error);
+      setMessage('Error sending response. Please try again.');
+      setMessageType('error');
+    }
+  };
+
+  const handleCancelResponse = () => {
+    setRespondingToRequest(null);
+    setResponseText('');
   };
 
   const isOverdue = task.dueDate && task.dueDate.toDate() < new Date() && task.status === 'pending';
@@ -141,7 +208,7 @@ const TaskDetailModal = ({
         <div className="task-detail-content">
           {/* Status Message */}
           {message && (
-            <div className="task-message">
+            <div className={`task-message ${messageType === 'error' ? 'task-message-error' : ''}`}>
               {message}
             </div>
           )}
@@ -171,8 +238,8 @@ const TaskDetailModal = ({
             />
           )}
 
-          {/* First Time Helper */}
-          {task.firstTimeHelp && (
+          {/* First Time Helper - Only for Au Pairs */}
+          {task.firstTimeHelp && userRole === 'aupair' && (
             <FirstTimeHelper
               firstTimeHelp={task.firstTimeHelp}
               isNewAuPair={isNewAuPair}
@@ -212,6 +279,73 @@ const TaskDetailModal = ({
                         <strong>Response:</strong> {request.response}
                       </div>
                     )}
+                    {userRole === 'parent' && !request.response && (
+                      <div className="help-request-actions">
+                        {respondingToRequest === index ? (
+                          <div className="response-form">
+                            <textarea
+                              value={responseText}
+                              onChange={(e) => setResponseText(e.target.value)}
+                              placeholder="Type your response to help the au pair..."
+                              rows={3}
+                              className="response-textarea"
+                            />
+                            <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+                              <button
+                                style={{
+                                  padding: 'var(--space-2) var(--space-3)',
+                                  border: 'none',
+                                  borderRadius: 'var(--radius-md)',
+                                  backgroundColor: !responseText.trim() ? 'var(--gray-400)' : 'var(--primary-purple)',
+                                  color: 'var(--white)',
+                                  fontSize: 'var(--font-size-sm)',
+                                  fontWeight: 'var(--font-weight-medium)',
+                                  cursor: !responseText.trim() ? 'not-allowed' : 'pointer',
+                                  transition: 'var(--transition-fast)'
+                                }}
+                                onClick={handleSubmitResponse}
+                                disabled={!responseText.trim()}
+                              >
+                                Send Response
+                              </button>
+                              <button
+                                style={{
+                                  padding: 'var(--space-2) var(--space-3)',
+                                  border: '1px solid var(--border-light)',
+                                  borderRadius: 'var(--radius-md)',
+                                  backgroundColor: 'var(--white)',
+                                  color: 'var(--text-secondary)',
+                                  fontSize: 'var(--font-size-sm)',
+                                  fontWeight: 'var(--font-weight-medium)',
+                                  cursor: 'pointer',
+                                  transition: 'var(--transition-fast)'
+                                }}
+                                onClick={handleCancelResponse}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            style={{
+                              padding: 'var(--space-2) var(--space-3)',
+                              border: 'none',
+                              borderRadius: 'var(--radius-md)',
+                              backgroundColor: 'var(--primary-purple)',
+                              color: 'var(--white)',
+                              fontSize: 'var(--font-size-sm)',
+                              fontWeight: 'var(--font-weight-medium)',
+                              cursor: 'pointer',
+                              transition: 'var(--transition-fast)'
+                            }}
+                            onClick={() => handleRespond(request.id, index)}
+                          >
+                            📝 Respond
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -244,7 +378,7 @@ const TaskDetailModal = ({
           {/* Completion Section for Au Pair */}
           {canComplete && (
             <div className="completion-section">
-              <h4>📝 Task Completion</h4>
+              <h4>📝 Comments</h4>
               <div className="completion-form">
                 <div className="form-group">
                   <label>Notes (optional)</label>
@@ -254,6 +388,40 @@ const TaskDetailModal = ({
                     placeholder="Add any notes about how you completed this task..."
                     rows={3}
                   />
+                  <button
+                    style={{
+                      marginTop: 'var(--space-2)',
+                      padding: 'var(--space-2) var(--space-3)',
+                      border: '1px solid var(--border-light)',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'var(--white)',
+                      color: 'var(--text-secondary)',
+                      fontSize: 'var(--font-size-sm)',
+                      fontWeight: 'var(--font-weight-medium)',
+                      cursor: 'pointer',
+                      transition: 'var(--transition-fast)'
+                    }}
+                    onClick={async () => {
+                      if (completionNotes.trim()) {
+                        try {
+                          const taskRef = doc(db, 'families', familyId, 'householdTodos', task.id);
+                          await updateDoc(taskRef, {
+                            completionNotes: completionNotes.trim(),
+                            updatedAt: serverTimestamp()
+                          });
+                          setMessage('Notes saved! 📝');
+                          setMessageType('success');
+                          setTimeout(() => setMessage(''), 3000);
+                        } catch (error) {
+                          console.error('Error saving notes:', error);
+                          setMessage('Error saving notes. Please try again.');
+                          setMessageType('error');
+                        }
+                      }
+                    }}
+                  >
+                    Save Notes
+                  </button>
                 </div>
                 
                 <div className="form-group">
@@ -313,7 +481,17 @@ const TaskDetailModal = ({
               <>
                 {canRequestHelp && (
                   <button
-                    className="btn btn-help"
+                    style={{
+                      padding: 'var(--space-2) var(--space-4)',
+                      border: '1px solid var(--primary-purple)',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'var(--white)',
+                      color: 'var(--primary-purple)',
+                      fontSize: 'var(--font-size-sm)',
+                      fontWeight: 'var(--font-weight-medium)',
+                      cursor: 'pointer',
+                      transition: 'var(--transition-fast)'
+                    }}
                     onClick={() => setShowHelpRequest(true)}
                   >
                     🤝 Need Help?
@@ -321,7 +499,17 @@ const TaskDetailModal = ({
                 )}
                 {canComplete && (
                   <button
-                    className="btn btn-primary"
+                    style={{
+                      padding: 'var(--space-2) var(--space-4)',
+                      border: 'none',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: isCompleting ? 'var(--gray-400)' : 'var(--primary-purple)',
+                      color: 'var(--white)',
+                      fontSize: 'var(--font-size-sm)',
+                      fontWeight: 'var(--font-weight-medium)',
+                      cursor: isCompleting ? 'not-allowed' : 'pointer',
+                      transition: 'var(--transition-fast)'
+                    }}
                     onClick={handleCompleteTask}
                     disabled={isCompleting}
                   >
@@ -336,15 +524,41 @@ const TaskDetailModal = ({
               <>
                 {task.status === 'pending' && (
                   <button
-                    className="btn btn-secondary"
-                    onClick={() => onEdit(task)}
+                    style={{
+                      padding: 'var(--space-2) var(--space-4)',
+                      border: '1px solid var(--border-light)',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'var(--white)',
+                      color: 'var(--text-secondary)',
+                      fontSize: 'var(--font-size-sm)',
+                      fontWeight: 'var(--font-weight-medium)',
+                      cursor: 'pointer',
+                      transition: 'var(--transition-fast)'
+                    }}
+                    onClick={() => {
+                      if (onEdit && typeof onEdit === 'function') {
+                        onEdit(task);
+                      } else {
+                        console.warn('onEdit is not a function or not provided');
+                      }
+                    }}
                   >
                     ✏️ Edit Task
                   </button>
                 )}
                 {canConfirm && (
                   <button
-                    className="btn btn-success"
+                    style={{
+                      padding: 'var(--space-2) var(--space-4)',
+                      border: 'none',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: isConfirming ? 'var(--gray-400)' : '#22c55e',
+                      color: 'var(--white)',
+                      fontSize: 'var(--font-size-sm)',
+                      fontWeight: 'var(--font-weight-medium)',
+                      cursor: isConfirming ? 'not-allowed' : 'pointer',
+                      transition: 'var(--transition-fast)'
+                    }}
                     onClick={handleConfirmTask}
                     disabled={isConfirming}
                   >
@@ -353,7 +567,17 @@ const TaskDetailModal = ({
                 )}
                 {canGiveFeedback && (
                   <button
-                    className="btn btn-primary"
+                    style={{
+                      padding: 'var(--space-2) var(--space-4)',
+                      border: 'none',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'var(--primary-purple)',
+                      color: 'var(--white)',
+                      fontSize: 'var(--font-size-sm)',
+                      fontWeight: 'var(--font-weight-medium)',
+                      cursor: 'pointer',
+                      transition: 'var(--transition-fast)'
+                    }}
                     onClick={() => setShowFeedbackModal(true)}
                   >
                     💝 Give Feedback

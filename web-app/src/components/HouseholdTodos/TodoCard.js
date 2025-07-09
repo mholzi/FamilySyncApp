@@ -310,7 +310,7 @@ const TodoCard = ({
     <div 
       ref={cardRef}
       className={cardClasses}
-      style={cardStyle}
+      style={{...cardStyle, position: 'relative'}}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -332,6 +332,31 @@ const TodoCard = ({
           {swipeAction === 'complete' && '✓ Complete'}
           {swipeAction === 'edit' && '✏️ Edit'}
           {swipeAction === 'delete' && '🗑️ Delete'}
+        </div>
+      )}
+
+      {/* Help Request Badge */}
+      {todo.helpRequests?.length > 0 && (
+        <div style={{
+          position: 'absolute',
+          top: '-8px',
+          right: '-8px',
+          backgroundColor: '#ef4444',
+          color: 'white',
+          borderRadius: '50%',
+          width: '20px',
+          height: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '10px',
+          fontWeight: 'bold',
+          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+          zIndex: 10
+        }}>
+          <span style={{ lineHeight: 1 }}>
+            {todo.helpRequests.length}
+          </span>
         </div>
       )}
 
@@ -379,44 +404,50 @@ const TodoCard = ({
                 </div>
               </div>
             ) : (
-              <div className="flex items-start gap-2">
-                <h3 
-                  className={`text-lg font-semibold text-primary mb-0 flex-1 ${
-                    userRole === 'parent' && todo.status === 'pending' ? 'cursor-pointer hover:bg-gray-100 p-1 rounded transition-colors' : ''
-                  }`}
-                  onClick={handleTitleEdit}
-                >
-                  {todo.title}
-                  {userRole === 'parent' && todo.status === 'pending' && (
-                    <span className="text-xs text-tertiary ml-2 opacity-0 hover:opacity-60 transition-opacity">✏️</span>
-                  )}
-                </h3>
-                <div className="flex items-center gap-2">
-                  {todo.difficulty && (
-                    <DifficultyBadge difficulty={todo.difficulty} showLabel={false} size="small" />
-                  )}
-                  <div 
-                    className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full"
-                    style={{ 
-                      backgroundColor: `${getPriorityColor(todo.priority)}15`,
-                      color: getPriorityColor(todo.priority)
-                    }}
-                    title={getPriorityLabel(todo.priority)}
+              <div>
+                <div className="flex items-start gap-2">
+                  <h3 
+                    className={`text-lg font-semibold text-primary mb-0 flex-1 ${
+                      userRole === 'parent' && todo.status === 'pending' ? 'cursor-pointer hover:bg-gray-100 p-1 rounded transition-colors' : ''
+                    }`}
+                    onClick={handleTitleEdit}
                   >
-                    <span className="text-sm">{getPriorityIcon(todo.priority)}</span>
-                    <span className="capitalize">{todo.priority || 'normal'}</span>
+                    {todo.title}
+                    {userRole === 'parent' && todo.status === 'pending' && (
+                      <span className="text-xs text-tertiary ml-2 opacity-0 hover:opacity-60 transition-opacity">✏️</span>
+                    )}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    {todo.difficulty && (
+                      <DifficultyBadge difficulty={todo.difficulty} showLabel={false} size="small" />
+                    )}
+                    <div 
+                      className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full"
+                      style={{ 
+                        backgroundColor: `${getPriorityColor(todo.priority)}15`,
+                        color: getPriorityColor(todo.priority)
+                      }}
+                      title={getPriorityLabel(todo.priority)}
+                    >
+                      <span className="text-sm">{getPriorityIcon(todo.priority)}</span>
+                      <span className="capitalize">{todo.priority || 'normal'}</span>
+                    </div>
                   </div>
                 </div>
+                {/* Category badge moved below title and aligned left */}
+                {todo.category && (
+                  <div className="mt-2">
+                    <span 
+                      className={`badge ${getCategoryBadgeClass(todo.category)}`}
+                      style={{ fontSize: 'calc(var(--font-size-sm) * 0.8)' }}
+                    >
+                      {todo.category}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
             <div className="flex flex-wrap gap-2 mt-2">
-              {todo.category && (
-                <span className={`badge ${getCategoryBadgeClass(todo.category)}`}>
-                  {todo.category}
-                </span>
-              )}
-              
-            </div>
           </div>
           
           <div className="flex flex-col items-end gap-1">
@@ -495,46 +526,46 @@ const TodoCard = ({
           </div>
         )}
 
-        {/* Task Details Access Button */}
-        <div className="mt-3 pt-3 border-t border-gray-200">
+        {/* Task Details and Actions */}
+        <div className="mt-3 flex gap-2 justify-end">
           <button
             onClick={() => setShowDetailModal(true)}
-            className="w-full p-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+            className="px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg transition-colors text-sm font-medium"
           >
-            <span>View Task Details</span>
+            Details
           </button>
+          
+          {showActions && todo.status === 'pending' && (
+            <>
+              {userRole === 'aupair' && (
+                <button 
+                  className="btn btn-primary"
+                  onClick={handleCompleteClick}
+                  disabled={isCompleting}
+                >
+                  Mark Complete
+                </button>
+              )}
+              
+              {userRole === 'parent' && (
+                <>
+                  <button 
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => onEdit(todo)}
+                  >
+                    Edit
+                  </button>
+                  <button 
+                    className="btn btn-sm bg-red-500 text-white hover:bg-red-600"
+                    onClick={() => onDelete(todo.id)}
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
+            </>
+          )}
         </div>
-
-        {showActions && todo.status === 'pending' && (
-          <div className="flex gap-2 justify-end mt-4">
-            {userRole === 'aupair' && (
-              <button 
-                className="btn btn-primary"
-                onClick={handleCompleteClick}
-                disabled={isCompleting}
-              >
-                Mark Complete
-              </button>
-            )}
-            
-            {userRole === 'parent' && (
-              <>
-                <button 
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => onEdit(todo)}
-                >
-                  Edit
-                </button>
-                <button 
-                  className="btn btn-sm bg-red-500 text-white hover:bg-red-600"
-                  onClick={() => onDelete(todo.id)}
-                >
-                  Delete
-                </button>
-              </>
-            )}
-          </div>
-        )}
       </div>
 
       {showCompletionForm && (

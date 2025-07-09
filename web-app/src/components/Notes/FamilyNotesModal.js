@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import FamilyNoteCard from './FamilyNoteCard';
 import AddFamilyNote from './AddFamilyNote';
 import useFamilyNotes from '../../hooks/useFamilyNotes';
 
-const FamilyNotesModal = ({ isOpen, onClose, familyId, userId, userRole }) => {
+const FamilyNotesModal = ({ isOpen, onClose, familyId, userId, userRole, userData, familyData }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
   const [filterCategory, setFilterCategory] = useState('all');
@@ -16,8 +16,27 @@ const FamilyNotesModal = ({ isOpen, onClose, familyId, userId, userRole }) => {
     createNote, 
     editNote, 
     deleteNote, 
-    dismissNote 
+    dismissNote,
+    toggleLike 
   } = useFamilyNotes(familyId, userId);
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add('modal-open');
+      // Store current scroll position
+      const scrollY = window.scrollY;
+      document.body.style.top = `-${scrollY}px`;
+      
+      return () => {
+        document.body.classList.remove('modal-open');
+        // Restore scroll position
+        const scrollY = parseInt(document.body.style.top || '0') * -1;
+        document.body.style.top = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [isOpen]);
 
   // Filter notes based on selected filters
   const filteredNotes = visibleNotes.filter(note => {
@@ -50,7 +69,7 @@ const FamilyNotesModal = ({ isOpen, onClose, familyId, userId, userRole }) => {
 
   return (
     <div style={styles.overlay}>
-      <div className="card" style={styles.modal}>
+      <div className="card family-notes-modal" style={styles.modal}>
         {/* Header */}
         <div className="card-header" style={styles.header}>
           <div>
@@ -81,6 +100,7 @@ const FamilyNotesModal = ({ isOpen, onClose, familyId, userId, userRole }) => {
               <option value="kids">Kids</option>
               <option value="schedule">Schedule</option>
               <option value="rules">Rules</option>
+              <option value="thankyou">Thank you</option>
             </select>
 
             <select
@@ -148,9 +168,13 @@ const FamilyNotesModal = ({ isOpen, onClose, familyId, userId, userRole }) => {
                   onDismiss={handleDismissNote}
                   onEdit={setEditingNote}
                   onDelete={handleDeleteNote}
+                  onLike={toggleLike}
                   canEdit={note.createdBy === userId}
                   canDelete={note.createdBy === userId || userRole === 'parent'}
                   userRole={userRole}
+                  userData={userData}
+                  familyData={familyData}
+                  userId={userId}
                 />
               ))}
             </div>
@@ -248,7 +272,9 @@ const styles = {
   content: {
     flex: 1,
     overflow: 'auto',
-    padding: 'var(--space-4)'
+    padding: 'var(--space-4)',
+    WebkitOverflowScrolling: 'touch', // Enable smooth scrolling on iOS
+    overscrollBehavior: 'contain' // Prevent scroll chaining
   },
   notesList: {
     display: 'flex',
@@ -301,5 +327,86 @@ const styles = {
     textAlign: 'center'
   }
 };
+
+// Add responsive styles for mobile
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = `
+    @media (max-width: 768px) {
+      /* Mobile-specific modal adjustments */
+      .family-notes-modal {
+        max-height: 100vh !important;
+        height: 100vh;
+        max-width: 100% !important;
+        margin: 0;
+        border-radius: 0;
+      }
+      
+      /* Adjust content area for mobile */
+      .family-notes-modal .content {
+        padding: var(--space-3);
+      }
+      
+      /* Stack filters vertically on mobile */
+      .family-notes-modal .filters {
+        flex-direction: column;
+        width: 100%;
+      }
+      
+      .family-notes-modal .filters select {
+        width: 100%;
+        min-width: unset;
+      }
+      
+      /* Adjust controls layout on mobile */
+      .family-notes-modal .controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--space-3);
+      }
+      
+      /* Ensure proper touch scrolling */
+      .family-notes-modal .content {
+        -webkit-overflow-scrolling: touch;
+        overflow-y: auto;
+        overflow-x: hidden;
+        max-height: calc(100vh - 250px); /* Account for header and controls */
+      }
+      
+      /* Prevent body scroll when modal is open */
+      body.modal-open {
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+      }
+    }
+    
+    @keyframes scaleIn {
+      from {
+        transform: scale(0.95);
+        opacity: 0;
+      }
+      to {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+    
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  `;
+  
+  // Only add if not already present
+  if (!document.querySelector('#family-notes-modal-styles')) {
+    style.id = 'family-notes-modal-styles';
+    document.head.appendChild(style);
+  }
+}
 
 export default FamilyNotesModal;

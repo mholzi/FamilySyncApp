@@ -8,6 +8,7 @@ import {
   onSnapshot, 
   Timestamp, 
   arrayUnion,
+  arrayRemove,
   query,
   orderBy 
 } from 'firebase/firestore';
@@ -57,6 +58,16 @@ export const useFamilyNotes = (familyId, userId) => {
     );
   }, [allNotes, userId]);
 
+  // Calculate unread count
+  const unreadCount = useMemo(() => {
+    if (!userId) return 0;
+    
+    return visibleNotes.filter(note => {
+      // Note is unread if user is not in the readBy array
+      return !note.readBy || !note.readBy.includes(userId);
+    }).length;
+  }, [visibleNotes, userId]);
+
   // Create a new note
   const createNote = async (noteData) => {
     if (!familyId || !userId) throw new Error('Missing familyId or userId');
@@ -69,6 +80,8 @@ export const useFamilyNotes = (familyId, userId) => {
         createdBy: userId,
         createdAt: Timestamp.now(),
         dismissedBy: [],
+        readBy: [userId], // Creator has already read their own note
+        likedBy: [], // Initialize empty likes array
         isActive: true
       };
 
@@ -90,7 +103,8 @@ export const useFamilyNotes = (familyId, userId) => {
         ...updatedData,
         editedAt: Timestamp.now(),
         editedBy: userId,
-        dismissedBy: [] // Clear dismissals when note is edited
+        dismissedBy: [], // Clear dismissals when note is edited
+        readBy: arrayUnion(userId) // Ensure editor has read the note
       });
     } catch (error) {
       console.error('Error editing note:', error);
@@ -127,7 +141,8 @@ export const useFamilyNotes = (familyId, userId) => {
 
       const noteRef = doc(db, 'families', familyId, 'notes', noteId);
       await updateDoc(noteRef, {
-        dismissedBy: arrayUnion(userId)
+        dismissedBy: arrayUnion(userId),
+        readBy: arrayUnion(userId) // Mark as read when dismissing
       });
 
       // Check if all family members have dismissed this note
@@ -150,15 +165,103 @@ export const useFamilyNotes = (familyId, userId) => {
     }
   };
 
+  // Toggle like status for a note
+  const toggleLike = async (noteId) => {
+    if (!familyId || !userId) {
+      console.error('Missing familyId or userId');
+      return;
+    }
+
+    // Store original note state for potential revert
+    let originalNote = null;
+    
+    try {
+      const note = allNotes.find(n => n.id === noteId);
+      if (!note) {
+        console.error('Note not found:', noteId);
+        return;
+      }
+
+      originalNote = { ...note };
+      
+      // Initialize arrays if they don't exist
+      const currentLikedBy = note.likedBy || [];
+      const currentReadBy = note.readBy || [];
+      const isLiked = currentLikedBy.includes(userId);
+      
+      const noteRef = doc(db, 'families', familyId, 'notes', noteId);
+
+      // Optimistic update
+      const newLikedBy = isLiked 
+        ? currentLikedBy.filter(id => id !== userId)
+        : [...currentLikedBy, userId];
+      
+      const newReadBy = currentReadBy.includes(userId) 
+        ? currentReadBy 
+        : [...currentReadBy, userId];
+
+      setAllNotes(prevNotes => 
+        prevNotes.map(n => 
+          n.id === noteId 
+            ? { ...n, likedBy: newLikedBy, readBy: newReadBy }
+            : n
+        )
+      );
+
+      // Update in Firestore
+      if (isLiked) {
+        // Unlike
+        await updateDoc(noteRef, {
+          likedBy: arrayRemove(userId)
+        });
+      } else {
+        // Like
+        await updateDoc(noteRef, {
+          likedBy: arrayUnion(userId),
+          readBy: arrayUnion(userId)
+        });
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      
+      // Revert optimistic update on error
+      if (originalNote) {
+        setAllNotes(prevNotes => 
+          prevNotes.map(n => 
+            n.id === noteId ? originalNote : n
+          )
+        );
+      }
+    }
+  };
+
+  // Mark a note as read
+  const markAsRead = async (noteId) => {
+    if (!familyId || !userId) throw new Error('Missing familyId or userId');
+
+    try {
+      const noteRef = doc(db, 'families', familyId, 'notes', noteId);
+      await updateDoc(noteRef, {
+        readBy: arrayUnion(userId)
+      });
+    } catch (error) {
+      console.error('Error marking note as read:', error);
+      throw error;
+    }
+  };
+
   return {
     allNotes,
     visibleNotes,
+    unreadCount,
     loading,
     error,
     createNote,
     editNote,
     deleteNote,
-    dismissNote
+    dismissNote,
+    toggleLike,
+    markAsRead
   };
 };
 

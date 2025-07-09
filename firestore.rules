@@ -49,6 +49,13 @@ service cloud.firestore {
         allow delete: if isFamilyMember(familyId);
       }
       
+      // Household Todos Subcollection - family members only
+      match /householdTodos/{todoId} {
+        allow read, write: if isFamilyMember(familyId);
+        allow create: if isFamilyMember(familyId);
+        allow delete: if isFamilyMember(familyId);
+      }
+      
       // Family subcollections (e.g., data/items for shopping intelligence)
       match /{subcollection=**} {
         allow read, write: if isFamilyMember(familyId);

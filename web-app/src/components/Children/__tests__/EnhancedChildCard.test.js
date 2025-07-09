@@ -13,37 +13,44 @@ describe('EnhancedChildCard', () => {
     id: 'child-1',
     name: 'Emma Johnson',
     dateOfBirth: mockTimestamp('2021-03-15T10:00:00Z'), // ~2.5 years old
-    profilePictureUrl: 'https://example.com/emma.jpg'
+    profilePictureUrl: 'https://example.com/emma.jpg',
+    carePreferences: {
+      dailyRoutine: {
+        wakeUpTime: '07:00',
+        mealTimes: {
+          breakfast: '08:00',
+          lunch: '12:30',
+          dinner: '18:00',
+          snacks: ['10:00', '15:00']
+        },
+        napTimes: [
+          { startTime: '13:00', duration: 60 }
+        ],
+        bedtime: '20:00'
+      }
+    }
   };
 
   // Use future dates to ensure events are not filtered out
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   
-  const mockEvents = [
+  const mockRecurringActivities = [
     {
-      id: 'event-1',
-      title: 'Lunch',
-      startTime: mockTimestamp(new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 12, 30).toISOString()),
-      childIds: ['child-1']
-    },
-    {
-      id: 'event-2', 
-      title: 'Nap Time',
-      startTime: mockTimestamp(new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 13, 0).toISOString()),
-      childIds: ['child-1']
-    },
-    {
-      id: 'event-3',
-      title: 'Playground',
-      startTime: mockTimestamp(new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 15, 0).toISOString()),
-      childIds: ['child-1', 'child-2']
+      id: 'activity-1',
+      name: 'Playground',
+      assignedChildren: ['child-1'],
+      icon: '🏃',
+      schedule: {
+        frequency: 'daily',
+        time: '15:00'
+      }
     }
   ];
 
   const defaultProps = {
     child: mockChild,
-    upcomingEvents: mockEvents,
+    recurringActivities: mockRecurringActivities,
     onEditChild: jest.fn()
   };
 
@@ -61,23 +68,20 @@ describe('EnhancedChildCard', () => {
   test('displays next activities in correct format', () => {
     render(<EnhancedChildCard {...defaultProps} />);
     
-    expect(screen.getByText('Next Activities')).toBeInTheDocument();
-    expect(screen.getByText('Lunch')).toBeInTheDocument();
-    expect(screen.getByText('Nap Time')).toBeInTheDocument();
-    expect(screen.getByText('12:30')).toBeInTheDocument();
-    expect(screen.getByText('13:00')).toBeInTheDocument();
-    
-    // Should show arrow between activities
-    expect(screen.getByText('→')).toBeInTheDocument();
+    expect(screen.getByText('Next Events')).toBeInTheDocument();
+    // The component shows routine activities, so look for actual routine items
+    expect(screen.getByText('Breakfast')).toBeInTheDocument();
+    expect(screen.getByText('08:00')).toBeInTheDocument();
   });
 
-  test('shows only next 2 events', () => {
+  test('shows only next 3 events', () => {
     render(<EnhancedChildCard {...defaultProps} />);
     
-    // Should show Lunch and Nap Time, but not Playground
-    expect(screen.getByText('Lunch')).toBeInTheDocument();
-    expect(screen.getByText('Nap Time')).toBeInTheDocument();
-    expect(screen.queryByText('Playground')).not.toBeInTheDocument();
+    // Should show first 3 upcoming routine events (based on current time)
+    // Component shows Wake Up, Breakfast, and Morning Snack as next 3 events
+    expect(screen.getByText('Wake Up')).toBeInTheDocument();
+    expect(screen.getByText('Breakfast')).toBeInTheDocument();
+    expect(screen.getByText('Morning Snack')).toBeInTheDocument();
   });
 
   test('handles child with no profile picture', () => {
@@ -105,25 +109,31 @@ describe('EnhancedChildCard', () => {
   });
 
   test('displays no activities message when no events', () => {
-    render(<EnhancedChildCard {...defaultProps} upcomingEvents={[]} />);
+    const childWithoutRoutine = { ...mockChild, carePreferences: {} };
+    render(<EnhancedChildCard {...defaultProps} child={childWithoutRoutine} />);
     
-    expect(screen.getByText('No scheduled activities')).toBeInTheDocument();
-    expect(screen.getByText('✨')).toBeInTheDocument();
+    expect(screen.getByText('No routine schedule set')).toBeInTheDocument();
+    expect(screen.getByText('🌙')).toBeInTheDocument();
   });
 
-  test('filters events by childIds correctly', () => {
-    const eventsForOtherChild = [
+  test('filters activities by child assignment correctly', () => {
+    const activitiesForOtherChild = [
       {
-        id: 'event-other',
-        title: 'Other Activity',
-        startTime: mockTimestamp(new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 11, 0).toISOString()),
-        childIds: ['child-2'] // Different child
+        id: 'activity-other',
+        name: 'Other Activity',
+        assignedChildren: ['child-2'], // Different child
+        icon: '🏃',
+        schedule: {
+          frequency: 'daily',
+          time: '11:00'
+        }
       }
     ];
     
-    render(<EnhancedChildCard {...defaultProps} upcomingEvents={eventsForOtherChild} />);
+    render(<EnhancedChildCard {...defaultProps} recurringActivities={activitiesForOtherChild} />);
     
-    expect(screen.getByText('No scheduled activities')).toBeInTheDocument();
+    // Should still show routine events, but not the activity for other child
+    expect(screen.getByText('Breakfast')).toBeInTheDocument();
     expect(screen.queryByText('Other Activity')).not.toBeInTheDocument();
   });
 
@@ -141,25 +151,25 @@ describe('EnhancedChildCard', () => {
   test('displays current status indicator', () => {
     render(<EnhancedChildCard {...defaultProps} />);
     
-    // Should show some status (Active, Activity soon, etc.)
-    const statusElements = screen.getAllByText(/Active|Activity soon|Free time/);
+    // Should show some status (Active, Routine soon, Free time, Sleeping, etc.)
+    const statusElements = screen.getAllByText(/Active|Routine soon|Free time|Day complete|Sleeping/);
     expect(statusElements.length).toBeGreaterThan(0);
   });
 
-  test('applies age-appropriate theming for toddlers', () => {
+  test('applies child color theming', () => {
     render(<EnhancedChildCard {...defaultProps} />);
     
     const card = screen.getByText('Emma Johnson').closest('div[style*="border-left"]');
     
-    // Should have orange-themed colors for toddlers (2-5 years)
-    expect(card).toHaveStyle('border-left: 4px solid #FF9800');
+    // Should have consistent color based on child ID (purple for this child)
+    expect(card).toHaveStyle('border-left: 4px solid #7C3AED');
   });
 
   test('formats time correctly', () => {
     render(<EnhancedChildCard {...defaultProps} />);
     
-    // Should display time in 24-hour format
-    expect(screen.getByText('12:30')).toBeInTheDocument();
-    expect(screen.getByText('13:00')).toBeInTheDocument();
+    // Should display time in 24-hour format for routine times
+    expect(screen.getByText('08:00')).toBeInTheDocument();
+    expect(screen.getByText('10:00')).toBeInTheDocument();
   });
 });

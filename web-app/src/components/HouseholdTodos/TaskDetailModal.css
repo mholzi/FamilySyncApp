@@ -174,6 +174,12 @@
   font-weight: 500;
 }
 
+.task-message-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
 .task-description {
   margin-bottom: 24px;
 }
@@ -268,6 +274,45 @@
   border-radius: 4px;
   font-size: 13px;
   color: #1e40af;
+}
+
+.help-request-actions {
+  margin-top: 12px;
+}
+
+.response-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.response-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 60px;
+  transition: border-color 0.2s ease;
+}
+
+.response-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.response-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
 }
 
 /* Feedback */
@@ -614,6 +659,16 @@
   .help-request-response {
     background: #1e3a8a;
     color: #bfdbfe;
+  }
+  
+  .response-textarea {
+    background: #374151;
+    border-color: #4b5563;
+    color: #f9fafb;
+  }
+  
+  .response-textarea:focus {
+    border-color: #60a5fa;
   }
   
   .completion-section {

@@ -6,13 +6,19 @@ const FamilyNoteCard = ({
   onDismiss, 
   onEdit, 
   onDelete, 
+  onLike,
   canEdit = false, 
   canDelete = false,
   userRole,
   userData = null, // Current user data
-  familyData = null // Family data with member information
+  familyData = null, // Family data with member information
+  userId = null // Direct userId prop for clarity
 }) => {
   const [authorName, setAuthorName] = useState('Loading...');
+  const [, forceUpdate] = useState({});
+  
+  // Get the current user ID from props
+  const currentUserId = userId || userData?.uid || userData?.id;
   const formatTime = (timestamp) => {
     if (!timestamp) return '';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -41,6 +47,15 @@ const FamilyNoteCard = ({
     }
   };
 
+  // Auto-refresh timestamp every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      forceUpdate({}); // Force re-render to update timestamp
+    }, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Fetch the author name when component mounts or createdBy changes
   useEffect(() => {
     const fetchAuthorName = async () => {
@@ -49,17 +64,17 @@ const FamilyNoteCard = ({
         return;
       }
 
-      // Debug logging
-      console.log('FamilyNoteCard - User data check:');
-      console.log('userData:', userData);
-      console.log('note.createdBy:', note.createdBy);
-      console.log('userData?.uid:', userData?.uid);
-      console.log('userData?.id:', userData?.id);
-      console.log('Match with uid:', userData?.uid === note.createdBy);
-      console.log('Match with id:', userData?.id === note.createdBy);
+      // Debug logging (commented out after verification)
+      // console.log('FamilyNoteCard - User data check:');
+      // console.log('userData:', userData);
+      // console.log('note.createdBy:', note.createdBy);
+      // console.log('userData?.uid:', userData?.uid);
+      // console.log('userData?.id:', userData?.id);
+      // console.log('Match with uid:', userData?.uid === note.createdBy);
+      // console.log('Match with id:', userData?.id === note.createdBy);
 
       // If this is the current user
-      if (userData && (userData.uid === note.createdBy || userData.id === note.createdBy)) {
+      if (currentUserId && currentUserId === note.createdBy) {
         const name = userData.displayName || userData.name || userData.email?.split('@')[0] || 'You';
         setAuthorName(name);
         return;
@@ -87,7 +102,7 @@ const FamilyNoteCard = ({
     };
 
     fetchAuthorName();
-  }, [note.createdBy, userData, familyData]);
+  }, [note.createdBy, currentUserId, userData, familyData]);
 
   const getPriorityBadgeStyle = (priority) => {
     const priorityColor = getPriorityColor(priority);
@@ -141,10 +156,38 @@ const FamilyNoteCard = ({
       {/* Bottom row with action buttons on right */}
       <div style={styles.bottomRow}>
         <div style={styles.leftBottomSection}>
+          {/* Like button and count */}
+          <button 
+            style={{
+              ...styles.likeButton,
+              ...(note.likedBy?.includes(currentUserId) ? styles.likeButtonActive : {})
+            }}
+            className="like-button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (onLike) {
+                onLike(note.id);
+              }
+            }}
+            title="Like this note"
+            type="button"
+          >
+            <span style={styles.likeIcon}>
+              {note.likedBy?.length > 0 ? '❤️' : '🤍'}
+            </span>
+            {note.likedBy?.length > 0 && (
+              <span style={styles.likeCount}>
+                {note.likedBy.includes(currentUserId) && note.likedBy.length > 1
+                  ? `You and ${note.likedBy.length - 1} ${note.likedBy.length === 2 ? 'other' : 'others'}`
+                  : note.likedBy.length}
+              </span>
+            )}
+          </button>
         </div>
         <div style={styles.actions}>
           {/* Show edit button if current user is the note creator */}
-          {(userData?.uid === note.createdBy || userData?.id === note.createdBy) && (
+          {currentUserId === note.createdBy && (
             <button 
               style={styles.editButton}
               className="edit-button"
@@ -202,7 +245,7 @@ const styles = {
     textAlign: 'left'
   },
   noteContent: {
-    fontSize: 'var(--font-size-xs)',
+    fontSize: 'calc(var(--font-size-xs) * 1.2)',
     color: 'var(--text-secondary)',
     lineHeight: 'var(--line-height-normal)',
     textAlign: 'left',
@@ -245,7 +288,9 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 'var(--space-2)',
-    marginTop: 'auto'
+    marginTop: 'auto',
+    position: 'relative',
+    zIndex: 5
   },
   leftBottomSection: {
     display: 'flex',
@@ -297,6 +342,32 @@ const styles = {
     minWidth: '80px',
     backgroundColor: '#f3f4f6',
     color: 'var(--text-primary)'
+  },
+  likeButton: {
+    border: 'none',
+    borderRadius: 'var(--radius-md)',
+    padding: 'var(--space-1) var(--space-2)',
+    fontSize: 'var(--font-size-xs)',
+    fontWeight: 'var(--font-weight-medium)',
+    cursor: 'pointer',
+    transition: 'var(--transition-fast)',
+    backgroundColor: 'transparent',
+    color: 'var(--text-secondary)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 'var(--space-1)',
+    position: 'relative',
+    zIndex: 10
+  },
+  likeButtonActive: {
+    color: '#ef4444' // Red for liked state
+  },
+  likeIcon: {
+    fontSize: 'var(--font-size-base)'
+  },
+  likeCount: {
+    fontSize: 'var(--font-size-xs)',
+    marginLeft: 'var(--space-1)'
   }
 };
 
@@ -324,8 +395,30 @@ if (typeof document !== 'undefined') {
       background-color: var(--gray-200);
       color: var(--text-primary);
     }
+    
+    .family-note-card .like-button:hover {
+      background-color: var(--gray-50);
+    }
   `;
   document.head.appendChild(style);
 }
 
-export default FamilyNoteCard;
+export default React.memo(FamilyNoteCard, (prevProps, nextProps) => {
+  // Custom comparison to prevent unnecessary re-renders
+  // Only re-render if note data, permissions, or user data changes
+  return (
+    prevProps.note.id === nextProps.note.id &&
+    prevProps.note.content === nextProps.note.content &&
+    prevProps.note.priority === nextProps.note.priority &&
+    prevProps.note.createdBy === nextProps.note.createdBy &&
+    prevProps.note.editedAt === nextProps.note.editedAt &&
+    JSON.stringify(prevProps.note.likedBy) === JSON.stringify(nextProps.note.likedBy) &&
+    JSON.stringify(prevProps.note.readBy) === JSON.stringify(nextProps.note.readBy) &&
+    prevProps.canEdit === nextProps.canEdit &&
+    prevProps.canDelete === nextProps.canDelete &&
+    prevProps.userRole === nextProps.userRole &&
+    prevProps.userData?.uid === nextProps.userData?.uid &&
+    prevProps.familyData?.familyId === nextProps.familyData?.familyId &&
+    prevProps.userId === nextProps.userId
+  );
+});

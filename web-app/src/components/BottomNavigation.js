@@ -46,15 +46,6 @@ const BottomNavigation = ({ currentView, onNavigate, pendingApprovalCount = 0 })
           <span className="text-xl mb-1">📧</span>
           <span className="text-xs font-medium">Messages</span>
       </div>
-        <div 
-          className={`flex-1 flex flex-col items-center p-3 cursor-pointer transition-colors ${
-            currentView === 'profile' ? 'text-primary' : 'text-tertiary'
-          }`}
-          onClick={() => onNavigate('profile')}
-        >
-          <span className="text-xl mb-1">👤</span>
-          <span className="text-xs font-medium">Profile</span>
-        </div>
       </div>
     </nav>
   );

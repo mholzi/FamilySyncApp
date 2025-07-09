@@ -32,6 +32,15 @@ function AddChildSchoolSchedule({ childData, initialData, onNext, onBack }) {
     thursday: 'parent',
     friday: 'parent'
   });
+
+  // Delivery person state for each day
+  const [deliveryPerson, setDeliveryPerson] = useState(initialData?.deliveryPerson || {
+    monday: 'parent',
+    tuesday: 'parent',
+    wednesday: 'parent',
+    thursday: 'parent',
+    friday: 'parent'
+  });
   
   const calendarRef = useRef(null);
   
@@ -310,6 +319,7 @@ function AddChildSchoolSchedule({ childData, initialData, onNext, onBack }) {
       schoolSchedule: schedule,
       schoolInfo,
       pickupPerson,
+      deliveryPerson,
       lastModified: new Date().toISOString()
     };
     onNext(scheduleData);
@@ -322,6 +332,7 @@ function AddChildSchoolSchedule({ childData, initialData, onNext, onBack }) {
       schoolSchedule: schedule,
       schoolInfo,
       pickupPerson,
+      deliveryPerson,
       lastModified: new Date().toISOString()
     };
     onNext(scheduleData);
@@ -429,6 +440,18 @@ function AddChildSchoolSchedule({ childData, initialData, onNext, onBack }) {
               <div key={day} style={styles.dayColumn}>
                 <div style={styles.dayHeader}>
                   <span style={styles.dayLabel}>{dayLabels[day]}</span>
+                  <div style={styles.pickupSelector}>
+                    <label style={styles.pickupLabel}>Delivery:</label>
+                    <select
+                      value={deliveryPerson[day]}
+                      onChange={(e) => setDeliveryPerson(prev => ({ ...prev, [day]: e.target.value }))}
+                      style={styles.pickupSelect}
+                    >
+                      <option value="parent">Parent</option>
+                      <option value="aupair">Au Pair</option>
+                      <option value="alone">Kid goes alone</option>
+                    </select>
+                  </div>
                   <div style={styles.pickupSelector}>
                     <label style={styles.pickupLabel}>Pickup:</label>
                     <select
@@ -666,6 +689,7 @@ function AddChildSchoolSchedule({ childData, initialData, onNext, onBack }) {
                       </span>
                     ))}
                     <span style={styles.pickupInfo}>
+                      | Delivery: {deliveryPerson[day] === 'parent' ? 'Parent' : deliveryPerson[day] === 'aupair' ? 'Au Pair' : deliveryPerson[day] === 'alone' ? 'Kid goes alone' : 'Unknown'}
                       | Pickup: {pickupPerson[day] === 'parent' ? 'Parent' : pickupPerson[day] === 'aupair' ? 'Au Pair' : pickupPerson[day] === 'alone' ? 'Kid comes home alone' : 'Unknown'}
                     </span>
                   </div>
@@ -852,11 +876,12 @@ const styles = {
     position: 'relative'
   },
   dayHeader: {
-    height: '50px',
+    height: '80px',
     display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '0 8px',
+    padding: '8px',
     borderBottom: '1px solid #E5E5EA',
     backgroundColor: '#F8F9FA'
   },
@@ -897,7 +922,7 @@ const styles = {
     justifyContent: 'center'
   },
   dayGrid: {
-    height: '440px', // 11 hours * 40px
+    height: '410px', // Adjusted for taller header
     position: 'relative',
     backgroundColor: '#FAFAFA'
   },

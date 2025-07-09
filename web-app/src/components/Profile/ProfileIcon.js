@@ -123,21 +123,22 @@ const styles = {
     position: 'relative'
   },
   profileIcon: {
-    width: '32px',
-    height: '32px',
-    borderRadius: '16px',
+    width: '36px',
+    height: '36px',
+    borderRadius: '18px',
     backgroundColor: '#007AFF',
     color: 'white',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '14px',
+    fontSize: '15px',
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.2s ease',
     overflow: 'hidden',
-    border: 'none',
-    outline: 'none'
+    border: '2px solid transparent',
+    outline: 'none',
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
   },
   profileIconActive: {
     backgroundColor: '#0056D6',
@@ -148,7 +149,7 @@ const styles = {
     width: '100%',
     height: '100%',
     objectFit: 'cover',
-    borderRadius: '16px'
+    borderRadius: '18px'
   }
 };
 

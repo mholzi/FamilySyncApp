@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
 import { db, auth } from '../../firebase';
-import { doc, setDoc, updateDoc, getDoc, collection, query, where, onSnapshot, addDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, getDoc, getDocs, collection, query, where, onSnapshot, addDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { COMMON_ALLERGIES, COMMON_MEDICATIONS, filterSuggestions } from '../../utils/dashboardStates';
 import BasicRoutineBuilder from '../RoutineBuilder/BasicRoutineBuilder';
 import AddChildSchoolScheduleTable from './AddChildSchoolScheduleTable';
 import RecurringActivityBuilder from '../Activities/RecurringActivityBuilder';
 import { getNextOccurrences, formatRecurrenceDescription } from '../../utils/recurringActivityTemplates';
 
-function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCancel, isEditing = false }) {
+function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCancel, isEditing = false, onSaveStatusChange }) {
   const [formData, setFormData] = useState({
+    // Phone number (edit mode only)
+    phoneNumber: childData.phoneNumber || '',
+    
     // Essential care info
     allergies: childData.allergies || [],
     medications: childData.medications || [],
@@ -28,15 +31,13 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
     pickupPerson: childData.pickupPerson || null,
     schoolInfo: childData.schoolInfo || null,
     
-    // Emergency contacts (optional)
-    emergencyContacts: childData.emergencyContacts || []
+    // Emergency contacts moved to family level
   });
 
   const [expandedSections, setExpandedSections] = useState({
     routine: false,
     schoolSchedule: false,
-    recurringActivities: false,
-    emergencyContacts: false
+    recurringActivities: false
   });
 
   const [inputStates, setInputStates] = useState({
@@ -49,6 +50,9 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
     allergies: [],
     medications: []
   });
+  
+  const [familyAllergies, setFamilyAllergies] = useState([]);
+  const [familyMedications, setFamilyMedications] = useState([]);
 
   const [showRoutineBuilder, setShowRoutineBuilder] = useState(false);
   const [showSchoolScheduleBuilder, setShowSchoolScheduleBuilder] = useState(false);
@@ -57,13 +61,13 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [editingActivity, setEditingActivity] = useState(null);
   const [familyId, setFamilyId] = useState(null);
-  const [saveStatus, setSaveStatus] = useState(null); // 'saving', 'saved', 'error'
-  const [isSaving, setIsSaving] = useState(false);
+  // Save state handled globally in parent component
+  const [, setIsSaving] = useState(false);
   const [isLoadingDraft, setIsLoadingDraft] = useState(true);
 
-  // Get family ID on component mount
+  // Get family ID and fetch family allergies/medications on component mount
   useEffect(() => {
-    const fetchFamilyId = async () => {
+    const fetchFamilyData = async () => {
       try {
         // Try to get familyId from childData first
         let currentFamilyId = childData.familyId;
@@ -78,13 +82,50 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
 
         if (currentFamilyId) {
           setFamilyId(currentFamilyId);
+          
+          // Fetch all children in the family to get their allergies and medications
+          const childrenQuery = query(
+            collection(db, 'children'),
+            where('familyId', '==', currentFamilyId)
+          );
+          
+          const childrenSnapshot = await getDocs(childrenQuery);
+          const allAllergies = new Set();
+          const allMedications = new Set();
+          
+          childrenSnapshot.docs.forEach(doc => {
+            const childData = doc.data();
+            // Skip the current child if editing
+            if (doc.id === childData.id) return;
+            
+            // Collect allergies
+            if (childData.allergies && Array.isArray(childData.allergies)) {
+              childData.allergies.forEach(allergy => {
+                if (allergy.name) {
+                  allAllergies.add(allergy.name.toLowerCase());
+                }
+              });
+            }
+            
+            // Collect medications
+            if (childData.medications && Array.isArray(childData.medications)) {
+              childData.medications.forEach(medication => {
+                if (medication.name) {
+                  allMedications.add(medication.name.toLowerCase());
+                }
+              });
+            }
+          });
+          
+          setFamilyAllergies(Array.from(allAllergies));
+          setFamilyMedications(Array.from(allMedications));
         }
       } catch (error) {
-        console.error('Error fetching family ID:', error);
+        console.error('Error fetching family data:', error);
       }
     };
 
-    fetchFamilyId();
+    fetchFamilyData();
   }, [childData]);
 
   // Fetch recurring activities for the current child
@@ -153,6 +194,40 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
       }));
     }
   }, [childData]);
+
+  // Set up real-time listener for edit mode to sync changes immediately
+  useEffect(() => {
+    if (!isEditing || !childData?.id) return;
+
+    console.log('Setting up real-time listener for child:', childData.id);
+    
+    const childRef = doc(db, 'children', childData.id);
+    const unsubscribe = onSnapshot(childRef, (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        const updatedData = docSnapshot.data();
+        console.log('Real-time update received for child:', updatedData);
+        
+        setFormData(prev => ({
+          ...prev,
+          phoneNumber: updatedData.phoneNumber || prev.phoneNumber,
+          allergies: updatedData.allergies || prev.allergies,
+          medications: updatedData.medications || prev.medications,
+          carePreferences: updatedData.carePreferences || prev.carePreferences,
+          schoolSchedule: updatedData.schoolSchedule || prev.schoolSchedule,
+          scheduleType: updatedData.scheduleType || prev.scheduleType,
+          pickupPerson: updatedData.pickupPerson || prev.pickupPerson,
+          schoolInfo: updatedData.schoolInfo || prev.schoolInfo
+        }));
+      }
+    }, (error) => {
+      console.error('Error listening to child updates:', error);
+    });
+
+    return () => {
+      console.log('Cleaning up real-time listener for child:', childData.id);
+      unsubscribe();
+    };
+  }, [isEditing, childData?.id]);
 
   // Load existing draft data on component mount
   useEffect(() => {
@@ -227,13 +302,14 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
     if (!childData.tempId && childData.id) {
       try {
         setIsSaving(true);
-        setSaveStatus('saving');
+        if (onSaveStatusChange) onSaveStatusChange('saving');
         
         console.log('Editing mode: saving care data to child document', childData.id);
         
         // Update existing child document directly
         const childRef = doc(db, 'children', childData.id);
         await updateDoc(childRef, {
+          phoneNumber: updatedData.phoneNumber || '',
           allergies: updatedData.allergies || [],
           medications: updatedData.medications || [],
           carePreferences: {
@@ -245,7 +321,6 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
             quickNotes: updatedData.carePreferences?.quickNotes || '',
             lastModified: updatedData.carePreferences?.lastModified || null
           },
-          emergencyContacts: updatedData.emergencyContacts || [],
           schoolSchedule: updatedData.schoolSchedule || null,
           scheduleType: updatedData.scheduleType || null,
           pickupPerson: updatedData.pickupPerson || null,
@@ -255,14 +330,20 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
         });
 
         console.log('✅ Care data saved to existing child document');
-        setSaveStatus('saved');
-        setTimeout(() => setSaveStatus(null), 2000);
+        if (onSaveStatusChange) onSaveStatusChange('saved');
+        setTimeout(() => {
+          if (onSaveStatusChange) onSaveStatusChange(null);
+        }, 2000);
         return true;
         
       } catch (error) {
         console.error('❌ Error saving care data to child document:', error);
-        setSaveStatus('error');
-        setTimeout(() => setSaveStatus(null), 3000);
+        if (onSaveStatusChange) onSaveStatusChange('error');
+        
+        // Auto-retry after 2 seconds
+        setTimeout(() => {
+          saveCareDataToFirestore(updatedData);
+        }, 2000);
         return false;
       } finally {
         setIsSaving(false);
@@ -277,7 +358,7 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
 
     try {
       setIsSaving(true);
-      setSaveStatus('saving');
+      if (onSaveStatusChange) onSaveStatusChange('saving');
       
       // Get user's family document
       const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
@@ -312,7 +393,6 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
           quickNotes: updatedData.carePreferences?.quickNotes || '',
           lastModified: updatedData.carePreferences?.lastModified || null
         },
-        emergencyContacts: updatedData.emergencyContacts || childData.emergencyContacts || [],
         schoolSchedule: updatedData.schoolSchedule || childData.schoolSchedule || null,
         scheduleType: updatedData.scheduleType || childData.scheduleType || null,
         pickupPerson: updatedData.pickupPerson || childData.pickupPerson || null,
@@ -325,14 +405,20 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
         familyId: familyId
       }, { merge: true });
 
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus(null), 2000);
+      if (onSaveStatusChange) onSaveStatusChange('saved');
+      setTimeout(() => {
+        if (onSaveStatusChange) onSaveStatusChange(null);
+      }, 2000);
       return true;
       
     } catch (error) {
       console.error('Error saving care data:', error);
-      setSaveStatus('error');
-      setTimeout(() => setSaveStatus(null), 3000);
+      if (onSaveStatusChange) onSaveStatusChange('error');
+      
+      // Auto-retry after 2 seconds
+      setTimeout(() => {
+        saveCareDataToFirestore(updatedData);
+      }, 2000);
       return false;
     } finally {
       setIsSaving(false);
@@ -343,14 +429,18 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
     setInputStates(prev => ({ ...prev, [field]: value }));
     
     if (field === 'allergyInput') {
+      // Combine common allergies with family-specific ones
+      const allAllergySuggestions = [...COMMON_ALLERGIES, ...familyAllergies];
       setSuggestions(prev => ({
         ...prev,
-        allergies: filterSuggestions(value, COMMON_ALLERGIES)
+        allergies: filterSuggestions(value, allAllergySuggestions)
       }));
     } else if (field === 'medicationInput') {
+      // Combine common medications with family-specific ones
+      const allMedicationSuggestions = [...COMMON_MEDICATIONS, ...familyMedications];
       setSuggestions(prev => ({
         ...prev,
-        medications: filterSuggestions(value, COMMON_MEDICATIONS)
+        medications: filterSuggestions(value, allMedicationSuggestions)
       }));
     }
   };
@@ -918,30 +1008,48 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
     <div style={styles.container}>
       <div style={styles.header}>
         <button style={styles.backButton} onClick={onBack}>←</button>
-        <h1 style={styles.title}>Care Details & Setup</h1>
+        <h1 style={styles.title}>
+          {isEditing ? `Editing: ${childData.name}'s Profile` : 'Care Details & Setup'}
+        </h1>
         <div style={styles.saveStatusContainer}>
-          {saveStatus && (
-            <div style={{
-              ...styles.saveStatus,
-              ...(saveStatus === 'saved' ? styles.saveStatusSuccess : {}),
-              ...(saveStatus === 'error' ? styles.saveStatusError : {}),
-              ...(saveStatus === 'saving' ? styles.saveStatusSaving : {})
-            }}>
-              {saveStatus === 'saving' && '💾'}
-              {saveStatus === 'saved' && '✅'}
-              {saveStatus === 'error' && '⚠️'}
-            </div>
-          )}
+          {/* Save status removed - handled globally */}
         </div>
       </div>
+      
+      {/* Edit Mode Header with Child Info */}
+      {isEditing && (
+        <div style={styles.editModeHeader}>
+          <div style={styles.childProfileHeader}>
+            <div style={styles.childAvatar}>
+              {childData.profilePictureUrl ? (
+                <img 
+                  src={childData.profilePictureUrl} 
+                  alt={childData.name}
+                  style={styles.childAvatarImage}
+                />
+              ) : (
+                <span>{childData.name?.charAt(0)?.toUpperCase() || 'C'}</span>
+              )}
+            </div>
+            <div style={styles.childInfo}>
+              <h2 style={styles.childName}>{childData.name}</h2>
+              <p style={styles.childAge}>
+                {childData.dateOfBirth ? `${Math.floor((new Date() - new Date(childData.dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000))} years old` : 'Age not set'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={styles.content}>
-        <div style={styles.progressIndicator}>
-          <div style={styles.progressBar}>
-            <div style={styles.progressFill}></div>
+        {!isEditing && (
+          <div style={styles.progressIndicator}>
+            <div style={styles.progressBar}>
+              <div style={styles.progressFill}></div>
+            </div>
+            <div style={styles.progressText}>Step 2 of 2</div>
           </div>
-          <div style={styles.progressText}>Step 2 of 3</div>
-        </div>
+        )}
 
         <div style={styles.iconSection}>
           <div style={styles.careIcon}>🏥</div>
@@ -955,6 +1063,33 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
           {/* Essential Care Section - Always Visible */}
           <div style={styles.essentialSection}>
             <h3 style={styles.sectionTitle}>Essential Care Information</h3>
+            
+            {/* Phone Number - Edit Mode Only */}
+            {isEditing && (
+              <div style={styles.inputGroup}>
+                <label style={styles.label}>
+                  Phone Number <span style={styles.optional}>(optional)</span>
+                </label>
+                <input
+                  type="tel"
+                  style={styles.quickInput}
+                  value={childData.phoneNumber || ''}
+                  onChange={(e) => {
+                    const updatedData = { ...formData, phoneNumber: e.target.value };
+                    setFormData(updatedData);
+                    // Auto-save with debounce
+                    clearTimeout(window.phoneNumberSaveTimeout);
+                    window.phoneNumberSaveTimeout = setTimeout(() => {
+                      saveCareDataToFirestore(updatedData);
+                    }, 1000);
+                  }}
+                  placeholder="+49 176 12345678"
+                />
+                <div style={styles.helpText}>
+                  For older children or emergency contact when au pair is out
+                </div>
+              </div>
+            )}
             
             {/* Allergies - Quick Add */}
             <div style={styles.inputGroup}>
@@ -1217,40 +1352,7 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
               )}
             </div>
 
-            {/* Emergency Contacts Section */}
-            <div style={styles.expandableCard}>
-              <button 
-                style={styles.expandHeader}
-                onClick={() => toggleSection('emergencyContacts')}
-              >
-                <div style={styles.expandInfo}>
-                  <span style={styles.expandTitle}>
-                    📞 Emergency Contacts
-                    {formData.emergencyContacts.length > 0 && <span style={styles.completed}>✓</span>}
-                  </span>
-                  <span style={styles.expandSubtitle}>
-                    {formData.emergencyContacts.length > 0 
-                      ? `${formData.emergencyContacts.length} contact(s) added` 
-                      : 'Add backup contacts for emergencies'
-                    }
-                  </span>
-                </div>
-                <span style={styles.expandIcon}>
-                  {expandedSections.emergencyContacts ? '▼' : '▶'}
-                </span>
-              </button>
-              
-              {expandedSections.emergencyContacts && (
-                <div style={styles.expandContent}>
-                  <p style={styles.expandDescription}>
-                    People to contact if you're unreachable during an emergency
-                  </p>
-                  <button style={styles.actionButton}>
-                    Add Emergency Contact
-                  </button>
-                </div>
-              )}
-            </div>
+            {/* Emergency Contacts moved to family level - see Family Management */}
           </div>
 
           {/* Quick Notes */}
@@ -1462,6 +1564,13 @@ const styles = {
     fontSize: '14px',
     fontWeight: '400',
     color: '#666'
+  },
+  
+  helpText: {
+    fontSize: '12px',
+    color: '#8E8E93',
+    marginTop: '4px',
+    lineHeight: '1.4'
   },
   
   quickAddContainer: {
@@ -2099,6 +2208,57 @@ const styles = {
     fontSize: '14px',
     color: '#666',
     lineHeight: '1.5',
+    margin: 0
+  },
+  
+  // Edit Mode Header Styles
+  editModeHeader: {
+    backgroundColor: 'white',
+    padding: '15px 20px',
+    borderBottom: '1px solid #E5E5EA',
+    marginBottom: '10px'
+  },
+  
+  childProfileHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '15px'
+  },
+  
+  childAvatar: {
+    width: '60px',
+    height: '60px',
+    borderRadius: '30px',
+    backgroundColor: '#34C759',
+    color: 'white',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '24px',
+    fontWeight: '600',
+    overflow: 'hidden'
+  },
+  
+  childAvatarImage: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover'
+  },
+  
+  childInfo: {
+    flex: 1
+  },
+  
+  childName: {
+    fontSize: '20px',
+    fontWeight: '600',
+    color: '#000',
+    margin: '0 0 4px 0'
+  },
+  
+  childAge: {
+    fontSize: '14px',
+    color: '#8E8E93',
     margin: 0
   }
 };

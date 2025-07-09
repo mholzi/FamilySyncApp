@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Timestamp } from 'firebase/firestore';
-import { createHouseholdTodo } from '../../utils/householdTodosUtils';
-import TaskInstructions from './TaskInstructions/TaskInstructions';
+import { createHouseholdTodo, updateHouseholdTodo } from '../../utils/householdTodosUtils';
 import ExamplePhotos from './TaskGuidance/ExamplePhotos';
 import './AddTodo.css';
 
@@ -12,29 +11,6 @@ const AddTodo = ({
   onSuccess,
   editTodo = null // If provided, we're editing an existing todo
 }) => {
-  const [formData, setFormData] = useState({
-    title: editTodo?.title || '',
-    description: editTodo?.description || '',
-    priority: editTodo?.priority || 'medium',
-    category: editTodo?.category || 'general',
-    estimatedTime: editTodo?.estimatedTime || '',
-    dueDate: editTodo?.dueDate ? formatDateForInput(editTodo.dueDate.toDate()) : '',
-    isRecurring: editTodo?.isRecurring || false,
-    recurringType: editTodo?.recurringType || 'weekly',
-    recurringInterval: editTodo?.recurringInterval || 1,
-    recurringDays: editTodo?.recurringDays || [1], // Default to Monday
-    // New enhanced fields
-    instructions: editTodo?.instructions || '',
-    difficulty: editTodo?.difficulty || 'easy',
-    firstTimeHelp: editTodo?.firstTimeHelp || '',
-    preferredTimeOfDay: editTodo?.preferredTimeOfDay || '',
-    examplePhotos: editTodo?.examplePhotos || []
-  });
-
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errors, setErrors] = useState({});
-
   // Helper functions for date/time formatting
   function formatDateForInput(date) {
     return date.toISOString().split('T')[0];
@@ -50,6 +26,27 @@ const AddTodo = ({
     tomorrow.setDate(tomorrow.getDate() + 1);
     return tomorrow.toISOString().split('T')[0];
   };
+
+  const [formData, setFormData] = useState({
+    title: editTodo?.title || '',
+    description: editTodo?.description || '',
+    priority: editTodo?.priority || 'medium',
+    category: editTodo?.category || 'general',
+    dueDate: editTodo?.dueDate ? formatDateForInput(editTodo.dueDate.toDate()) : getToday(),
+    isRecurring: editTodo?.isRecurring || false,
+    recurringType: editTodo?.recurringType || 'weekly',
+    recurringInterval: editTodo?.recurringInterval || 1,
+    recurringDays: editTodo?.recurringDays || [1], // Default to Monday
+    // Enhanced fields that remain  
+    instructions: editTodo?.instructions ? 
+      (typeof editTodo.instructions === 'string' ? editTodo.instructions : editTodo.instructions.richText || '') : '',
+    preferredTimeOfDay: editTodo?.preferredTimeOfDay || '',
+    examplePhotos: editTodo?.examplePhotos || []
+  });
+
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const validateForm = () => {
     const newErrors = {};
@@ -69,22 +66,23 @@ const AddTodo = ({
       }
     }
     
-    if (formData.estimatedTime && (isNaN(formData.estimatedTime) || formData.estimatedTime < 1)) {
-      newErrors.estimatedTime = 'Estimated time must be a positive number';
-    }
-    
     if (formData.isRecurring && formData.recurringDays.length === 0) {
       newErrors.recurringDays = 'Please select at least one day for recurring tasks';
     }
     
+    console.log('Validation errors:', newErrors);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('Form submitted', { editTodo: !!editTodo, formData });
     
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      console.log('Validation failed, not submitting');
+      return;
+    }
     
     setIsSubmitting(true);
     
@@ -97,26 +95,32 @@ const AddTodo = ({
         description: formData.description.trim(),
         priority: formData.priority,
         category: formData.category,
-        estimatedTime: formData.estimatedTime ? parseInt(formData.estimatedTime) : null,
         dueDate: Timestamp.fromDate(dueDateTime),
         isRecurring: formData.isRecurring,
         recurringType: formData.isRecurring ? formData.recurringType : null,
         recurringInterval: formData.isRecurring ? parseInt(formData.recurringInterval) : 1,
         recurringDays: formData.isRecurring ? formData.recurringDays : [],
-        // New enhanced fields
+        // Enhanced fields that remain
         instructions: formData.instructions.trim(),
-        difficulty: formData.difficulty,
-        firstTimeHelp: formData.firstTimeHelp.trim(),
         preferredTimeOfDay: formData.preferredTimeOfDay,
         examplePhotos: formData.examplePhotos.map(photo => photo.url),
         examplePhotosUploadedAt: formData.examplePhotos.length > 0 ? Timestamp.now() : null
       };
 
       if (editTodo) {
-        // TODO: Implement update functionality
-        console.log('Update todo:', editTodo.id, todoData);
+        console.log('Updating todo:', editTodo.id, todoData);
+        if (!editTodo.id) {
+          throw new Error('Missing todo ID for update');
+        }
+        if (!familyId) {
+          throw new Error('Missing family ID for update');
+        }
+        await updateHouseholdTodo(familyId, editTodo.id, todoData);
+        console.log('Todo updated successfully');
       } else {
+        console.log('Creating new todo:', todoData);
         await createHouseholdTodo(familyId, todoData, userId);
+        console.log('Todo created successfully');
       }
       
       onSuccess && onSuccess();
@@ -305,34 +309,6 @@ const AddTodo = ({
                 />
               </div>
 
-              {/* Estimated Time */}
-              <div className="form-group">
-                <label htmlFor="estimatedTime">Estimated Time (minutes)</label>
-                <input
-                  id="estimatedTime"
-                  type="number"
-                  min="1"
-                  value={formData.estimatedTime}
-                  onChange={(e) => handleInputChange('estimatedTime', e.target.value)}
-                  placeholder="e.g., 30"
-                  className={errors.estimatedTime ? 'error' : ''}
-                />
-                {errors.estimatedTime && <span className="error-text">{errors.estimatedTime}</span>}
-              </div>
-
-              {/* Task Difficulty */}
-              <div className="form-group">
-                <label htmlFor="difficulty">Task Difficulty</label>
-                <select
-                  id="difficulty"
-                  value={formData.difficulty}
-                  onChange={(e) => handleInputChange('difficulty', e.target.value)}
-                >
-                  <option value="easy">Easy (Quick task)</option>
-                  <option value="moderate">Moderate (Standard task)</option>
-                  <option value="complex">Complex (Needs attention)</option>
-                </select>
-              </div>
 
               {/* Preferred Time of Day */}
               <div className="form-group">
@@ -349,12 +325,6 @@ const AddTodo = ({
                 </select>
               </div>
 
-              {/* Task Instructions */}
-              <TaskInstructions
-                value={formData.instructions}
-                onChange={(value) => handleInputChange('instructions', value)}
-                isEditing={true}
-              />
 
               {/* First Time Help */}
               <div className="form-group">

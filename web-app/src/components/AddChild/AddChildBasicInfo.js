@@ -2,9 +2,9 @@ import { useState, useRef, useEffect } from 'react';
 import { storage, auth, db } from '../../firebase';
 import { ref, uploadBytesResumable, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, setDoc, updateDoc, getDoc } from 'firebase/firestore';
-import { processAndUploadPhoto } from '../../utils/optimizedPhotoUpload';
+// import { processAndUploadPhoto } from '../../utils/optimizedPhotoUpload';
 
-function AddChildBasicInfo({ initialData, existingChildren = [], onNext, onCancel, onDelete = null, isEditing = false }) {
+function AddChildBasicInfo({ initialData, existingChildren = [], onNext, onCancel, onDelete = null, isEditing = false, onSaveStatusChange }) {
   const [formData, setFormData] = useState({
     name: initialData.name || '',
     dateOfBirth: initialData.dateOfBirth || '',
@@ -25,8 +25,7 @@ function AddChildBasicInfo({ initialData, existingChildren = [], onNext, onCance
   const [uploadFileSize, setUploadFileSize] = useState(0);
   const [uploadedBytes, setUploadedBytes] = useState(0);
   
-  // Save state management
-  const [saveStatus, setSaveStatus] = useState(null); // 'saving', 'saved', 'error'
+  // Save state management - handled globally in parent component
 
   // Update form data when initialData changes (for editing mode)
   useEffect(() => {
@@ -77,7 +76,7 @@ function AddChildBasicInfo({ initialData, existingChildren = [], onNext, onCance
     if (!auth.currentUser) return;
     
     try {
-      setSaveStatus('saving');
+      if (onSaveStatusChange) onSaveStatusChange('saving');
       
       // Get user's family ID
       const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
@@ -89,7 +88,7 @@ function AddChildBasicInfo({ initialData, existingChildren = [], onNext, onCance
       const dataToSave = {
         name: updatedFormData.name || '',
         dateOfBirth: updatedFormData.dateOfBirth || null,
-        phoneNumber: updatedFormData.phoneNumber || '',
+        // phoneNumber removed - handled in Step 2
         scheduleType: updatedFormData.scheduleType || 'kindergarten',
         profilePictureUrl: updatedFormData.profilePictureUrl || null,
         lastModified: new Date().toISOString()
@@ -107,16 +106,21 @@ function AddChildBasicInfo({ initialData, existingChildren = [], onNext, onCance
         console.log('✅ Child basic info saved to draft:', initialData.tempId);
       }
       
-      setSaveStatus('saved');
-      // setLastSaved(new Date()); // Commented out - not used
+      if (onSaveStatusChange) onSaveStatusChange('saved');
       
       // Clear status after 2 seconds
-      setTimeout(() => setSaveStatus(null), 2000);
+      setTimeout(() => {
+        if (onSaveStatusChange) onSaveStatusChange(null);
+      }, 2000);
       
     } catch (error) {
       console.error('❌ Error saving basic info:', error);
-      setSaveStatus('error');
-      setTimeout(() => setSaveStatus(null), 3000);
+      if (onSaveStatusChange) onSaveStatusChange('error');
+      
+      // Auto-retry after 2 seconds
+      setTimeout(() => {
+        saveBasicInfoToDatabase(updatedFormData);
+      }, 2000);
     }
   };
 
@@ -514,15 +518,6 @@ function AddChildBasicInfo({ initialData, existingChildren = [], onNext, onCance
     onNext(processedData);
   };
 
-  const handleSkip = () => {
-    // Save partial data before skipping
-    const processedData = {
-      ...formData,
-      dateOfBirth: formData.dateOfBirth ? formData.dateOfBirth : null
-    };
-    console.log('Skipping with data:', processedData);
-    onNext(processedData);
-  };
 
   const handleDeleteClick = () => {
     setShowDeleteConfirm(true);
@@ -559,14 +554,7 @@ function AddChildBasicInfo({ initialData, existingChildren = [], onNext, onCance
         </button>
         <h1 style={styles.title}>{isEditing ? 'Edit Child' : 'Add Child'}</h1>
         <div style={styles.headerRight}>
-          {/* Save Status Indicator */}
-          {saveStatus && (
-            <div style={styles.saveStatusContainer}>
-              {saveStatus === 'saving' && <span style={styles.saveStatusSaving}>💾</span>}
-              {saveStatus === 'saved' && <span style={styles.saveStatusSaved}>✅</span>}
-              {saveStatus === 'error' && <span style={styles.saveStatusError}>⚠️</span>}
-            </div>
-          )}
+          {/* Save Status handled globally */}
           
           {isEditing && onDelete ? (
             <button style={styles.deleteButton} onClick={handleDeleteClick}>
@@ -741,19 +729,7 @@ function AddChildBasicInfo({ initialData, existingChildren = [], onNext, onCance
             </div>
           </div>
 
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Phone Number <span style={styles.optional}>(optional)</span></label>
-            <input
-              type="tel"
-              style={styles.input}
-              value={formData.phoneNumber}
-              onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-              placeholder="+49 176 12345678"
-            />
-            <div style={styles.helpText}>
-              For older children or emergency contact when au pair is out
-            </div>
-          </div>
+          {/* Phone number moved to Step 2 (Care Info) - edit mode only */}
 
           {/* Duplicate Warning */}
           {duplicateWarning && (
@@ -819,9 +795,6 @@ function AddChildBasicInfo({ initialData, existingChildren = [], onNext, onCance
       </div>
 
       <div style={styles.buttonSection}>
-        <button style={styles.skipButton} onClick={handleSkip}>
-          Skip
-        </button>
         <button 
           style={{
             ...styles.continueButton,

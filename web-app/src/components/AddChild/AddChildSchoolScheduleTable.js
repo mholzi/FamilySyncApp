@@ -27,6 +27,15 @@ function AddChildSchoolScheduleTable({ childData, initialData, onNext, onBack })
     thursday: 'parent',
     friday: 'parent'
   });
+
+  // Delivery person state for each day
+  const [deliveryPerson, setDeliveryPerson] = useState(initialData?.deliveryPerson || {
+    monday: 'parent',
+    tuesday: 'parent',
+    wednesday: 'parent',
+    thursday: 'parent',
+    friday: 'parent'
+  });
   
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
   const dayLabels = {
@@ -135,6 +144,7 @@ function AddChildSchoolScheduleTable({ childData, initialData, onNext, onBack })
       schoolSchedule: schedule,
       schoolInfo,
       pickupPerson,
+      deliveryPerson,
       lastModified: new Date().toISOString()
     };
     onNext(scheduleData);
@@ -146,6 +156,7 @@ function AddChildSchoolScheduleTable({ childData, initialData, onNext, onBack })
       schoolSchedule: schedule,
       schoolInfo,
       pickupPerson,
+      deliveryPerson,
       lastModified: new Date().toISOString()
     };
     onNext(scheduleData);
@@ -229,6 +240,7 @@ function AddChildSchoolScheduleTable({ childData, initialData, onNext, onBack })
               <div style={styles.headerCell}>Day</div>
               <div style={styles.headerCell}>Start Time</div>
               <div style={styles.headerCell}>End Time</div>
+              <div style={styles.headerCell}>Delivery Person</div>
               <div style={styles.headerCell}>Pickup Person</div>
               <div style={styles.headerCell}>Actions</div>
             </div>
@@ -263,6 +275,22 @@ function AddChildSchoolScheduleTable({ childData, initialData, onNext, onBack })
                       style={styles.timeInput}
                       placeholder="15:00"
                     />
+                  </div>
+                  
+                  <div style={styles.pickupCell}>
+                    <select
+                      value={deliveryPerson[day]}
+                      onChange={(e) => setDeliveryPerson(prev => ({ ...prev, [day]: e.target.value }))}
+                      style={{
+                        ...styles.pickupSelect,
+                        opacity: (!hasSchedule || !mainBlock?.startTime || !mainBlock?.endTime) ? 0.5 : 1
+                      }}
+                      disabled={!hasSchedule || !mainBlock?.startTime || !mainBlock?.endTime}
+                    >
+                      <option value="parent">Parent</option>
+                      <option value="aupair">Au Pair</option>
+                      <option value="alone">Kid goes alone</option>
+                    </select>
                   </div>
                   
                   <div style={styles.pickupCell}>
@@ -340,6 +368,7 @@ function AddChildSchoolScheduleTable({ childData, initialData, onNext, onBack })
                       {daySchedule[0].startTime} - {daySchedule[0].endTime}
                     </span>
                     <span style={styles.pickupInfo}>
+                      | Delivery: {deliveryPerson[day] === 'parent' ? 'Parent' : deliveryPerson[day] === 'aupair' ? 'Au Pair' : deliveryPerson[day] === 'alone' ? 'Kid goes alone' : 'Unknown'}
                       | Pickup: {pickupPerson[day] === 'parent' ? 'Parent' : pickupPerson[day] === 'aupair' ? 'Au Pair' : pickupPerson[day] === 'alone' ? 'Kid comes home alone' : 'Unknown'}
                     </span>
                   </div>
@@ -522,7 +551,7 @@ const styles = {
 
   tableHeader: {
     display: 'grid',
-    gridTemplateColumns: '120px 120px 120px 180px 100px',
+    gridTemplateColumns: '120px 120px 120px 180px 180px 100px',
     backgroundColor: '#f8f9fa',
     borderBottom: '1px solid var(--border-light)'
   },
@@ -538,7 +567,7 @@ const styles = {
 
   tableRow: {
     display: 'grid',
-    gridTemplateColumns: '120px 120px 120px 180px 100px',
+    gridTemplateColumns: '120px 120px 120px 180px 180px 100px',
     borderBottom: '1px solid var(--border-light)',
     transition: 'var(--transition-fast)'
   },

@@ -275,8 +275,8 @@ const EnhancedChildCard = ({
       .sort((a, b) => a.minutes - b.minutes)
       .filter(event => event.minutes > currentTime);
     
-    // If we have less than 2 events for today, add tomorrow's routines
-    if (upcomingEvents.length < 2) {
+    // If we have less than 3 events for today, add tomorrow's routines
+    if (upcomingEvents.length < 3) {
       // Get tomorrow's routines in order
       const tomorrowRoutines = [];
       
@@ -313,13 +313,13 @@ const EnhancedChildCard = ({
         });
       }
       
-      // Sort tomorrow's routines by time and add as many as needed to reach 2 total
+      // Sort tomorrow's routines by time and add as many as needed to reach 3 total
       const sortedTomorrowRoutines = tomorrowRoutines.sort((a, b) => a.minutes - b.minutes);
-      const routinesNeeded = 2 - upcomingEvents.length;
+      const routinesNeeded = 3 - upcomingEvents.length;
       upcomingEvents = upcomingEvents.concat(sortedTomorrowRoutines.slice(0, routinesNeeded));
     }
     
-    return upcomingEvents.slice(0, 2); // Return exactly 2 events
+    return upcomingEvents.slice(0, 3); // Return exactly 3 events
   };
 
   // Check if child is currently marked as sleeping
@@ -476,7 +476,7 @@ const EnhancedChildCard = ({
 
       {/* Routine times section */}
       <div style={styles.activitiesSection}>
-        <div style={styles.activitiesLabel}>Next Routines</div>
+        <div style={styles.activitiesLabel}>Next Events</div>
         
         {nextRoutines.length === 0 ? (
           <div style={styles.noActivities}>

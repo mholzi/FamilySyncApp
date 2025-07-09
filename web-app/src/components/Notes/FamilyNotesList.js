@@ -11,17 +11,32 @@ const FamilyNotesList = ({ familyId, userId, userRole, userData = null, familyDa
   
   const { 
     visibleNotes, 
+    unreadCount,
     loading, 
     error, 
     createNote, 
     editNote, 
     deleteNote, 
-    dismissNote 
+    dismissNote,
+    toggleLike 
   } = useFamilyNotes(familyId, userId);
 
+  // Sort notes by priority (urgent > important > normal) then by timestamp
+  const sortedNotes = [...visibleNotes].sort((a, b) => {
+    const priorityOrder = { urgent: 0, important: 1, normal: 2 };
+    const priorityDiff = priorityOrder[a.priority || 'normal'] - priorityOrder[b.priority || 'normal'];
+    
+    if (priorityDiff !== 0) return priorityDiff;
+    
+    // Sort by timestamp (newest first)
+    const aTime = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
+    const bTime = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
+    return bTime - aTime;
+  });
+
   const displayedNotes = maxDisplayed 
-    ? visibleNotes.slice(0, maxDisplayed)
-    : visibleNotes;
+    ? sortedNotes.slice(0, maxDisplayed)
+    : sortedNotes;
 
   const handleCreateNote = async (noteData) => {
     await createNote(noteData);
@@ -62,7 +77,14 @@ const FamilyNotesList = ({ familyId, userId, userRole, userData = null, familyDa
     <div style={styles.container} className="family-notes-container">
       {/* Clean Header */}
       <div style={styles.header}>
-        <h3 style={styles.title}>Family Notes</h3>
+        <h3 style={styles.title}>
+          Family Notes
+          {unreadCount > 0 && (
+            <span style={styles.unreadBadge}>
+              {unreadCount} unread
+            </span>
+          )}
+        </h3>
       </div>
 
       {/* Notes List */}
@@ -84,11 +106,13 @@ const FamilyNotesList = ({ familyId, userId, userRole, userData = null, familyDa
                 onDismiss={handleDismissNote}
                 onEdit={setEditingNote}
                 onDelete={handleDeleteNote}
+                onLike={toggleLike}
                 canEdit={note.createdBy === userId}
                 canDelete={note.createdBy === userId || userRole === 'parent'}
                 userRole={userRole}
                 userData={userData}
                 familyData={familyData}
+                userId={userId}
               />
             ))}
           </div>
@@ -102,6 +126,11 @@ const FamilyNotesList = ({ familyId, userId, userRole, userData = null, familyDa
                 onClick={() => setShowAllModal(true)}
               >
                 See all {visibleNotes.length} messages →
+                {unreadCount > displayedNotes.filter(n => !n.readBy?.includes(userId)).length && (
+                  <span style={styles.viewAllBadge}>
+                    {unreadCount - displayedNotes.filter(n => !n.readBy?.includes(userId)).length} unread
+                  </span>
+                )}
               </button>
             </div>
           )}
@@ -151,6 +180,8 @@ const FamilyNotesList = ({ familyId, userId, userRole, userData = null, familyDa
           familyId={familyId}
           userId={userId}
           userRole={userRole}
+          userData={userData}
+          familyData={familyData}
         />
       )}
     </div>
@@ -253,6 +284,26 @@ const styles = {
     borderRadius: 'var(--radius-md)',
     color: '#DC2626',
     fontSize: 'var(--font-size-sm)'
+  },
+  unreadBadge: {
+    marginLeft: 'var(--space-3)',
+    backgroundColor: '#ef4444',
+    color: 'var(--white)',
+    fontSize: 'var(--font-size-xs)',
+    fontWeight: 'var(--font-weight-normal)',
+    padding: 'var(--space-1) var(--space-2)',
+    borderRadius: 'var(--radius-full)',
+    display: 'inline-block'
+  },
+  viewAllBadge: {
+    marginLeft: 'var(--space-2)',
+    backgroundColor: '#ef4444',
+    color: 'var(--white)',
+    fontSize: 'var(--font-size-xs)',
+    fontWeight: 'var(--font-weight-normal)',
+    padding: 'var(--space-1) var(--space-2)',
+    borderRadius: 'var(--radius-sm)',
+    display: 'inline-block'
   }
 };
 
