@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { db, auth } from '../../firebase';
-import { doc, setDoc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, getDoc, collection, query, where, onSnapshot, addDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { COMMON_ALLERGIES, COMMON_MEDICATIONS, filterSuggestions } from '../../utils/dashboardStates';
 import BasicRoutineBuilder from '../RoutineBuilder/BasicRoutineBuilder';
 import AddChildSchoolScheduleTable from './AddChildSchoolScheduleTable';
-import RecurringActivitiesManager from '../Activities/RecurringActivitiesManager';
+import RecurringActivityBuilder from '../Activities/RecurringActivityBuilder';
+import { getNextOccurrences, formatRecurrenceDescription } from '../../utils/recurringActivityTemplates';
 
 function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCancel, isEditing = false }) {
   const [formData, setFormData] = useState({
@@ -51,10 +52,91 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
 
   const [showRoutineBuilder, setShowRoutineBuilder] = useState(false);
   const [showSchoolScheduleBuilder, setShowSchoolScheduleBuilder] = useState(false);
-  const [showRecurringActivitiesManager, setShowRecurringActivitiesManager] = useState(false);
+  const [showRecurringActivityBuilder, setShowRecurringActivityBuilder] = useState(false);
+  const [recurringActivities, setRecurringActivities] = useState([]);
+  const [selectedActivity, setSelectedActivity] = useState(null);
+  const [editingActivity, setEditingActivity] = useState(null);
+  const [familyId, setFamilyId] = useState(null);
   const [saveStatus, setSaveStatus] = useState(null); // 'saving', 'saved', 'error'
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingDraft, setIsLoadingDraft] = useState(true);
+
+  // Get family ID on component mount
+  useEffect(() => {
+    const fetchFamilyId = async () => {
+      try {
+        // Try to get familyId from childData first
+        let currentFamilyId = childData.familyId;
+        
+        // If not available, fetch from user document
+        if (!currentFamilyId && auth.currentUser) {
+          const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+          if (userDoc.exists()) {
+            currentFamilyId = userDoc.data().familyId;
+          }
+        }
+
+        if (currentFamilyId) {
+          setFamilyId(currentFamilyId);
+        }
+      } catch (error) {
+        console.error('Error fetching family ID:', error);
+      }
+    };
+
+    fetchFamilyId();
+  }, [childData]);
+
+  // Fetch recurring activities for the current child
+  useEffect(() => {
+    if (!familyId || !childData?.id) {
+      setRecurringActivities([]);
+      return;
+    }
+
+    let unsubscribe = null;
+
+    try {
+      const activitiesQuery = query(
+        collection(db, 'recurringActivities'),
+        where('familyId', '==', familyId),
+        where('assignedChildren', 'array-contains', childData.id)
+      );
+
+      unsubscribe = onSnapshot(
+        activitiesQuery, 
+        (snapshot) => {
+          try {
+            const activitiesData = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            setRecurringActivities(activitiesData);
+          } catch (error) {
+            console.warn('Error processing recurring activities snapshot:', error);
+            setRecurringActivities([]);
+          }
+        },
+        (error) => {
+          console.warn('Error fetching recurring activities:', error);
+          setRecurringActivities([]);
+        }
+      );
+    } catch (error) {
+      console.warn('Error setting up recurring activities listener:', error);
+      setRecurringActivities([]);
+    }
+
+    return () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        try {
+          unsubscribe();
+        } catch (error) {
+          console.warn('Error unsubscribing from recurring activities:', error);
+        }
+      }
+    };
+  }, [familyId, childData?.id]);
 
   // Update form data when childData changes (for editing mode)
   useEffect(() => {
@@ -132,7 +214,7 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
     };
 
     loadDraftData();
-  }, [childData.tempId, auth.currentUser]);
+  }, [childData.tempId]);
 
   // Save care data to Firestore immediately
   const saveCareDataToFirestore = async (updatedData) => {
@@ -365,6 +447,57 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
     setShowSchoolScheduleBuilder(false);
   };
 
+  const handleSaveActivity = async (activityData) => {
+    try {
+      if (editingActivity) {
+        // Update existing activity
+        const finalActivity = {
+          ...activityData,
+          updatedAt: Timestamp.now()
+        };
+        await updateDoc(doc(db, 'recurringActivities', editingActivity.id), finalActivity);
+      } else {
+        // Create new activity
+        const finalActivity = {
+          ...activityData,
+          familyId,
+          createdBy: auth.currentUser.uid,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now()
+        };
+        await addDoc(collection(db, 'recurringActivities'), finalActivity);
+      }
+
+      setShowRecurringActivityBuilder(false);
+      setEditingActivity(null);
+      setSelectedActivity(null);
+    } catch (error) {
+      console.error('Error saving activity:', error);
+      throw error;
+    }
+  };
+
+  const handleEditActivity = (activity) => {
+    setEditingActivity(activity);
+    setSelectedActivity(null);
+    setShowRecurringActivityBuilder(true);
+  };
+
+  const handleDeleteActivity = async (activity) => {
+    if (window.confirm(`Are you sure you want to delete "${activity.name}"? This cannot be undone.`)) {
+      try {
+        console.log('Attempting to delete activity:', activity.id, 'for family:', activity.familyId);
+        await deleteDoc(doc(db, 'recurringActivities', activity.id));
+        console.log('Activity deleted successfully');
+        setSelectedActivity(null);
+      } catch (error) {
+        console.error('Error deleting activity:', error);
+        console.error('Activity data:', activity);
+        alert('Failed to delete activity. Please try again.');
+      }
+    }
+  };
+
   const handleSave = () => {
     const completeData = {
       ...formData,
@@ -563,6 +696,155 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
     );
   };
 
+  // Render recurring activities list
+  const renderRecurringActivities = () => {
+    if (recurringActivities.length === 0) {
+      return (
+        <div style={styles.noActivitiesText}>
+          No activities set up for this child yet.
+        </div>
+      );
+    }
+
+    return (
+      <div style={styles.activitiesList}>
+        {recurringActivities.map((activity) => {
+          const nextOccurrence = getNextOccurrences(activity, 1)[0];
+          return (
+            <div key={activity.id} style={styles.activityItem} onClick={() => setSelectedActivity(activity)}>
+              <div style={styles.activityHeader}>
+                <div style={styles.activityName}>{activity.name}</div>
+                <div style={styles.activityTime}>
+                  {activity.time} ({activity.duration} min)
+                </div>
+              </div>
+              <div style={styles.activityDetails}>
+                <div style={styles.activityLocation}>
+                  {activity.location.name || activity.location.address}
+                </div>
+                <div style={styles.activityRecurrence}>
+                  {formatRecurrenceDescription(activity.recurrence)}
+                </div>
+                {nextOccurrence && (
+                  <div style={styles.activityNext}>
+                    Next: {nextOccurrence.date.toLocaleDateString('en-US', { 
+                      weekday: 'short', 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Render activity detail modal
+  const renderActivityDetail = (activity) => {
+    if (!activity) return null;
+
+    const nextOccurrences = getNextOccurrences(activity, 5);
+
+    return (
+      <div style={styles.modalOverlay} onClick={() => setSelectedActivity(null)}>
+        <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+          <div style={styles.modalHeader}>
+            <h2 style={styles.modalTitle}>{activity.name}</h2>
+            <div style={styles.modalActions}>
+              <button 
+                style={styles.editButton} 
+                onClick={() => handleEditActivity(activity)}
+              >
+                Edit
+              </button>
+              <button 
+                style={styles.deleteButton} 
+                onClick={() => handleDeleteActivity(activity)}
+              >
+                Delete
+              </button>
+              <button style={styles.modalClose} onClick={() => setSelectedActivity(null)}>✕</button>
+            </div>
+          </div>
+          
+          <div style={styles.modalBody}>
+            <div style={styles.activityInfoGrid}>
+              <div style={styles.infoItem}>
+                <span style={styles.infoLabel}>Time:</span>
+                <span>{activity.time} ({activity.duration} minutes)</span>
+              </div>
+              <div style={styles.infoItem}>
+                <span style={styles.infoLabel}>Schedule:</span>
+                <span>{formatRecurrenceDescription(activity.recurrence)}</span>
+              </div>
+              <div style={styles.infoItem}>
+                <span style={styles.infoLabel}>Location:</span>
+                <span>{activity.location.name || activity.location.address}</span>
+              </div>
+              {activity.contact?.name && (
+                <div style={styles.infoItem}>
+                  <span style={styles.infoLabel}>Contact:</span>
+                  <span>{activity.contact.name} ({activity.contact.role})</span>
+                </div>
+              )}
+              <div style={styles.infoItem}>
+                <span style={styles.infoLabel}>Drop-off:</span>
+                <span>{activity.transportation?.dropoff === 'parent' ? 'Parent' : activity.transportation?.dropoff === 'au_pair' ? 'Au Pair' : 'Child alone'}</span>
+              </div>
+              <div style={styles.infoItem}>
+                <span style={styles.infoLabel}>Pick-up:</span>
+                <span>{activity.transportation?.pickup === 'parent' ? 'Parent' : activity.transportation?.pickup === 'au_pair' ? 'Au Pair' : 'Child alone'}</span>
+              </div>
+            </div>
+
+            {nextOccurrences.length > 0 && (
+              <div style={styles.occurrencesSection}>
+                <h3 style={styles.occurrencesTitle}>Upcoming Occurrences</h3>
+                <div style={styles.occurrencesList}>
+                  {nextOccurrences.map((occurrence, index) => (
+                    <div key={index} style={styles.occurrenceItem}>
+                      <div style={styles.occurrenceDate}>
+                        {occurrence.date.toLocaleDateString('en-US', {
+                          weekday: 'long',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </div>
+                      <div style={styles.occurrenceTime}>
+                        {occurrence.time}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activity.requirements?.items?.length > 0 && (
+              <div style={styles.itemsSection}>
+                <h3 style={styles.itemsTitle}>Items to Bring</h3>
+                <ul style={styles.itemsList}>
+                  {activity.requirements.items.filter(Boolean).map((item, index) => (
+                    <li key={index} style={styles.itemsListItem}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {activity.requirements?.notes && (
+              <div style={styles.notesSection}>
+                <h3 style={styles.notesTitle}>Notes</h3>
+                <p style={styles.notesText}>{activity.requirements.notes}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Show routine builder if active
   if (showRoutineBuilder) {
     return (
@@ -592,12 +874,18 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
     );
   }
 
-  // Show recurring activities manager if active
-  if (showRecurringActivitiesManager) {
+  // Show recurring activity builder if active
+  if (showRecurringActivityBuilder) {
     return (
-      <RecurringActivitiesManagerWrapper
-        childData={childData}
-        onClose={() => setShowRecurringActivitiesManager(false)}
+      <RecurringActivityBuilder
+        children={childData ? [childData] : []}
+        onSave={handleSaveActivity}
+        onCancel={() => {
+          setShowRecurringActivityBuilder(false);
+          setEditingActivity(null);
+        }}
+        editingActivity={editingActivity}
+        primaryChildId={childData?.id}
       />
     );
   }
@@ -898,11 +1186,17 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
                 onClick={() => toggleSection('recurringActivities')}
               >
                 <div style={styles.expandInfo}>
-                  <span style={styles.expandTitle}>
-                    🏃 Recurring Activities
-                  </span>
+                  <div style={styles.expandTitleRow}>
+                    <span style={styles.expandTitle}>
+                      🏃 Recurring Activities
+                      {recurringActivities.length > 0 && <span style={styles.completed}>✓</span>}
+                    </span>
+                  </div>
                   <span style={styles.expandSubtitle}>
-                    Manage sports, lessons, and regular appointments
+                    {recurringActivities.length > 0 
+                      ? `${recurringActivities.length} activity(s) scheduled` 
+                      : 'Set up sports, lessons, and regular appointments'
+                    }
                   </span>
                 </div>
                 <span style={styles.expandIcon}>
@@ -912,15 +1206,12 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
               
               {expandedSections.recurringActivities && (
                 <div style={styles.expandContent}>
-                  <p style={styles.expandDescription}>
-                    Set up recurring activities like sports practice, music lessons, or therapy appointments. 
-                    These will appear in your family calendar and upcoming events.
-                  </p>
+                  {renderRecurringActivities()}
                   <button
                     style={styles.actionButton}
-                    onClick={() => setShowRecurringActivitiesManager(true)}
+                    onClick={() => setShowRecurringActivityBuilder(true)}
                   >
-                    Manage Activities
+                    Add New Activity
                   </button>
                 </div>
               )}
@@ -1001,6 +1292,9 @@ function AddChildCareInfoStreamlined({ childData, onNext, onBack, onSkip, onCanc
           </>
         )}
       </div>
+      
+      {/* Activity Detail Modal */}
+      {selectedActivity && renderActivityDetail(selectedActivity)}
     </div>
   );
 }
@@ -1546,6 +1840,266 @@ const styles = {
     borderRadius: '12px',
     textTransform: 'uppercase',
     letterSpacing: '0.5px'
+  },
+
+  // Recurring Activities Styles
+  noActivitiesText: {
+    fontSize: '14px',
+    color: '#8E8E93',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    padding: '20px',
+    backgroundColor: '#F8F9FA',
+    borderRadius: '8px',
+    marginBottom: '15px'
+  },
+
+  activitiesList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+    marginBottom: '15px'
+  },
+
+  activityItem: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: '8px',
+    padding: '12px',
+    cursor: 'pointer',
+    border: '1px solid #E5E5EA',
+    transition: 'all 0.2s ease'
+  },
+
+  activityHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '8px'
+  },
+
+  activityName: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#000'
+  },
+
+  activityTime: {
+    fontSize: '14px',
+    color: '#007AFF',
+    fontWeight: '500'
+  },
+
+  activityDetails: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
+  },
+
+  activityLocation: {
+    fontSize: '14px',
+    color: '#666'
+  },
+
+  activityRecurrence: {
+    fontSize: '12px',
+    color: '#8E8E93',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  },
+
+  activityNext: {
+    fontSize: '12px',
+    color: '#FF9500',
+    fontWeight: '500'
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000
+  },
+
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    width: '90%',
+    maxWidth: '500px',
+    maxHeight: '80vh',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column'
+  },
+
+  modalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '20px',
+    borderBottom: '1px solid #E5E5EA'
+  },
+
+  modalTitle: {
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#000',
+    margin: 0,
+    flex: 1
+  },
+
+  modalActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px'
+  },
+
+  editButtonSecondary: {
+    backgroundColor: '#007AFF',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '8px 16px',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
+  },
+
+  deleteButton: {
+    backgroundColor: '#FF3B30',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '8px 16px',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
+  },
+
+  modalClose: {
+    backgroundColor: 'transparent',
+    border: 'none',
+    fontSize: '18px',
+    cursor: 'pointer',
+    color: '#8E8E93',
+    padding: '5px'
+  },
+
+  modalBody: {
+    padding: '20px',
+    overflow: 'auto'
+  },
+
+  activityInfoGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr',
+    gap: '12px',
+    marginBottom: '20px'
+  },
+
+  infoItem: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
+  },
+
+  infoLabel: {
+    fontSize: '12px',
+    fontWeight: '600',
+    color: '#8E8E93',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  },
+
+  occurrencesSection: {
+    marginBottom: '20px'
+  },
+
+  occurrencesTitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: '12px'
+  },
+
+  occurrencesList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+
+  occurrenceItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '8px 12px',
+    backgroundColor: '#F8F9FA',
+    borderRadius: '8px'
+  },
+
+  occurrenceDate: {
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#000'
+  },
+
+  occurrenceTime: {
+    fontSize: '14px',
+    color: '#007AFF'
+  },
+
+  itemsSection: {
+    marginBottom: '20px'
+  },
+
+  itemsTitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: '12px'
+  },
+
+  itemsListSecondary: {
+    listStyle: 'none',
+    padding: 0,
+    margin: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+
+  itemsListItem: {
+    padding: '8px 12px',
+    backgroundColor: '#F8F9FA',
+    borderRadius: '8px',
+    fontSize: '14px',
+    color: '#000'
+  },
+
+  notesSection: {
+    marginBottom: '20px'
+  },
+
+  notesTitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: '12px'
+  },
+
+  notesText: {
+    fontSize: '14px',
+    color: '#666',
+    lineHeight: '1.5',
+    margin: 0
   }
 };
 
@@ -1565,86 +2119,5 @@ if (typeof document !== 'undefined') {
   }
 }
 
-// Wrapper component to handle familyId and children fetching for RecurringActivitiesManager
-const RecurringActivitiesManagerWrapper = ({ childData, onClose }) => {
-  const [familyId, setFamilyId] = useState(null);
-  const [children, setChildren] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchFamilyData = async () => {
-      try {
-        // Try to get familyId from childData first
-        let currentFamilyId = childData.familyId;
-        
-        // If not available, fetch from user document
-        if (!currentFamilyId && auth.currentUser) {
-          const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-          if (userDoc.exists()) {
-            currentFamilyId = userDoc.data().familyId;
-          }
-        }
-
-        if (currentFamilyId) {
-          setFamilyId(currentFamilyId);
-          
-          // For now, just use the current child data
-          // In a full implementation, you might want to fetch all family children
-          setChildren([childData]);
-        }
-      } catch (error) {
-        console.error('Error fetching family data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFamilyData();
-  }, [childData]);
-
-  if (loading) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.header}>
-          <button style={styles.backButton} onClick={onClose}>←</button>
-          <h1 style={styles.title}>Loading...</h1>
-        </div>
-        <div style={styles.content}>
-          <div style={styles.loadingState}>
-            <div style={styles.loadingIcon}>🏃</div>
-            <h2 style={styles.loadingTitle}>Loading activities...</h2>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!familyId) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.header}>
-          <button style={styles.backButton} onClick={onClose}>←</button>
-          <h1 style={styles.title}>Error</h1>
-        </div>
-        <div style={styles.content}>
-          <div style={styles.loadingState}>
-            <div style={styles.loadingIcon}>⚠️</div>
-            <h2 style={styles.loadingTitle}>Unable to load family data</h2>
-            <p style={styles.loadingText}>Please try again later</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <RecurringActivitiesManager
-      familyId={familyId}
-      children={children}
-      userRole="parent"
-      onClose={onClose}
-    />
-  );
-};
 
 export default AddChildCareInfoStreamlined;
