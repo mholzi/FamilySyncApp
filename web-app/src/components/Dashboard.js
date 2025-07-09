@@ -13,7 +13,6 @@ import { collection, addDoc, doc, updateDoc, deleteDoc, Timestamp, getDoc, query
 import { useState, useEffect, useMemo } from 'react';
 import { processAndUploadPhoto } from '../utils/optimizedPhotoUpload';
 import LoadingProgress from './LoadingProgress';
-import SmartCalendarPage from '../pages/SmartCalendarPage';
 import CalendarPage from '../pages/CalendarPage';
 import ShoppingListPage from '../pages/ShoppingListPage';
 import ProfileIcon from './Profile/ProfileIcon';
@@ -627,7 +626,13 @@ function Dashboard({ user }) {
   if (currentView === 'smart_calendar') {
     return (
       <div style={styles.appContainer}>
-        <CalendarPage user={user} />
+        <CalendarPage 
+          user={user} 
+          recurringActivities={recurringActivities}
+          children={children}
+          familyData={familyData}
+          userData={userData}
+        />
         <BottomNavigation 
           currentView={currentView} 
           onNavigate={setCurrentView} 

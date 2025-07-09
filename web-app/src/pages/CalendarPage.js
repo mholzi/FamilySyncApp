@@ -4,12 +4,19 @@ import { useCalendar } from '../hooks/useCalendar';
 import CalendarDayView from '../components/Calendar/CalendarDayView';
 import LoadingProgress from '../components/LoadingProgress';
 
-const CalendarPage = ({ user }) => {
+const CalendarPage = ({ user, recurringActivities = [], children: propsChildren, familyData: propsFamilyData, userData: propsUserData }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   
-  // Use existing hooks to get family data
-  const { userData, familyData, children, loading: familyLoading } = useFamily(user.uid);
-  const { events, loading: eventsLoading } = useCalendar(userData?.familyId, user.uid);
+  // Use existing hooks to get family data if not provided via props
+  const { userData: hookUserData, familyData: hookFamilyData, children: hookChildren, loading: familyLoading } = useFamily(user.uid);
+  
+  // Use props if provided, otherwise fall back to hook data
+  const userData = propsUserData || hookUserData;
+  const familyData = propsFamilyData || hookFamilyData;
+  const children = propsChildren || hookChildren;
+  
+  // Now we can use userData safely
+  const { loading: eventsLoading } = useCalendar(userData?.familyId, user.uid);
   
   // Determine user role
   const userRole = userData?.role || (familyData?.parentUids?.includes(user.uid) ? 'parent' : 'aupair');
@@ -29,10 +36,6 @@ const CalendarPage = ({ user }) => {
   }
 
   // Handle date navigation
-  const handleDateChange = (newDate) => {
-    setSelectedDate(newDate);
-  };
-
   const goToPreviousDay = () => {
     const previousDay = new Date(selectedDate);
     previousDay.setDate(selectedDate.getDate() - 1);
@@ -70,7 +73,7 @@ const CalendarPage = ({ user }) => {
         children={children}
         userData={userData}
         userRole={userRole}
-        recurringActivities={[]} // This would come from a separate hook
+        recurringActivities={recurringActivities}
         selectedDate={selectedDate}
       />
     </div>

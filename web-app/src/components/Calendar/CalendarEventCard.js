@@ -1,4 +1,30 @@
 import React, { useState } from 'react';
+import { getUserInitials } from '../../utils/userUtils';
+
+// Child color utility
+const CHILD_COLORS = [
+  { primary: '#7C3AED', light: '#EDE9FE' }, // Purple
+  { primary: '#EC4899', light: '#FCE7F3' }, // Pink
+  { primary: '#F59E0B', light: '#FEF3C7' }, // Amber
+  { primary: '#10B981', light: '#D1FAE5' }, // Emerald
+  { primary: '#3B82F6', light: '#DBEAFE' }, // Blue
+  { primary: '#06B6D4', light: '#E0F2FE' }, // Cyan
+  { primary: '#8B5CF6', light: '#F3E8FF' }, // Violet
+  { primary: '#F97316', light: '#FED7AA' }, // Orange
+];
+
+const getChildColor = (childId, index = 0) => {
+  if (!childId) return CHILD_COLORS[index % CHILD_COLORS.length];
+  
+  let hash = 0;
+  for (let i = 0; i < childId.length; i++) {
+    hash = ((hash << 5) - hash) + childId.charCodeAt(i);
+    hash = hash & hash;
+  }
+  
+  const colorIndex = Math.abs(hash) % CHILD_COLORS.length;
+  return CHILD_COLORS[colorIndex];
+};
 
 const CalendarEventCard = ({ 
   event, 
@@ -6,7 +32,7 @@ const CalendarEventCard = ({
   onEdit, 
   userRole 
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
 
   const getEventTypeStyle = (type) => {
     const styles = {
@@ -85,7 +111,7 @@ const CalendarEventCard = ({
         ...(hasConflict ? styles.conflictCard : {}),
         ...(event.duration < 30 ? styles.shortEvent : {})
       }}
-      onClick={() => setIsExpanded(!isExpanded)}
+      onClick={() => setShowPopup(true)}
     >
       {/* Main event info */}
       <div style={styles.eventHeader}>
@@ -94,13 +120,18 @@ const CalendarEventCard = ({
             <span style={styles.eventIcon}>{event.icon}</span>
             <span style={styles.titleText}>{event.title}</span>
           </div>
-          <div style={styles.responsibilityBadge}>
-            <span style={{
-              ...styles.responsibilityIcon,
-              color: responsibilityInfo.color
-            }}>
-              {responsibilityInfo.icon}
-            </span>
+          <div style={styles.childCircle}>
+            {event.childId && event.childName && (
+              <div 
+                style={{
+                  ...styles.childIndicator,
+                  backgroundColor: getChildColor(event.childId).primary
+                }}
+                title={event.childName}
+              >
+                {getUserInitials(event.childName)}
+              </div>
+            )}
           </div>
         </div>
         
@@ -114,86 +145,114 @@ const CalendarEventCard = ({
         </div>
       </div>
 
-      {/* Expanded details */}
-      {isExpanded && (
-        <div style={styles.expandedContent}>
-          {event.location && (
-            <div style={styles.detailRow}>
-              <span style={styles.detailIcon}>📍</span>
-              <span style={styles.detailText}>{event.location}</span>
-            </div>
-          )}
-          
-          {event.requiredItems && event.requiredItems.length > 0 && (
-            <div style={styles.detailRow}>
-              <span style={styles.detailIcon}>🎒</span>
-              <div style={styles.detailText}>
-                <div style={styles.itemsTitle}>Required items:</div>
-                <ul style={styles.itemsList}>
-                  {event.requiredItems.map((item, index) => (
-                    <li key={index} style={styles.item}>{item}</li>
-                  ))}
-                </ul>
+      {/* Event Details Popup */}
+      {showPopup && (
+        <div style={styles.popupOverlay} onClick={() => setShowPopup(false)}>
+          <div style={styles.popup} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.popupHeader}>
+              <div style={styles.popupTitle}>
+                <span style={styles.popupIcon}>{event.icon}</span>
+                <span>{event.title}</span>
               </div>
-            </div>
-          )}
-          
-          {event.notes && (
-            <div style={styles.detailRow}>
-              <span style={styles.detailIcon}>📝</span>
-              <span style={styles.detailText}>{event.notes}</span>
-            </div>
-          )}
-
-          {/* Transportation info for activities */}
-          {event.type === 'activity' && event.transportation && (
-            <div style={styles.transportationInfo}>
-              <div style={styles.transportationTitle}>Transportation:</div>
-              <div style={styles.transportationDetails}>
-                {event.transportation.dropoff === 'au_pair' && (
-                  <span style={styles.transportDetail}>🚗 Drop-off: Au Pair</span>
-                )}
-                {event.transportation.pickup === 'au_pair' && (
-                  <span style={styles.transportDetail}>🚗 Pick-up: Au Pair</span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Action buttons */}
-          {canEdit && (
-            <div style={styles.actionButtons}>
               <button 
-                style={styles.editButton}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit();
-                }}
+                style={styles.closeButton}
+                onClick={() => setShowPopup(false)}
               >
-                ✏️ Edit
+                ×
               </button>
-              {event.type !== 'routine' && event.type !== 'school' && (
-                <button 
-                  style={styles.deleteButton}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    console.log('Delete event:', event.id);
-                  }}
-                >
-                  🗑️ Delete
-                </button>
+            </div>
+            
+            <div style={styles.popupContent}>
+              <div style={styles.popupTimeInfo}>
+                <span style={styles.popupTime}>
+                  {startTime} - {endTime} ({duration})
+                </span>
+                {hasConflict && (
+                  <span style={styles.popupConflict}>⚠️ Conflict</span>
+                )}
+              </div>
+
+              {event.childName && (
+                <div style={styles.popupDetailRow}>
+                  <span style={styles.popupDetailIcon}>👶</span>
+                  <span style={styles.popupDetailText}>{event.childName}</span>
+                </div>
+              )}
+
+              {event.location && (
+                <div style={styles.popupDetailRow}>
+                  <span style={styles.popupDetailIcon}>📍</span>
+                  <span style={styles.popupDetailText}>{event.location}</span>
+                </div>
+              )}
+              
+              {event.requiredItems && event.requiredItems.length > 0 && (
+                <div style={styles.popupDetailRow}>
+                  <span style={styles.popupDetailIcon}>🎒</span>
+                  <div style={styles.popupDetailText}>
+                    <div style={styles.popupItemsTitle}>Required items:</div>
+                    <ul style={styles.popupItemsList}>
+                      {event.requiredItems.map((item, index) => (
+                        <li key={index} style={styles.popupItem}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+              
+              {event.notes && (
+                <div style={styles.popupDetailRow}>
+                  <span style={styles.popupDetailIcon}>📝</span>
+                  <span style={styles.popupDetailText}>{event.notes}</span>
+                </div>
+              )}
+
+              {/* Transportation info for activities */}
+              {event.type === 'activity' && event.transportation && (
+                <div style={styles.popupDetailRow}>
+                  <span style={styles.popupDetailIcon}>🚗</span>
+                  <div style={styles.popupDetailText}>
+                    <div style={styles.popupTransportationTitle}>Transportation:</div>
+                    <div style={styles.popupTransportationInfo}>
+                      Drop-off: {event.transportation.dropoff || 'au_pair'}
+                      <br />
+                      Pick-up: {event.transportation.pickup || 'au_pair'}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Action buttons */}
+              {canEdit && (
+                <div style={styles.popupActionButtons}>
+                  <button 
+                    style={styles.popupEditButton}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit();
+                      setShowPopup(false);
+                    }}
+                  >
+                    ✏️ Edit
+                  </button>
+                  {event.type !== 'routine' && event.type !== 'school' && (
+                    <button 
+                      style={styles.popupDeleteButton}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        console.log('Delete event:', event.id);
+                        setShowPopup(false);
+                      }}
+                    >
+                      🗑️ Delete
+                    </button>
+                  )}
+                </div>
               )}
             </div>
-          )}
+          </div>
         </div>
       )}
-
-      {/* Collapse indicator */}
-      <div style={styles.expandIndicator}>
-        <span style={styles.expandArrow}>
-          {isExpanded ? '▲' : '▼'}
-        </span>
-      </div>
     </div>
   );
 };
@@ -253,6 +312,24 @@ const styles = {
     fontSize: 'var(--font-size-sm)',
     lineHeight: 1
   },
+  childCircle: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  childIndicator: {
+    width: '28px',
+    height: '28px',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 'var(--font-size-xs)',
+    fontWeight: 'var(--font-weight-bold)',
+    color: 'white',
+    boxShadow: 'var(--shadow-sm)',
+    border: '2px solid white'
+  },
   timeInfo: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -271,96 +348,147 @@ const styles = {
     padding: 'var(--space-1) var(--space-2)',
     borderRadius: 'var(--radius-sm)'
   },
-  expandedContent: {
-    borderTop: '1px solid rgba(0, 0, 0, 0.1)',
-    paddingTop: 'var(--space-3)',
-    marginTop: 'var(--space-2)'
+  // Popup styles
+  popupOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000
   },
-  detailRow: {
+  popup: {
+    backgroundColor: 'var(--white)',
+    borderRadius: 'var(--radius-lg)',
+    boxShadow: 'var(--shadow-lg)',
+    maxWidth: '400px',
+    width: '90%',
+    maxHeight: '80vh',
+    overflow: 'auto'
+  },
+  popupHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 'var(--space-4)',
+    borderBottom: '1px solid var(--border-light)'
+  },
+  popupTitle: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 'var(--space-2)',
+    fontSize: 'var(--font-size-lg)',
+    fontWeight: 'var(--font-weight-semibold)',
+    color: 'var(--text-primary)'
+  },
+  popupIcon: {
+    fontSize: 'var(--font-size-lg)'
+  },
+  closeButton: {
+    background: 'none',
+    border: 'none',
+    fontSize: 'var(--font-size-xl)',
+    color: 'var(--text-secondary)',
+    cursor: 'pointer',
+    padding: 'var(--space-1)',
+    borderRadius: 'var(--radius-sm)',
+    transition: 'var(--transition-fast)'
+  },
+  popupContent: {
+    padding: 'var(--space-4)'
+  },
+  popupTimeInfo: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 'var(--space-4)',
+    padding: 'var(--space-3)',
+    backgroundColor: 'var(--gray-50)',
+    borderRadius: 'var(--radius-md)'
+  },
+  popupTime: {
+    fontSize: 'var(--font-size-sm)',
+    fontWeight: 'var(--font-weight-medium)',
+    color: 'var(--text-primary)'
+  },
+  popupConflict: {
+    fontSize: 'var(--font-size-xs)',
+    color: '#DC2626',
+    fontWeight: 'var(--font-weight-medium)'
+  },
+  popupDetailRow: {
     display: 'flex',
     alignItems: 'flex-start',
-    gap: 'var(--space-2)',
-    marginBottom: 'var(--space-2)'
+    gap: 'var(--space-3)',
+    marginBottom: 'var(--space-3)'
   },
-  detailIcon: {
-    fontSize: 'var(--font-size-sm)',
+  popupDetailIcon: {
+    fontSize: 'var(--font-size-base)',
     lineHeight: 1,
     marginTop: '2px'
   },
-  detailText: {
-    fontSize: 'var(--font-size-xs)',
+  popupDetailText: {
+    fontSize: 'var(--font-size-sm)',
     color: 'var(--text-secondary)',
     lineHeight: 'var(--line-height-normal)',
     flex: 1
   },
-  itemsTitle: {
+  popupItemsTitle: {
     fontWeight: 'var(--font-weight-medium)',
-    marginBottom: 'var(--space-1)'
+    marginBottom: 'var(--space-2)',
+    color: 'var(--text-primary)'
   },
-  itemsList: {
+  popupItemsList: {
     margin: 0,
     paddingLeft: 'var(--space-4)',
-    fontSize: 'var(--font-size-xs)'
+    fontSize: 'var(--font-size-sm)'
   },
-  item: {
+  popupItem: {
     marginBottom: 'var(--space-1)'
   },
-  transportationInfo: {
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    padding: 'var(--space-2)',
-    borderRadius: 'var(--radius-sm)',
-    marginBottom: 'var(--space-2)'
-  },
-  transportationTitle: {
-    fontSize: 'var(--font-size-xs)',
+  popupTransportationTitle: {
+    fontSize: 'var(--font-size-sm)',
     fontWeight: 'var(--font-weight-semibold)',
-    marginBottom: 'var(--space-1)'
+    marginBottom: 'var(--space-2)',
+    color: 'var(--text-primary)'
   },
-  transportationDetails: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 'var(--space-1)'
+  popupTransportationInfo: {
+    fontSize: 'var(--font-size-sm)',
+    color: 'var(--text-secondary)',
+    lineHeight: 'var(--line-height-normal)'
   },
-  transportDetail: {
-    fontSize: 'var(--font-size-xs)',
-    color: 'var(--text-secondary)'
-  },
-  actionButtons: {
+  popupActionButtons: {
     display: 'flex',
     gap: 'var(--space-2)',
-    marginTop: 'var(--space-3)'
+    marginTop: 'var(--space-4)',
+    paddingTop: 'var(--space-4)',
+    borderTop: '1px solid var(--border-light)'
   },
-  editButton: {
-    padding: 'var(--space-2) var(--space-3)',
+  popupEditButton: {
+    padding: 'var(--space-2) var(--space-4)',
     backgroundColor: 'var(--primary-purple)',
     color: 'var(--white)',
     border: 'none',
-    borderRadius: 'var(--radius-sm)',
-    fontSize: 'var(--font-size-xs)',
+    borderRadius: 'var(--radius-md)',
+    fontSize: 'var(--font-size-sm)',
     fontWeight: 'var(--font-weight-medium)',
     cursor: 'pointer',
     transition: 'var(--transition-fast)'
   },
-  deleteButton: {
-    padding: 'var(--space-2) var(--space-3)',
+  popupDeleteButton: {
+    padding: 'var(--space-2) var(--space-4)',
     backgroundColor: '#EF4444',
     color: 'var(--white)',
     border: 'none',
-    borderRadius: 'var(--radius-sm)',
-    fontSize: 'var(--font-size-xs)',
+    borderRadius: 'var(--radius-md)',
+    fontSize: 'var(--font-size-sm)',
     fontWeight: 'var(--font-weight-medium)',
     cursor: 'pointer',
     transition: 'var(--transition-fast)'
-  },
-  expandIndicator: {
-    position: 'absolute',
-    top: 'var(--space-2)',
-    right: 'var(--space-2)',
-    opacity: 0.6
-  },
-  expandArrow: {
-    fontSize: 'var(--font-size-xs)',
-    color: 'var(--text-tertiary)'
   }
 };
 

@@ -3,6 +3,263 @@ import CalendarEventCard from './CalendarEventCard';
 import CalendarQuickAdd from './CalendarQuickAdd';
 import CalendarChildSelector from './CalendarChildSelector';
 
+// Helper functions for getting different types of events
+const getRoutineEvents = (child, date) => {
+  const routine = child.carePreferences?.dailyRoutine;
+  if (!routine) return [];
+
+  const events = [];
+  
+  // Wake up
+  if (routine.wakeUpTime) {
+    events.push(createEvent({
+      id: `routine-wakeup-${child.id}`,
+      title: 'Wake Up',
+      startTime: routine.wakeUpTime,
+      duration: 30,
+      type: 'routine',
+      category: 'Daily Routines',
+      childId: child.id,
+      childName: child.name,
+      icon: '☀️',
+      responsibility: 'au_pair'
+    }));
+  }
+
+  // Meals
+  if (routine.mealTimes) {
+    if (routine.mealTimes.breakfast) {
+      events.push(createEvent({
+        id: `routine-breakfast-${child.id}`,
+        title: 'Breakfast',
+        startTime: routine.mealTimes.breakfast,
+        duration: 30,
+        type: 'routine',
+        category: 'Daily Routines',
+        childId: child.id,
+        childName: child.name,
+        icon: '🥣',
+        responsibility: 'parent'
+      }));
+    }
+    
+    if (routine.mealTimes.lunch) {
+      const lunchTimes = Array.isArray(routine.mealTimes.lunch) 
+        ? routine.mealTimes.lunch 
+        : [routine.mealTimes.lunch];
+      
+      lunchTimes.forEach((time, index) => {
+        events.push(createEvent({
+          id: `routine-lunch-${index}-${child.id}`,
+          title: lunchTimes.length > 1 ? `Lunch ${index + 1}` : 'Lunch',
+          startTime: time,
+          duration: 30,
+          type: 'routine',
+          category: 'Daily Routines',
+          childId: child.id,
+          childName: child.name,
+          icon: '🥗',
+          responsibility: 'au_pair'
+        }));
+      });
+    }
+    
+    if (routine.mealTimes.dinner) {
+      events.push(createEvent({
+        id: `routine-dinner-${child.id}`,
+        title: 'Dinner',
+        startTime: routine.mealTimes.dinner,
+        duration: 45,
+        type: 'routine',
+        category: 'Daily Routines',
+        childId: child.id,
+        childName: child.name,
+        icon: '🍽️',
+        responsibility: 'parent'
+      }));
+    }
+  }
+
+  // Naps
+  if (routine.napTimes && routine.napTimes.length > 0) {
+    routine.napTimes.forEach((nap, index) => {
+      if (nap.startTime) {
+        events.push(createEvent({
+          id: `routine-nap-${index}-${child.id}`,
+          title: routine.napTimes.length > 1 ? `Nap ${index + 1}` : 'Nap Time',
+          startTime: nap.startTime,
+          duration: nap.duration || 90,
+          type: 'routine',
+          category: 'Daily Routines',
+          childId: child.id,
+          childName: child.name,
+          icon: '😴',
+          responsibility: 'au_pair'
+        }));
+      }
+    });
+  }
+
+  // Bedtime
+  if (routine.bedtime) {
+    events.push(createEvent({
+      id: `routine-bedtime-${child.id}`,
+      title: 'Bedtime',
+      startTime: routine.bedtime,
+      duration: 30,
+      type: 'routine',
+      category: 'Daily Routines',
+      childId: child.id,
+      childName: child.name,
+      icon: '🌙',
+      responsibility: 'parent'
+    }));
+  }
+
+  return events;
+};
+
+const getSchoolEvents = (child, date) => {
+  if (!child.schoolSchedule) return [];
+
+  const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+  const schedule = child.schoolSchedule[dayName];
+  
+  if (!schedule || schedule.length === 0) return [];
+
+  const events = [];
+  
+  schedule.forEach((block, index) => {
+    console.log(`School block for ${child.name}:`, block);
+    const duration = getTimeDifference(block.startTime, block.endTime);
+    console.log(`Calculated duration: ${duration} minutes`);
+    
+    events.push(createEvent({
+      id: `school-${index}-${child.id}`,
+      title: 'School',
+      startTime: block.startTime,
+      duration: duration,
+      type: 'school',
+      category: 'School/Kindergarten',
+      childId: child.id,
+      childName: child.name,
+      icon: '🏫',
+      responsibility: 'school',
+      location: child.schoolSchedule.schoolName || 'School'
+    }));
+  });
+
+  return events;
+};
+
+const getRecurringActivityEvents = (child, date, recurringActivities) => {
+  const events = [];
+  
+  recurringActivities.forEach(activity => {
+    if (activity.assignedChildren && activity.assignedChildren.includes(child.id)) {
+      // Check if activity occurs on this date using the recurrence pattern
+      const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+      
+      console.log(`Checking activity ${activity.name} for ${child.name} on ${dayName}:`, activity);
+      
+      // Check if this activity should occur on this date
+      if (shouldActivityOccurOnDate(activity, date)) {
+        console.log(`Activity ${activity.name} occurs on ${dayName}`);
+        
+        events.push(createEvent({
+          id: `activity-${activity.id}-${child.id}`,
+          title: activity.name,
+          startTime: activity.time,
+          duration: activity.duration || 60,
+          type: 'activity',
+          category: 'Activities',
+          childId: child.id,
+          childName: child.name,
+          icon: activity.icon || '🏃',
+          responsibility: activity.transportation?.dropoff || 'au_pair',
+          location: activity.location?.name || activity.location?.address,
+          notes: activity.requirements?.notes || activity.notes,
+          requiredItems: activity.requirements?.items || []
+        }));
+      }
+    }
+  });
+
+  return events;
+};
+
+const shouldActivityOccurOnDate = (activity, date) => {
+  try {
+    if (!activity || !activity.recurrence || !date) {
+      return false;
+    }
+
+    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    
+    switch (activity.recurrence.type) {
+      case 'weekly':
+        return Array.isArray(activity.recurrence.days) && activity.recurrence.days.includes(dayName);
+        
+      case 'biweekly':
+        // Check if it's the right week (need start date for this)
+        if (!activity.recurrence.startDate && !activity.startDate) return false;
+        try {
+          const startDate = new Date(activity.recurrence.startDate || activity.startDate);
+          const weeksDiff = Math.floor((date - startDate) / (7 * 24 * 60 * 60 * 1000));
+          return weeksDiff % 2 === 0 && Array.isArray(activity.recurrence.days) && activity.recurrence.days.includes(dayName);
+        } catch (error) {
+          console.warn('Error calculating biweekly occurrence:', error);
+          return false;
+        }
+        
+      case 'monthly':
+        if (activity.recurrence.monthType === 'same_date') {
+          const startDate = activity.recurrence.startDate || activity.startDate;
+          if (!startDate) return false;
+          try {
+            const start = new Date(startDate);
+            return date.getDate() === start.getDate();
+          } catch (error) {
+            console.warn('Error calculating monthly occurrence:', error);
+            return false;
+          }
+        }
+        return false;
+        
+      default:
+        return false;
+    }
+  } catch (error) {
+    console.warn('Error checking activity occurrence:', error);
+    return false;
+  }
+};
+
+const createEvent = (eventData) => {
+  const startMinutes = timeToMinutes(eventData.startTime);
+  const endMinutes = startMinutes + eventData.duration;
+  console.log(`Creating event ${eventData.title}: start=${eventData.startTime} (${startMinutes}min), duration=${eventData.duration}min, end=${endMinutes}min`);
+  return {
+    ...eventData,
+    startMinutes,
+    endMinutes
+  };
+};
+
+const timeToMinutes = (timeStr) => {
+  if (!timeStr) return 0;
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+const getTimeDifference = (startTime, endTime) => {
+  const start = timeToMinutes(startTime);
+  const end = timeToMinutes(endTime);
+  const duration = end - start;
+  console.log(`getTimeDifference: ${startTime} to ${endTime} = ${duration} minutes`);
+  return duration;
+};
+
 const CalendarDayView = ({ 
   familyData, 
   children, 
@@ -13,7 +270,6 @@ const CalendarDayView = ({
 }) => {
   const [selectedChildren, setSelectedChildren] = useState('all');
   const [showQuickAdd, setShowQuickAdd] = useState(false);
-  const [events, setEvents] = useState([]);
   const [timeRange, setTimeRange] = useState({ start: 7, end: 21 }); // Default 7 AM - 9 PM
 
   // Get all events for the selected date and children
@@ -25,17 +281,26 @@ const CalendarDayView = ({
       ? children 
       : children.filter(child => selectedChildren.includes(child.id));
 
+    console.log('CalendarDayView - children:', children);
+    console.log('CalendarDayView - childrenToShow:', childrenToShow);
+    console.log('CalendarDayView - recurringActivities:', recurringActivities);
+
     childrenToShow.forEach(child => {
+      console.log(`Processing child ${child.name}:`, child);
+      
       // Add routine events
       const routines = getRoutineEvents(child, selectedDate);
+      console.log(`Routines for ${child.name}:`, routines);
       allEvents.push(...routines);
 
       // Add school events  
       const schoolEvents = getSchoolEvents(child, selectedDate);
+      console.log(`School events for ${child.name}:`, schoolEvents);
       allEvents.push(...schoolEvents);
 
       // Add recurring activities
       const activityEvents = getRecurringActivityEvents(child, selectedDate, recurringActivities);
+      console.log(`Activity events for ${child.name}:`, activityEvents);
       allEvents.push(...activityEvents);
 
       // Add one-time events (would come from database)
@@ -43,6 +308,7 @@ const CalendarDayView = ({
       // allEvents.push(...oneTimeEvents);
     });
 
+    console.log('All events for the day:', allEvents);
     // Sort events by time
     return allEvents.sort((a, b) => a.startMinutes - b.startMinutes);
   }, [children, selectedChildren, selectedDate, recurringActivities]);
@@ -64,6 +330,10 @@ const CalendarDayView = ({
     setTimeRange({ start, end });
   }, [dayEvents]);
 
+  const formatHour = (hour) => {
+    return `${hour.toString().padStart(2, '0')}:00`;
+  };
+
   // Generate hour markers for the timeline
   const hourMarkers = useMemo(() => {
     const markers = [];
@@ -84,19 +354,55 @@ const CalendarDayView = ({
     // Refresh events after adding
   };
 
-  const formatHour = (hour) => {
-    return `${hour.toString().padStart(2, '0')}:00`;
-  };
+  // Calculate layout for overlapping events
+  const getEventLayout = useMemo(() => {
+    const hourHeight = 80; // Height per hour in pixels
+    const eventLayouts = [];
+    
+    // Group events by time overlap
+    const sortedEvents = [...dayEvents].sort((a, b) => a.startMinutes - b.startMinutes);
+    
+    sortedEvents.forEach(event => {
+      const startHour = (event.startMinutes / 60) - timeRange.start;
+      const duration = event.duration / 60; // Convert to hours
+      
+      console.log(`Layout for ${event.title}: startMinutes=${event.startMinutes}, duration=${event.duration}min (${duration}h), startHour=${startHour}`);
+      
+      // Find overlapping events
+      const overlappingEvents = sortedEvents.filter(otherEvent => 
+        otherEvent.startMinutes < event.startMinutes + event.duration &&
+        otherEvent.startMinutes + otherEvent.duration > event.startMinutes
+      );
+      
+      // Calculate column position
+      const columnIndex = overlappingEvents.findIndex(e => e.id === event.id);
+      const totalColumns = overlappingEvents.length;
+      const columnWidth = totalColumns > 1 ? 100 / totalColumns : 100;
+      
+      const layout = {
+        eventId: event.id,
+        top: startHour * hourHeight,
+        height: Math.max(duration * hourHeight, 40), // Minimum 40px height
+        left: `${columnIndex * columnWidth}%`,
+        width: `${columnWidth - (totalColumns > 1 ? 2 : 0)}%`, // Small gap between columns
+        zIndex: 10 + columnIndex
+      };
+      
+      console.log(`Layout result for ${event.title}:`, layout);
+      eventLayouts.push(layout);
+    });
+    
+    return eventLayouts;
+  }, [dayEvents, timeRange]);
 
   const getEventPosition = (event) => {
-    const hourHeight = 80; // Height per hour in pixels
-    const startHour = (event.startMinutes / 60) - timeRange.start;
-    const duration = event.duration / 60; // Convert to hours
-    
-    return {
-      top: startHour * hourHeight,
-      height: Math.max(duration * hourHeight, 40), // Minimum 40px height
-      left: event.childIndex ? event.childIndex * 10 : 0 // Slight offset for overlapping
+    const layout = getEventLayout.find(layout => layout.eventId === event.id);
+    return layout || {
+      top: 0,
+      height: 40,
+      left: '0%',
+      width: '100%',
+      zIndex: 10
     };
   };
 
@@ -221,206 +527,6 @@ const CalendarDayView = ({
   );
 };
 
-// Helper functions for getting different types of events
-const getRoutineEvents = (child, date) => {
-  const routine = child.carePreferences?.dailyRoutine;
-  if (!routine) return [];
-
-  const events = [];
-  
-  // Wake up
-  if (routine.wakeUpTime) {
-    events.push(createEvent({
-      id: `routine-wakeup-${child.id}`,
-      title: 'Wake Up',
-      startTime: routine.wakeUpTime,
-      duration: 30,
-      type: 'routine',
-      category: 'Daily Routines',
-      childId: child.id,
-      childName: child.name,
-      icon: '☀️',
-      responsibility: 'au_pair'
-    }));
-  }
-
-  // Meals
-  if (routine.mealTimes) {
-    if (routine.mealTimes.breakfast) {
-      events.push(createEvent({
-        id: `routine-breakfast-${child.id}`,
-        title: 'Breakfast',
-        startTime: routine.mealTimes.breakfast,
-        duration: 30,
-        type: 'routine',
-        category: 'Daily Routines',
-        childId: child.id,
-        childName: child.name,
-        icon: '🥣',
-        responsibility: 'parent'
-      }));
-    }
-    
-    if (routine.mealTimes.lunch) {
-      const lunchTimes = Array.isArray(routine.mealTimes.lunch) 
-        ? routine.mealTimes.lunch 
-        : [routine.mealTimes.lunch];
-      
-      lunchTimes.forEach((time, index) => {
-        events.push(createEvent({
-          id: `routine-lunch-${index}-${child.id}`,
-          title: lunchTimes.length > 1 ? `Lunch ${index + 1}` : 'Lunch',
-          startTime: time,
-          duration: 30,
-          type: 'routine',
-          category: 'Daily Routines',
-          childId: child.id,
-          childName: child.name,
-          icon: '🥗',
-          responsibility: 'au_pair'
-        }));
-      });
-    }
-    
-    if (routine.mealTimes.dinner) {
-      events.push(createEvent({
-        id: `routine-dinner-${child.id}`,
-        title: 'Dinner',
-        startTime: routine.mealTimes.dinner,
-        duration: 45,
-        type: 'routine',
-        category: 'Daily Routines',
-        childId: child.id,
-        childName: child.name,
-        icon: '🍽️',
-        responsibility: 'parent'
-      }));
-    }
-  }
-
-  // Naps
-  if (routine.napTimes && routine.napTimes.length > 0) {
-    routine.napTimes.forEach((nap, index) => {
-      if (nap.startTime) {
-        events.push(createEvent({
-          id: `routine-nap-${index}-${child.id}`,
-          title: routine.napTimes.length > 1 ? `Nap ${index + 1}` : 'Nap Time',
-          startTime: nap.startTime,
-          duration: nap.duration || 90,
-          type: 'routine',
-          category: 'Daily Routines',
-          childId: child.id,
-          childName: child.name,
-          icon: '😴',
-          responsibility: 'au_pair'
-        }));
-      }
-    });
-  }
-
-  // Bedtime
-  if (routine.bedtime) {
-    events.push(createEvent({
-      id: `routine-bedtime-${child.id}`,
-      title: 'Bedtime',
-      startTime: routine.bedtime,
-      duration: 30,
-      type: 'routine',
-      category: 'Daily Routines',
-      childId: child.id,
-      childName: child.name,
-      icon: '🌙',
-      responsibility: 'parent'
-    }));
-  }
-
-  return events;
-};
-
-const getSchoolEvents = (child, date) => {
-  if (!child.schoolSchedule) return [];
-
-  const dayName = date.toLocaleDateString('en-US', { weekday: 'lowercase' });
-  const schedule = child.schoolSchedule[dayName];
-  
-  if (!schedule || schedule.length === 0) return [];
-
-  const events = [];
-  
-  schedule.forEach((block, index) => {
-    events.push(createEvent({
-      id: `school-${index}-${child.id}`,
-      title: 'School',
-      startTime: block.startTime,
-      duration: getTimeDifference(block.startTime, block.endTime),
-      type: 'school',
-      category: 'School/Kindergarten',
-      childId: child.id,
-      childName: child.name,
-      icon: '🏫',
-      responsibility: 'school',
-      location: child.schoolSchedule.schoolName || 'School'
-    }));
-  });
-
-  return events;
-};
-
-const getRecurringActivityEvents = (child, date, recurringActivities) => {
-  const events = [];
-  
-  recurringActivities.forEach(activity => {
-    if (activity.assignedChildren && activity.assignedChildren.includes(child.id)) {
-      // Check if activity occurs on this date
-      // This is simplified - you'd need proper recurring logic here
-      const dayName = date.toLocaleDateString('en-US', { weekday: 'lowercase' });
-      
-      if (activity.schedule && activity.schedule[dayName]) {
-        activity.schedule[dayName].forEach((timeSlot, index) => {
-          events.push(createEvent({
-            id: `activity-${activity.id}-${index}-${child.id}`,
-            title: activity.name,
-            startTime: timeSlot.startTime,
-            duration: timeSlot.duration || 60,
-            type: 'activity',
-            category: 'Activities',
-            childId: child.id,
-            childName: child.name,
-            icon: activity.icon || '🏃',
-            responsibility: activity.transportation?.dropoff || 'au_pair',
-            location: activity.location?.name || activity.location?.address,
-            notes: activity.notes,
-            requiredItems: activity.requiredItems || []
-          }));
-        });
-      }
-    }
-  });
-
-  return events;
-};
-
-const createEvent = (eventData) => {
-  const startMinutes = timeToMinutes(eventData.startTime);
-  return {
-    ...eventData,
-    startMinutes,
-    endMinutes: startMinutes + eventData.duration
-  };
-};
-
-const timeToMinutes = (timeStr) => {
-  if (!timeStr) return 0;
-  const [hours, minutes] = timeStr.split(':').map(Number);
-  return hours * 60 + minutes;
-};
-
-const getTimeDifference = (startTime, endTime) => {
-  const start = timeToMinutes(startTime);
-  const end = timeToMinutes(endTime);
-  return end - start;
-};
-
 const styles = {
   container: {
     height: '100vh',
@@ -512,8 +618,8 @@ const styles = {
   },
   eventContainer: {
     position: 'absolute',
-    left: 'var(--space-3)',
-    right: 'var(--space-3)',
+    paddingLeft: 'var(--space-2)',
+    paddingRight: 'var(--space-2)',
     zIndex: 2
   },
   emptyState: {
