@@ -14,6 +14,15 @@ import {getFirestore} from "firebase-admin/firestore";
 import {getMessaging} from "firebase-admin/messaging";
 import * as logger from "firebase-functions/logger";
 
+// Import validated operations
+export {
+  updateUserProfile,
+  createChild,
+  createTask,
+  createCalendarEvent,
+  createShoppingItem,
+} from "./validatedOperations";
+
 // Initialize Firebase Admin
 initializeApp();
 const db = getFirestore();

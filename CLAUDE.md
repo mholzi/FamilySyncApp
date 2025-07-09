@@ -4,9 +4,25 @@ This document serves as a comprehensive guide for leveraging Claude Code (or any
 
 ---
 
-## 🎯 Project Overview & Context for Claude
+## 🚨 Project Awareness Rules
 
-When interacting with Claude, always provide context about our project.
+**CRITICAL**: Before starting ANY task, you MUST:
+
+1. **Read Current Tasks**: Use `TodoRead` to understand ongoing work and avoid conflicts
+2. **Check Recent Changes**: Review `IMPLEMENTATION_SUMMARY.md` for latest updates
+3. **Verify Examples**: Look in `examples/` directory for patterns to follow
+4. **Validate Paths**: Confirm file paths exist before editing (use `LS` or `Glob`)
+5. **Run Validation**: Execute validation commands after EVERY change
+
+**NEVER**:
+- Assume a file exists without checking
+- Skip validation steps
+- Create files unless absolutely necessary
+- Guess at patterns - always check examples
+
+---
+
+## 🎯 Project Overview & Context
 
 * **Project Name:** `FamilySync`
 * **Purpose:** A web app to help au pair families manage day-to-day organization (calendar, tasks, shopping, notes).
@@ -30,179 +46,366 @@ The application follows a cloud-native architecture with:
 
 ---
 
+## 📐 Code Structure Rules
+
+### File Organization
+1. **File Size Limits**
+   - React Components: Max 200 lines
+   - Utility Functions: Max 150 lines
+   - Test Files: Max 300 lines
+   - Split larger files into focused modules
+
+2. **Import Order** (enforce with ESLint)
+   ```javascript
+   // 1. React imports
+   import React, { useState, useEffect } from 'react';
+   
+   // 2. External libraries
+   import { doc, onSnapshot } from 'firebase/firestore';
+   
+   // 3. Internal imports (use absolute paths)
+   import { Button } from '@/components/Button';
+   import { useAuth } from '@/hooks/useAuth';
+   
+   // 4. Styles
+   import styles from './Component.module.css';
+   ```
+
+3. **Component Structure**
+   ```javascript
+   // 1. Type definitions / PropTypes
+   // 2. Component declaration
+   // 3. Custom hooks
+   // 4. Event handlers
+   // 5. Render helpers
+   // 6. Main render
+   ```
+
+### Naming Conventions
+- **Components**: PascalCase (e.g., `ShoppingListCard`)
+- **Files**: Match component name (e.g., `ShoppingListCard.js`)
+- **CSS Modules**: camelCase classes (e.g., `.containerActive`)
+- **Constants**: UPPER_SNAKE_CASE (e.g., `MAX_RETRY_ATTEMPTS`)
+- **Firebase Collections**: camelCase (e.g., `calendarEvents`)
+
+---
+
+## ✅ Validation Commands
+
+### After EVERY Code Change
+```bash
+# Web App Validation
+cd web-app
+npm run lint                    # ESLint check
+npm test -- --watchAll=false    # Run all tests
+npm run build                   # Ensure production build works
+
+# Functions Validation (TypeScript)
+cd ../functions
+npm run lint                    # TSLint/ESLint check
+npm run build                   # TypeScript compilation
+npm test                        # Run function tests
+
+# Firestore Rules Validation
+firebase deploy --only firestore:rules --dry-run
+```
+
+### Before Marking Task Complete
+- [ ] All validation commands pass
+- [ ] No console errors in browser
+- [ ] No TypeScript errors
+- [ ] Feature works in Firebase emulator
+- [ ] Tests cover new functionality
+- [ ] Code follows examples/ patterns
+
+---
+
+## 🚫 Anti-Patterns & Common Mistakes
+
+### React Anti-Patterns
+```javascript
+// ❌ BAD: Direct DOM manipulation
+document.getElementById('myDiv').style.color = 'red';
+
+// ✅ GOOD: Use React state
+const [color, setColor] = useState('red');
+
+// ❌ BAD: Inline arrow functions in render
+<button onClick={() => handleClick(id)}>Click</button>
+
+// ✅ GOOD: Stable callback reference
+const handleButtonClick = useCallback(() => handleClick(id), [id]);
+
+// ❌ BAD: Missing keys in lists
+items.map(item => <Item {...item} />)
+
+// ✅ GOOD: Unique, stable keys
+items.map(item => <Item key={item.id} {...item} />)
+```
+
+### Firebase Anti-Patterns
+```javascript
+// ❌ BAD: Client-side only validation
+const addTask = async (task) => {
+  await addDoc(collection(db, 'tasks'), task);
+};
+
+// ✅ GOOD: Validate in security rules + cloud functions
+const addTask = async (task) => {
+  const validated = validateTask(task); // Client validation
+  await addDoc(collection(db, 'tasks'), validated);
+  // Server-side validation in security rules
+};
+
+// ❌ BAD: Nested promises
+getUserProfile().then(profile => {
+  getFamily(profile.familyId).then(family => {
+    // ...
+  });
+});
+
+// ✅ GOOD: Async/await
+const profile = await getUserProfile();
+const family = await getFamily(profile.familyId);
+```
+
+### General Anti-Patterns
+- ❌ `console.log()` in production code
+- ❌ Commented out code blocks
+- ❌ Magic numbers without constants
+- ❌ Missing error boundaries
+- ❌ Hardcoded configuration values
+- ❌ Unhandled promise rejections
+
+---
+
+## 🧪 Testing Requirements
+
+### Every Feature MUST Include:
+
+1. **Component Tests** (`*.test.js`)
+   ```javascript
+   // Example: Button.test.js
+   import { render, fireEvent } from '@testing-library/react';
+   import Button from './Button';
+   
+   test('calls onClick when clicked', () => {
+     const handleClick = jest.fn();
+     const { getByText } = render(
+       <Button onClick={handleClick}>Click me</Button>
+     );
+     fireEvent.click(getByText('Click me'));
+     expect(handleClick).toHaveBeenCalledTimes(1);
+   });
+   ```
+
+2. **Integration Tests** (Firebase operations)
+   ```javascript
+   // Example: useFamily.test.js
+   test('fetches family data for authenticated user', async () => {
+     // Test with Firebase emulator
+   });
+   ```
+
+3. **Snapshot Tests** (UI consistency)
+   ```javascript
+   test('renders correctly', () => {
+     const tree = renderer.create(<Component />).toJSON();
+     expect(tree).toMatchSnapshot();
+   });
+   ```
+
+### Test Coverage Requirements
+- New components: Minimum 80% coverage
+- Critical paths: 100% coverage
+- Firebase operations: Integration tests required
+
+---
+
 ## 🚀 Commands
 
 ### Web Application (in `/web-app` directory)
-
 ```bash
 cd web-app
 npm start          # Start development server on localhost:3000
 npm run build      # Build production bundle
 npm test           # Run tests in watch mode
-Firebase Functions - TypeScript (in /functions directory)
+npm run lint       # Run ESLint
+npm run lint:fix   # Auto-fix ESLint issues
+```
 
-(Assuming this is the preferred future direction)
-
-Bash
+### Firebase Functions - TypeScript (in `/functions` directory)
+```bash
 cd functions
 npm run build      # Compile TypeScript to JavaScript
 npm run lint       # Run ESLint
 npm run serve      # Start Firebase emulators with functions
 npm run deploy     # Deploy functions to Firebase
 npm run logs       # View Firebase function logs
-Firebase Functions - JavaScript (in /familysyncapp directory)
-
-(To be deprecated/consolidated)
-
-Bash
-cd familysyncapp
-npm run lint       # Run ESLint
-npm run serve      # Start Firebase emulators
-npm run deploy     # Deploy functions to Firebase
-💡 General Prompting Guidelines for Claude
-For best results when interacting with Claude, always provide as much relevant context as possible:
-
-State Your Goal Clearly: What are you trying to achieve?
-
-Specify the Technology: "In React," "using Firebase Firestore," "for a CSS module," "with Firebase Cloud Functions (TypeScript)."
-
-Provide Existing Code: Paste relevant code snippets (components, functions, data structures, firestore.rules).
-
-Describe the Problem: If debugging, paste error messages and explain the unexpected behavior.
-
-Define Desired Output: "Give me the JSX," "Provide a useEffect hook," "Show me the Firebase security rules," "Generate a GraphQL query."
-
-Specify Constraints: "Without using external libraries if possible," "Focus on performance," "Ensure it's responsive," "Ensure GDPR compliance."
-
-🛠️ Common Use Cases & Example Prompts for FamilySync
-1. User Authentication & Firebase Setup
-
-Goal: Set up initial Firebase connection in a React component.
-
-Prompt: "I'm setting up my React web app (web-app/src/) to connect to Firebase. I have my firebaseConfig object. Show me how to initialize Firebase and export auth and db (Firestore) instances in src/firebase.js. Then, show how to import and use it in src/App.js to check user authentication status using onAuthStateChanged."
-
-Goal: Implement user signup.
-
-Prompt: "I need a React component (src/components/Signup.js) for user signup. It should have email and password input fields and a 'Sign Up' button. Use Firebase Authentication's createUserWithEmailAndPassword. Include basic state management with useState and error handling with try-catch. Assume auth from firebase.js is imported. Show how to navigate to a dashboard route upon successful signup."
-
-Goal: Implement user login.
-
-Prompt: "Now, create a login component (src/components/Login.js) for my React app. Similar to signup, but using signInWithEmailAndPassword. Show how to handle form submission and redirect to the dashboard."
-
-2. Firestore Database Interaction
-
-Goal: Create a new family document upon user signup.
-
-Prompt: "After a user signs up via Firebase Auth, I need to create a new family document in Firestore and link the user to it. The families collection should have documents with id, name (e.g., 'The [User's Last Name] Family'), and memberUids (an array containing the creator's UID initially). The user's profile document (in users collection) also needs to be updated with this familyId and their role ('Parent'). Show me the React code using firebase/firestore to perform these operations atomically using a batch write or a transaction if necessary."
-
-Goal: Fetch data for the current user's family.
-
-Prompt: "In my React dashboard component, I need to fetch the current user's family data from Firestore. The users collection has a familyId field. How can I use useEffect and onSnapshot (for real-time updates) to get the family document (from families collection) based on the familyId in the user's profile?"
-
-Goal: Add a new calendar event.
-
-Prompt: "I'm building the 'Shared Family Calendar'. Show me a React function that takes title, date (Firebase Timestamp), assignedTo (array of user UIDs), notes, and color and adds it to a calendarEvents subcollection within the current user's family document in Firestore. Ensure appropriate error handling and data validation."
-
-3. UI Components & Styling (React)
-
-Goal: Create a reusable Button component.
-
-Prompt: "Create a simple, reusable React Button component (src/components/Button.js). It should accept onClick, children (text), and a variant prop ('primary', 'secondary', 'danger'). Use basic CSS (e.g., a CSS module Button.module.css) for styling that aligns with a calming, minimalist theme (soft blues, greens, neutrals)."
-
-Goal: Implement a responsive layout for the Dashboard.
-
-Prompt: "Based on our UI mockup, create the main JSX and CSS for the Dashboard component (src/pages/Dashboard.js). Use CSS Grid or Flexbox to arrange the 'My Tasks Today', 'Children's Overview', 'Upcoming Events', 'Family Notes', and 'Shopping List' cards. It should adapt from a single column on mobile screens to multiple columns on larger screens. Provide placeholder content for each card."
-
-Goal: Design a single "Children's Overview Card."
-
-Prompt: "Based on the detailed UI mockup for a single 'Children's Overview Card', create a React component (src/components/ChildOverviewCard.js). It should accept childName, profilePictureUrl, and latestLogEntry as props. Include small buttons for 'Log Nap', 'Log Meal', and 'Log Incident'. Use clean, minimalist CSS."
-
-4. Firebase Data Connect (PostgreSQL & GraphQL)
-
-Goal: Replace the placeholder schema.
-
-Prompt: "I need to replace the commented-out example movie review schema in /dataconnect/schema/schema.gql with our FamilySync data model. I need GraphQL types for User (id, name, email, role, familyId), Family (id, name, memberUids), CalendarEvent (id, title, date, assignedTo, notes, familyId), Task (id, description, dueDate, assignedTo, isCompleted, familyId), ShoppingListItem (id, name, quantity, isPurchased, familyId), and Note (id, text, timestamp, type, familyId, childId if applicable). Show the GraphQL schema definitions, including relationships."
-
-Goal: Query family data via Data Connect.
-
-Prompt: "Assuming the GraphQL schema is set up, show me how to write a GraphQL query in Data Connect to fetch all CalendarEvents for a given familyId. Then, show how to use the generated React SDK (e.g., with TanStack Query bindings as per Firebase Blog) to call this query from my Calendar React component."
-
-5. Firebase Cloud Functions (TypeScript)
-
-Goal: Consolidate to TypeScript functions.
-
-Prompt: "My project has both /functions (TypeScript) and /familysyncapp (JavaScript) Cloud Functions directories. I want to consolidate everything into the TypeScript /functions directory. What are the steps to move the JavaScript functions from /familysyncapp/index.js into /functions/src/index.ts and ensure they are properly transpiled and deployed? Assume both directories have their own package.json."
-
-Goal: Write a simple Cloud Function.
-
-Prompt: "Create a TypeScript Firebase Cloud Function that triggers when a new document is added to the families collection in Firestore. This function should log the new family's name to the console. Show the code for functions/src/index.ts."
-
-6. Security Rules & Testing
-
-Goal: Secure Firestore rules.
-
-Prompt: "My current Firestore rules (firestore.rules) are permissive and expire on August 2, 2025. I need to implement secure rules for production. Show me the firestore.rules that enforce:
-
-Only authenticated users can read/write data.
-
-Users can only read/write documents within their own familyId.
-
-Users can only update their own profile document.
-Assume the users and families collections are at the root, and other data (calendar, tasks, shopping, notes) are subcollections under families/{familyId}."
-
-Goal: Write basic React component tests.
-
-Prompt: "I'm using React Testing Library. Show me a simple unit test for my Button component (src/components/Button.js) to ensure it renders correctly and calls the onClick handler when clicked."
-
-⚠️ Key Development Notes (From Your Project)
-Dual Functions Directories: The project currently has both TypeScript (/functions) and JavaScript (/familysyncapp) Firebase Functions. Prioritize consolidating to one (TypeScript is recommended) to avoid confusion and simplify maintenance.
-
-Security Rules: Current Firestore rules in /firestore.rules are permissive and expire on August 2, 2025. These must be updated to secure, production-ready rules before expiration. Use request.auth and data validation.
-
-Data Connect Schema: The PostgreSQL schema in /dataconnect/schema/schema.gql is currently commented out and contains example movie review code. This needs to be replaced with the actual FamilySync data model as per your PRD and then deployed for PostgreSQL integration.
-
-React App: The web app (/web-app) still contains the default Create React App template. All application logic defined in the PRD needs to be implemented here.
-
-Node Version: Functions use Node.js 22. Ensure local environment matches.
-
-🧪 Testing
-React Tests: Run npm test in the /web-app directory. Aim for good test coverage for components and core logic.
-
-Firebase Functions: No test suites are currently implemented for Firebase Functions. This should be added, especially for critical server-side logic (e.g., using firebase-functions-test).
-
-Firebase Emulators: Use npm run serve (from the functions directory) to test functions and database interactions locally before deploying.
-
-📄 Important Files
-/firestore.rules - Database security rules (currently permissive, needs immediate attention).
-
-/dataconnect/schema/schema.gql - PostgreSQL/GraphQL schema (needs implementation).
-
-/web-app/src/ - React application source code.
-
-/functions/src/index.ts - TypeScript Firebase Functions entry point.
-
-/familysyncapp/index.js - JavaScript Firebase Functions entry point (to be consolidated).
-
-/design-assets/dashboard-mockup.jpeg - Mobile-first UI design reference showing card-based layout.
-
-🎨 UI Design Guidelines
-Design System: Based on the dashboard mockup in /design-assets/, the FamilySync app follows a mobile-first, card-based design with:
-
-Color Palette: Soft, calming colors with colorful accent cards (orange for work/family events, red for personal, green for other categories)
-
-Layout: Clean card-based design with rounded corners, subtle shadows, and good spacing
-
-Typography: Clean, readable fonts with clear hierarchy
-
-Components:
+npm test           # Run function tests
+```
+
+### Firebase Emulators
+```bash
+firebase emulators:start              # Start all emulators
+firebase emulators:start --only auth  # Start specific emulator
+firebase emulators:export ./data      # Export emulator data
+```
+
+---
+
+## 🔥 Firebase Gotchas & Library Quirks
+
+### Firestore Limitations
+- **Query Limits**: Max 10 inequality filters per query
+- **Compound Queries**: Require composite indexes (check console for links)
+- **Real-time Listeners**: Count against read quotas
+- **Batch Writes**: Limited to 500 operations
+- **Document Size**: Max 1MB per document
+- **Collection Groups**: Must be explicitly enabled
+
+### Common Firebase Errors & Solutions
+```javascript
+// Error: Missing or insufficient permissions
+// Solution: Check security rules and user authentication
+
+// Error: Quota exceeded
+// Solution: Implement caching, reduce listener usage
+
+// Error: Deadline exceeded
+// Solution: Paginate large queries, optimize indexes
+```
+
+### React + Firebase Integration
+```javascript
+// CRITICAL: Always cleanup listeners
+useEffect(() => {
+  const unsubscribe = onSnapshot(doc(db, 'users', uid), (doc) => {
+    setUserData(doc.data());
+  });
+  
+  return () => unsubscribe(); // CRITICAL: Prevent memory leaks
+}, [uid]);
+```
+
+---
+
+## 🛠️ Progressive Enhancement Workflow
+
+### For Every Feature Implementation:
+
+1. **MVP First** (Basic Functionality)
+   - Core feature works
+   - Basic error handling
+   - Simple UI
+
+2. **Enhance** (After MVP Validation)
+   - Loading states
+   - Error boundaries
+   - Optimistic updates
+   - Animations
+
+3. **Polish** (After Enhancement Validation)
+   - Performance optimization
+   - Advanced error handling
+   - Analytics integration
+   - A11y improvements
+
+### Example: Shopping List Feature
+```javascript
+// Stage 1: MVP
+// - Add/remove items
+// - Mark as purchased
+// - Basic list display
+
+// Stage 2: Enhanced
+// - Real-time sync
+// - Loading spinners
+// - Error toasts
+
+// Stage 3: Polished
+// - Drag-to-reorder
+// - Batch operations
+// - Offline support
+```
+
+---
+
+## 🎨 UI Design Guidelines
+
+Based on the dashboard mockup in `/design-assets/`, the FamilySync app follows a mobile-first, card-based design with:
+
+### Design System
+- **Color Palette**: Soft, calming colors with colorful accent cards
+  - Orange: Work/family events
+  - Red: Personal events
+  - Green: Other categories
+  - Neutral grays: UI elements
+
+- **Layout**: Clean card-based design
+  - Rounded corners (8px)
+  - Subtle shadows
+  - 16px spacing grid
+
+- **Typography**:
+  - Headers: 24px, semi-bold
+  - Body: 16px, regular
+  - Small text: 14px, regular
+
+### Component Patterns
 - Profile pictures throughout for personalization
 - Progress indicators and checkboxes for task completion  
 - Color-coded event cards for easy categorization
 - Bottom navigation with icons (Home, Calendar, Tasks, Messages, Profile)
 - Task cards showing assignee profile pictures and completion status
 
-Visual Hierarchy: Clear sections for "My Tasks Today", "Children's Overview", "Upcoming Events", "Family Notes", and "Shopping List"
+---
 
-Responsive Design: Mobile-first approach that adapts to larger screens while maintaining the card-based structure
+## 📄 Important Files
 
-When implementing UI components, reference the dashboard mockup design for spacing, colors, and visual patterns.
+### Configuration & Rules
+- `/firestore.rules` - Database security rules (**CRITICAL: Currently permissive, expires August 2, 2025**)
+- `/storage.rules` - Storage security rules
+- `/firebase.json` - Firebase configuration
+- `/.firebaserc` - Firebase project aliases
+
+### Source Code
+- `/web-app/src/` - React application
+- `/functions/src/index.ts` - TypeScript Cloud Functions
+- `/examples/` - Code patterns and examples
+- `/PRPs/` - Product Requirements Prompts
+
+### Documentation
+- `/CLAUDE.md` - This file
+- `/IMPLEMENTATION_SUMMARY.md` - Recent changes log
+- `/CONTEXT_ENGINEERING_STRATEGY.md` - Implementation strategy
+- `/design-assets/dashboard-mockup.jpeg` - UI reference
+
+---
+
+## ⚠️ Critical Issues & Deadlines
+
+1. **Security Rules** (Deadline: August 2, 2025)
+   - Current rules are permissive
+   - Must implement proper authentication checks
+   - Add data validation rules
+
+2. **Functions Consolidation**
+   - Merge `/familysyncapp` into `/functions`
+   - Standardize on TypeScript
+
+3. **Data Connect Schema**
+   - Replace movie review example
+   - Implement FamilySync schema
+
+---
+
+## 🆘 When You're Stuck
+
+1. **Check Examples**: Look in `/examples/` for patterns
+2. **Read Tests**: Tests often show proper usage
+3. **Firebase Console**: Check for detailed error messages
+4. **Emulator UI**: Use local emulator UI for debugging
+5. **Ask for Validation Command**: If unsure about testing
+
+Remember: Context is everything. When in doubt, provide more information rather than less.

@@ -7,6 +7,7 @@ import { createShoppingList } from '../utils/familyUtils';
 import ShoppingList from '../components/Shopping/ShoppingList';
 import AddShoppingList from '../components/Shopping/AddShoppingList';
 import PaymentStatusCard from '../components/Shopping/PaymentStatusCard';
+import ShoppingErrorBoundary from '../components/ErrorBoundary/ShoppingErrorBoundary';
 import './ShoppingListPage.css';
 
 const ShoppingListPage = () => {
@@ -110,66 +111,72 @@ const ShoppingListPage = () => {
       </div>
 
       {pendingApproval.length > 0 && (
-        <div className="pending-section">
-          <h2>Pending Approval</h2>
-          {pendingApproval.map(list => (
-            <ShoppingList 
-              key={list.id}
-              list={list}
-              familyId={family?.id}
-              currentUser={currentUser}
-              family={family}
-              mode="approval"
-            />
-          ))}
-        </div>
-      )}
-
-      <div className="active-lists">
-        <h2>Active Lists</h2>
-        {activeLists.length === 0 ? (
-          <div className="empty-state">
-            <p>No active shopping lists</p>
-            <button 
-              className="create-first-btn"
-              onClick={() => setShowAddList(true)}
-              disabled={!family?.id || !currentUser?.uid}
-            >
-              Create your first shopping list
-            </button>
-          </div>
-        ) : (
-          activeLists.map(list => (
-            <ShoppingList 
-              key={list.id}
-              list={list}
-              familyId={family?.id}
-              currentUser={currentUser}
-              family={family}
-              mode="active"
-            />
-          ))
-        )}
-      </div>
-
-      {paymentTracking.length > 0 && (
-        <div className="payment-tracking-section">
-          <h2>Payment Tracking</h2>
-          <p className="section-description">Track the approval and payment status of your shopping receipts</p>
-          <div className="payment-tracking-grid">
-            {paymentTracking.map(list => (
-              <PaymentStatusCard 
+        <ShoppingErrorBoundary>
+          <div className="pending-section">
+            <h2>Pending Approval</h2>
+            {pendingApproval.map(list => (
+              <ShoppingList 
                 key={list.id}
                 list={list}
                 familyId={family?.id}
                 currentUser={currentUser}
-                onUpdate={() => {
-                  // Optional: trigger a refresh of the shopping lists
-                }}
+                family={family}
+                mode="approval"
               />
             ))}
           </div>
+        </ShoppingErrorBoundary>
+      )}
+
+      <ShoppingErrorBoundary>
+        <div className="active-lists">
+          <h2>Active Lists</h2>
+          {activeLists.length === 0 ? (
+            <div className="empty-state">
+              <p>No active shopping lists</p>
+              <button 
+                className="create-first-btn"
+                onClick={() => setShowAddList(true)}
+                disabled={!family?.id || !currentUser?.uid}
+              >
+                Create your first shopping list
+              </button>
+            </div>
+          ) : (
+            activeLists.map(list => (
+              <ShoppingList 
+                key={list.id}
+                list={list}
+                familyId={family?.id}
+                currentUser={currentUser}
+                family={family}
+                mode="active"
+              />
+            ))
+          )}
         </div>
+      </ShoppingErrorBoundary>
+
+      {paymentTracking.length > 0 && (
+        <ShoppingErrorBoundary>
+          <div className="payment-tracking-section">
+            <h2>Payment Tracking</h2>
+            <p className="section-description">Track the approval and payment status of your shopping receipts</p>
+            <div className="payment-tracking-grid">
+              {paymentTracking.map(list => (
+                <PaymentStatusCard 
+                  key={list.id}
+                  list={list}
+                  familyId={family?.id}
+                  currentUser={currentUser}
+                  onUpdate={() => {
+                    // Optional: trigger a refresh of the shopping lists
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </ShoppingErrorBoundary>
       )}
 
       {showAddList && (

@@ -225,6 +225,26 @@ function Dashboard({ user }) {
     };
   }, [userData?.familyId]);
 
+
+  // Show recurring activities management
+  if (currentView === 'activities') {
+    return (
+      <div style={styles.appContainer}>
+        <RecurringActivitiesManager
+          familyId={userData?.familyId}
+          children={children}
+          userRole={userRole}
+          onClose={() => setCurrentView('dashboard')}
+        />
+        <BottomNavigation 
+          currentView={currentView} 
+          onNavigate={setCurrentView} 
+          pendingApprovalCount={pendingApprovalCount}
+        />
+      </div>
+    );
+  }
+
   // Determine dashboard state
   const dashboardState = getDashboardState(userData, children, tasks);
   
@@ -669,24 +689,6 @@ function Dashboard({ user }) {
     );
   }
 
-  // Show recurring activities management
-  if (currentView === 'activities') {
-    return (
-      <div style={styles.appContainer}>
-        <RecurringActivitiesManager
-          familyId={userData?.familyId}
-          children={children}
-          userRole={userRole}
-          onClose={() => setCurrentView('dashboard')}
-        />
-        <BottomNavigation 
-          currentView={currentView} 
-          onNavigate={setCurrentView} 
-          pendingApprovalCount={pendingApprovalCount}
-        />
-      </div>
-    );
-  }
 
   return (
     <div style={styles.container}>
@@ -812,40 +814,6 @@ function Dashboard({ user }) {
           </section>
         </ErrorBoundary>
 
-        {/* Recurring Activities Management - Only for Parents */}
-        {userRole === 'parent' && (
-          <section style={styles.section}>
-            <div style={styles.sectionHeader}>
-              <h2 style={styles.sectionTitle}>Recurring Activities</h2>
-              <button 
-                style={styles.headerButton} 
-                onClick={() => setCurrentView('activities')}
-              >
-                Manage Activities
-              </button>
-            </div>
-            <div style={styles.activitiesPreview}>
-              <p style={styles.activitiesDescription}>
-                Set up regular schedules for sports, lessons, appointments, and other recurring activities. 
-                Your au pair will see these in their upcoming events.
-              </p>
-              <div style={styles.activitiesFeatures}>
-                <div style={styles.featureItem}>
-                  <span style={styles.featureIcon}>📅</span>
-                  <span>Weekly & custom schedules</span>
-                </div>
-                <div style={styles.featureItem}>
-                  <span style={styles.featureIcon}>📍</span>
-                  <span>Locations & contact info</span>
-                </div>
-                <div style={styles.featureItem}>
-                  <span style={styles.featureIcon}>🎒</span>
-                  <span>Required items & preparation</span>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
 
         {/* Time-Off Requests Section - Show for parents always, for au pairs only if there are requests */}
         {(userRole === 'parent' || (userRole === 'aupair' && timeOffRequests.length > 0)) && (
@@ -893,6 +861,42 @@ function Dashboard({ user }) {
             />
           </section>
         </ErrorBoundary>
+
+        {/* Recurring Activities Management - Only for Parents */}
+        {userRole === 'parent' && (
+          <section style={styles.section}>
+            <div style={styles.sectionHeader}>
+              <h2 style={styles.sectionTitle}>Recurring Activities</h2>
+              <button 
+                style={styles.headerButton} 
+                onClick={() => setCurrentView('activities')}
+              >
+                Manage Activities
+              </button>
+            </div>
+            <div style={styles.activitiesPreview}>
+              <p style={styles.activitiesDescription}>
+                Set up regular schedules for sports, lessons, appointments, and other recurring activities. 
+                Your au pair will see these in their upcoming events.
+              </p>
+              <div style={styles.activitiesFeatures}>
+                <div style={styles.featureItem}>
+                  <span style={styles.featureIcon}>📅</span>
+                  <span>Weekly & custom schedules</span>
+                </div>
+                <div style={styles.featureItem}>
+                  <span style={styles.featureIcon}>📍</span>
+                  <span>Locations & contact info</span>
+                </div>
+                <div style={styles.featureItem}>
+                  <span style={styles.featureIcon}>🎒</span>
+                  <span>Required items & preparation</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
 
         {/* Family Notes Section */}
         <ErrorBoundary

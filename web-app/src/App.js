@@ -29,6 +29,11 @@ function App() {
           }
         } catch (error) {
           console.error('Error fetching user data:', error);
+          // Reset auth state on Firestore error to prevent corruption
+          if (error.code === 'firestore/internal') {
+            setUser(null);
+            setUserData(null);
+          }
         }
       } else {
         setUserData(null);

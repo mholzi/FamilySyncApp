@@ -35,65 +35,15 @@ const UpcomingEventsForMe = ({
   userRole = 'aupair',
   activities = [],
   familyId = null,
-  maxEvents = 5 
+  maxEvents = 5,
+  recurringActivities = []
 }) => {
-  const [recurringActivities, setRecurringActivities] = useState([]);
   const [babysittingRequests, setBabysittingRequests] = useState([]);
   const [eventOverrides, setEventOverrides] = useState({});
   const [editingEvent, setEditingEvent] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [eventFilter, setEventFilter] = useState('my'); // 'my' or 'all'
 
-  // Fetch recurring activities from Firestore
-  useEffect(() => {
-    if (!familyId) {
-      setRecurringActivities([]);
-      return;
-    }
-
-    let unsubscribe = null;
-
-    try {
-      const activitiesQuery = query(
-        collection(db, 'recurringActivities'),
-        where('familyId', '==', familyId),
-        where('isActive', '==', true)
-      );
-
-      unsubscribe = onSnapshot(
-        activitiesQuery, 
-        (snapshot) => {
-          try {
-            const activitiesData = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            }));
-            setRecurringActivities(activitiesData);
-          } catch (error) {
-            console.warn('Error processing recurring activities snapshot:', error);
-            setRecurringActivities([]);
-          }
-        },
-        (error) => {
-          console.warn('Error fetching recurring activities:', error);
-          setRecurringActivities([]);
-        }
-      );
-    } catch (error) {
-      console.warn('Error setting up recurring activities listener:', error);
-      setRecurringActivities([]);
-    }
-
-    return () => {
-      if (unsubscribe && typeof unsubscribe === 'function') {
-        try {
-          unsubscribe();
-        } catch (error) {
-          console.warn('Error unsubscribing from recurring activities:', error);
-        }
-      }
-    };
-  }, [familyId]);
 
   // Fetch accepted babysitting requests from Firestore
   useEffect(() => {
@@ -280,13 +230,17 @@ const UpcomingEventsForMe = ({
         bedtime: 'parent'
       };
 
-      // Filter based on user role and event filter
-      const shouldShow = (activity) => {
+      // Filter based on user role and event filter - now checks after applying overrides
+      const shouldShow = (activity, eventData = null) => {
         if (eventFilter === 'all') {
           // Show all family events regardless of responsibility
           return true;
         } else {
-          // For both parents and au pairs, "my events" / "au pair events" shows au pair responsibilities
+          // If we have event data with override applied, use that responsibility
+          if (eventData && eventData.responsibility) {
+            return eventData.responsibility === 'au_pair' || eventData.responsibility === 'shared';
+          }
+          // Fallback to original responsibilities for initial filtering
           return responsibilities[activity] === 'au_pair' || responsibilities[activity] === 'shared';
         }
       };
@@ -294,10 +248,11 @@ const UpcomingEventsForMe = ({
       const childColor = getChildColor(child.id, childIndex);
 
       // Add wake up
-      if (routine.wakeUpTime && shouldShow('wakeUp')) {
+      if (routine.wakeUpTime) {
         const eventTime = timeToMinutes(routine.wakeUpTime);
         if (eventTime > currentTime) {
-          addEventToGroup({
+          // Create initial event data
+          const eventData = {
             title: 'Wake Up',
             time: routine.wakeUpTime,
             minutes: eventTime,
@@ -310,15 +265,29 @@ const UpcomingEventsForMe = ({
             additionalInfo: null,
             responsibility: responsibilities.wakeUp,
             originalResponsibility: responsibilities.wakeUp
-          });
+          };
+          
+          // Check for event overrides
+          const date = eventData.isToday ? new Date().toDateString() : new Date(Date.now() + 86400000).toDateString();
+          const override = getEventOverride(eventOverrides, eventData.type, date, eventData.child.id, eventData.time);
+          
+          // Apply override (this will return null if event is cancelled)
+          const finalEvent = applyEventOverride(eventData, override);
+          if (!finalEvent) return; // Skip cancelled events
+          
+          // Now check if we should show this event with the final responsibility
+          if (shouldShow('wakeUp', finalEvent)) {
+            addEventToGroup(finalEvent);
+          }
         }
       }
 
       // Add breakfast
-      if (routine.mealTimes?.breakfast && shouldShow('breakfast')) {
+      if (routine.mealTimes?.breakfast) {
         const eventTime = timeToMinutes(routine.mealTimes.breakfast);
         if (eventTime > currentTime) {
-          addEventToGroup({
+          // Create initial event data
+          const eventData = {
             title: 'Breakfast',
             time: routine.mealTimes.breakfast,
             minutes: eventTime,
@@ -331,12 +300,25 @@ const UpcomingEventsForMe = ({
             additionalInfo: 'Check if there are any special dietary requirements for today',
             responsibility: responsibilities.breakfast,
             originalResponsibility: responsibilities.breakfast
-          });
+          };
+          
+          // Check for event overrides
+          const date = eventData.isToday ? new Date().toDateString() : new Date(Date.now() + 86400000).toDateString();
+          const override = getEventOverride(eventOverrides, eventData.type, date, eventData.child.id, eventData.time);
+          
+          // Apply override (this will return null if event is cancelled)
+          const finalEvent = applyEventOverride(eventData, override);
+          if (!finalEvent) return; // Skip cancelled events
+          
+          // Now check if we should show this event with the final responsibility
+          if (shouldShow('breakfast', finalEvent)) {
+            addEventToGroup(finalEvent);
+          }
         }
       }
 
       // Add lunch times
-      if (routine.mealTimes?.lunch && shouldShow('lunch')) {
+      if (routine.mealTimes?.lunch) {
         const lunchTimes = Array.isArray(routine.mealTimes.lunch) 
           ? routine.mealTimes.lunch 
           : [routine.mealTimes.lunch];
@@ -344,7 +326,8 @@ const UpcomingEventsForMe = ({
         lunchTimes.forEach((lunchTime, index) => {
           const eventTime = timeToMinutes(lunchTime);
           if (eventTime > currentTime) {
-            addEventToGroup({
+            // Create initial event data
+            const eventData = {
               title: lunchTimes.length > 1 ? `Lunch ${index + 1}` : 'Lunch',
               time: lunchTime,
               minutes: eventTime,
@@ -357,16 +340,30 @@ const UpcomingEventsForMe = ({
               additionalInfo: routine.mealTimes.lunch.length === 0 ? 'Usually provided at school' : null,
               responsibility: responsibilities.lunch,
               originalResponsibility: responsibilities.lunch
-            });
+            };
+            
+            // Check for event overrides
+            const date = eventData.isToday ? new Date().toDateString() : new Date(Date.now() + 86400000).toDateString();
+            const override = getEventOverride(eventOverrides, eventData.type, date, eventData.child.id, eventData.time);
+            
+            // Apply override (this will return null if event is cancelled)
+            const finalEvent = applyEventOverride(eventData, override);
+            if (!finalEvent) return; // Skip cancelled events
+            
+            // Now check if we should show this event with the final responsibility
+            if (shouldShow('lunch', finalEvent)) {
+              addEventToGroup(finalEvent);
+            }
           }
         });
       }
 
       // Add dinner
-      if (routine.mealTimes?.dinner && shouldShow('dinner')) {
+      if (routine.mealTimes?.dinner) {
         const eventTime = timeToMinutes(routine.mealTimes.dinner);
         if (eventTime > currentTime) {
-          addEventToGroup({
+          // Create initial event data
+          const eventData = {
             title: 'Dinner',
             time: routine.mealTimes.dinner,
             minutes: eventTime,
@@ -379,16 +376,30 @@ const UpcomingEventsForMe = ({
             additionalInfo: responsibilities.dinner === 'shared' ? 'Coordinate with parents' : null,
             responsibility: responsibilities.dinner,
             originalResponsibility: responsibilities.dinner
-          });
+          };
+          
+          // Check for event overrides
+          const date = eventData.isToday ? new Date().toDateString() : new Date(Date.now() + 86400000).toDateString();
+          const override = getEventOverride(eventOverrides, eventData.type, date, eventData.child.id, eventData.time);
+          
+          // Apply override (this will return null if event is cancelled)
+          const finalEvent = applyEventOverride(eventData, override);
+          if (!finalEvent) return; // Skip cancelled events
+          
+          // Now check if we should show this event with the final responsibility
+          if (shouldShow('dinner', finalEvent)) {
+            addEventToGroup(finalEvent);
+          }
         }
       }
 
       // Add snacks
-      if (routine.mealTimes?.snacks && shouldShow('snacks')) {
+      if (routine.mealTimes?.snacks) {
         routine.mealTimes.snacks.forEach((snackTime, index) => {
           const eventTime = timeToMinutes(snackTime);
           if (eventTime > currentTime) {
-            addEventToGroup({
+            // Create initial event data
+            const eventData = {
               title: routine.mealTimes.snacks.length > 1 ? `Snack ${index + 1}` : 'Snack',
               time: snackTime,
               minutes: eventTime,
@@ -401,18 +412,32 @@ const UpcomingEventsForMe = ({
               additionalInfo: null,
               responsibility: responsibilities.snacks,
               originalResponsibility: responsibilities.snacks
-            });
+            };
+            
+            // Check for event overrides
+            const date = eventData.isToday ? new Date().toDateString() : new Date(Date.now() + 86400000).toDateString();
+            const override = getEventOverride(eventOverrides, eventData.type, date, eventData.child.id, eventData.time);
+            
+            // Apply override (this will return null if event is cancelled)
+            const finalEvent = applyEventOverride(eventData, override);
+            if (!finalEvent) return; // Skip cancelled events
+            
+            // Now check if we should show this event with the final responsibility
+            if (shouldShow('snacks', finalEvent)) {
+              addEventToGroup(finalEvent);
+            }
           }
         });
       }
 
       // Add nap times
-      if (routine.napTimes && routine.napTimes.length > 0 && shouldShow('naps')) {
+      if (routine.napTimes && routine.napTimes.length > 0) {
         routine.napTimes.forEach((nap, index) => {
           if (nap.startTime) {
             const eventTime = timeToMinutes(nap.startTime);
             if (eventTime > currentTime) {
-              addEventToGroup({
+              // Create initial event data
+              const eventData = {
                 title: routine.napTimes.length > 1 ? `Nap ${index + 1}` : 'Nap Time',
                 time: nap.startTime,
                 minutes: eventTime,
@@ -425,17 +450,31 @@ const UpcomingEventsForMe = ({
                 additionalInfo: `Duration: ${nap.duration} minutes${nap.isFlexible ? ' (flexible timing)' : ''}`,
                 responsibility: responsibilities.naps,
                 originalResponsibility: responsibilities.naps
-              });
+              };
+              
+              // Check for event overrides
+              const date = eventData.isToday ? new Date().toDateString() : new Date(Date.now() + 86400000).toDateString();
+              const override = getEventOverride(eventOverrides, eventData.type, date, eventData.child.id, eventData.time);
+              
+              // Apply override (this will return null if event is cancelled)
+              const finalEvent = applyEventOverride(eventData, override);
+              if (!finalEvent) return; // Skip cancelled events
+              
+              // Now check if we should show this event with the final responsibility
+              if (shouldShow('naps', finalEvent)) {
+                addEventToGroup(finalEvent);
+              }
             }
           }
         });
       }
 
       // Add bedtime
-      if (routine.bedtime && shouldShow('bedtime')) {
+      if (routine.bedtime) {
         const eventTime = timeToMinutes(routine.bedtime);
         if (eventTime > currentTime) {
-          addEventToGroup({
+          // Create initial event data
+          const eventData = {
             title: 'Bedtime',
             time: routine.bedtime,
             minutes: eventTime,
@@ -448,7 +487,20 @@ const UpcomingEventsForMe = ({
             additionalInfo: responsibilities.bedtime === 'shared' ? 'Coordinate with parents' : null,
             responsibility: responsibilities.bedtime,
             originalResponsibility: responsibilities.bedtime
-          });
+          };
+          
+          // Check for event overrides
+          const date = eventData.isToday ? new Date().toDateString() : new Date(Date.now() + 86400000).toDateString();
+          const override = getEventOverride(eventOverrides, eventData.type, date, eventData.child.id, eventData.time);
+          
+          // Apply override (this will return null if event is cancelled)
+          const finalEvent = applyEventOverride(eventData, override);
+          if (!finalEvent) return; // Skip cancelled events
+          
+          // Now check if we should show this event with the final (potentially overridden) responsibility
+          if (shouldShow('bedtime', finalEvent)) {
+            addEventToGroup(finalEvent);
+          }
         }
       }
     });
@@ -501,9 +553,9 @@ const UpcomingEventsForMe = ({
               pickupDescription = `Pick up ${child.name} from school`;
               pickupResponsibility = 'au_pair';
             } else if (todayPickupPerson === 'alone') {
-              pickupTitle = 'School End';
+              pickupTitle = 'School End (Awareness)';
               pickupDescription = `${child.name} comes home alone from school`;
-              pickupResponsibility = 'aware'; // Special responsibility type for awareness
+              pickupResponsibility = 'awareness';
             }
 
             // Enhanced display for travel time and school address
@@ -511,15 +563,15 @@ const UpcomingEventsForMe = ({
             let enhancedAdditionalInfo = null;
             
             if (todayPickupPerson === 'alone') {
-              // For "alone" pickups, don't show location or additional info
+              // For "alone" pickups, don't show location or travel time
               schoolAddress = null;
-              enhancedAdditionalInfo = null;
+              enhancedAdditionalInfo = 'Awareness: Child coming home independently';
             } else {
               // For actual pickups, show school address and travel time
               schoolAddress = child.schoolInfo?.address || 'School';
               const travelTime = child.schoolInfo?.travelTime;
               if (travelTime) {
-                enhancedAdditionalInfo = `⏱️ Travel time: ${travelTime} minutes - Plan ahead for pickup!`;
+                enhancedAdditionalInfo = `Travel time: ${travelTime} minutes - Plan ahead for pickup!`;
               }
             }
 
@@ -715,12 +767,16 @@ const UpcomingEventsForMe = ({
           bedtime: 'parent'
         };
 
-        const shouldShow = (activity) => {
+        const shouldShow = (activity, eventData = null) => {
           if (eventFilter === 'all') {
             // Show all family events regardless of responsibility
             return true;
           } else {
-            // For both parents and au pairs, "my events" / "au pair events" shows au pair responsibilities
+            // If we have event data with override applied, use that responsibility
+            if (eventData && eventData.responsibility) {
+              return eventData.responsibility === 'au_pair' || eventData.responsibility === 'shared';
+            }
+            // Fallback to original responsibilities for initial filtering
             return responsibilities[activity] === 'au_pair' || responsibilities[activity] === 'shared';
           }
         };
@@ -728,8 +784,9 @@ const UpcomingEventsForMe = ({
         const childColor = getChildColor(child.id, childIndex);
 
         // Add tomorrow's wake up
-        if (routine.wakeUpTime && shouldShow('wakeUp')) {
-          addEventToGroup({
+        if (routine.wakeUpTime) {
+          // Create initial event data
+          const eventData = {
             title: 'Wake Up',
             time: routine.wakeUpTime,
             minutes: timeToMinutes(routine.wakeUpTime),
@@ -742,12 +799,26 @@ const UpcomingEventsForMe = ({
             additionalInfo: null,
             responsibility: responsibilities.wakeUp,
             originalResponsibility: responsibilities.wakeUp
-          });
+          };
+          
+          // Check for event overrides
+          const date = new Date(Date.now() + 86400000).toDateString();
+          const override = getEventOverride(eventOverrides, eventData.type, date, eventData.child.id, eventData.time);
+          
+          // Apply override (this will return null if event is cancelled)
+          const finalEvent = applyEventOverride(eventData, override);
+          if (!finalEvent) return; // Skip cancelled events
+          
+          // Now check if we should show this event with the final responsibility
+          if (shouldShow('wakeUp', finalEvent)) {
+            addEventToGroup(finalEvent);
+          }
         }
 
         // Add tomorrow's breakfast
-        if (routine.mealTimes?.breakfast && shouldShow('breakfast')) {
-          addEventToGroup({
+        if (routine.mealTimes?.breakfast) {
+          // Create initial event data
+          const eventData = {
             title: 'Breakfast',
             time: routine.mealTimes.breakfast,
             minutes: timeToMinutes(routine.mealTimes.breakfast),
@@ -760,7 +831,20 @@ const UpcomingEventsForMe = ({
             additionalInfo: 'Check if there are any special dietary requirements for tomorrow',
             responsibility: responsibilities.breakfast,
             originalResponsibility: responsibilities.breakfast
-          });
+          };
+          
+          // Check for event overrides
+          const date = new Date(Date.now() + 86400000).toDateString();
+          const override = getEventOverride(eventOverrides, eventData.type, date, eventData.child.id, eventData.time);
+          
+          // Apply override (this will return null if event is cancelled)
+          const finalEvent = applyEventOverride(eventData, override);
+          if (!finalEvent) return; // Skip cancelled events
+          
+          // Now check if we should show this event with the final responsibility
+          if (shouldShow('breakfast', finalEvent)) {
+            addEventToGroup(finalEvent);
+          }
         }
 
         // Add tomorrow's school pickup events
@@ -795,9 +879,9 @@ const UpcomingEventsForMe = ({
                   pickupDescription = `Pick up ${child.name} from school`;
                   pickupResponsibility = 'au_pair';
                 } else if (tomorrowPickupPerson === 'alone') {
-                  pickupTitle = 'School End';
+                  pickupTitle = 'School End (Awareness)';
                   pickupDescription = `${child.name} comes home alone from school`;
-                  pickupResponsibility = 'aware'; // Special responsibility type for awareness
+                  pickupResponsibility = 'awareness';
                 }
 
                 // Enhanced display for travel time and school address
@@ -805,15 +889,15 @@ const UpcomingEventsForMe = ({
                 let enhancedAdditionalInfo = null;
                 
                 if (tomorrowPickupPerson === 'alone') {
-                  // For "alone" pickups, don't show location or additional info
+                  // For "alone" pickups, don't show location or travel time
                   schoolAddress = null;
-                  enhancedAdditionalInfo = null;
+                  enhancedAdditionalInfo = 'Awareness: Child coming home independently';
                 } else {
                   // For actual pickups, show school address and travel time
                   schoolAddress = child.schoolInfo?.address || 'School';
                   const travelTime = child.schoolInfo?.travelTime;
                   if (travelTime) {
-                    enhancedAdditionalInfo = `⏱️ Travel time: ${travelTime} minutes - Plan ahead for pickup!`;
+                    enhancedAdditionalInfo = `Travel time: ${travelTime} minutes - Plan ahead for pickup!`;
                   }
                 }
 
@@ -838,6 +922,84 @@ const UpcomingEventsForMe = ({
       });
     }
 
+    // Add recurring activities
+    recurringActivities.forEach(activity => {
+      try {
+        // Get next occurrences for this activity
+        const nextOccurrences = getNextOccurrences(activity, 3);
+        
+        nextOccurrences.forEach(occurrence => {
+          const eventTime = timeToMinutes(occurrence.time);
+          const occurrenceDate = occurrence.date.toDateString();
+          const isToday = occurrenceDate === currentDate;
+          const isTomorrow = occurrenceDate === new Date(Date.now() + 86400000).toDateString();
+          
+          // Only show today's upcoming events or tomorrow's events (if we need more)
+          if ((isToday && eventTime > currentTime) || (isTomorrow && eventGroups.size < maxEvents)) {
+            // Check if au pair should see this activity based on transportation responsibilities
+            const shouldShowActivity = () => {
+              if (eventFilter === 'all') return true;
+              
+              // Show if au pair is responsible for either dropoff or pickup
+              return activity.transportation?.dropoff === 'au_pair' || 
+                     activity.transportation?.pickup === 'au_pair';
+            };
+            
+            if (shouldShowActivity()) {
+              // Find the assigned child for this activity
+              const assignedChild = children.find(child => 
+                activity.assignedChildren.includes(child.id)
+              );
+              
+              if (assignedChild) {
+                const childColor = getChildColor(assignedChild.id);
+                
+                // Determine responsibility based on activity timing and transportation
+                let responsibility = 'parent'; // default
+                if (activity.transportation?.dropoff === 'au_pair' || activity.transportation?.pickup === 'au_pair') {
+                  responsibility = 'au_pair';
+                } else if (activity.transportation?.dropoff === 'shared' || activity.transportation?.pickup === 'shared') {
+                  responsibility = 'shared';
+                }
+                
+                // Create transportation info
+                let transportationInfo = '';
+                if (activity.transportation?.dropoff === 'au_pair') {
+                  transportationInfo += 'Drop-off: Au Pair';
+                }
+                if (activity.transportation?.pickup === 'au_pair') {
+                  if (transportationInfo) transportationInfo += ' | ';
+                  transportationInfo += 'Pick-up: Au Pair';
+                }
+                if (activity.transportation?.dropoff === 'child_alone' || activity.transportation?.pickup === 'child_alone') {
+                  if (transportationInfo) transportationInfo += ' | ';
+                  transportationInfo += 'Child goes alone';
+                }
+                
+                addEventToGroup({
+                  title: activity.name,
+                  time: occurrence.time,
+                  minutes: eventTime,
+                  child: assignedChild,
+                  childColor: childColor,
+                  type: 'activity',
+                  isToday: isToday,
+                  description: `${activity.category} activity`,
+                  location: activity.location?.name || activity.location?.address,
+                  additionalInfo: transportationInfo || `Duration: ${activity.duration} minutes`,
+                  responsibility: responsibility,
+                  originalResponsibility: responsibility,
+                  activityData: activity // Store full activity data for potential future use
+                });
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.warn('Error processing recurring activity:', error, activity);
+      }
+    });
+
     // Convert grouped events to array and sort by time (today's events first, then tomorrow's) and limit to maxEvents
     const sortedEvents = Array.from(eventGroups.values())
       .sort((a, b) => {
@@ -859,7 +1021,7 @@ const UpcomingEventsForMe = ({
           <h3 style={styles.title}>Upcoming Events</h3>
         </div>
         <div style={styles.emptyState}>
-          <div style={styles.emptyIcon}>🎯</div>
+          <div style={styles.emptyIcon}></div>
           <p style={styles.emptyText}>No upcoming events</p>
           <p style={styles.emptySubtext}>
             {userRole === 'aupair' 
@@ -974,7 +1136,7 @@ const UpcomingEventsForMe = ({
                   if (travelTime) {
                     return (
                       <div style={styles.additionalInfo}>
-                        <span style={styles.infoIcon}>⏱️</span>
+                        <span style={styles.infoIcon}></span>
                         <span style={styles.infoText}>Travel time: {travelTime} minutes - Plan ahead for pickup!</span>
                       </div>
                     );
@@ -998,7 +1160,7 @@ const UpcomingEventsForMe = ({
                 if (event.additionalInfo) {
                   return (
                     <div style={styles.additionalInfo}>
-                      <span style={styles.infoIcon}>💡</span>
+                      <span style={styles.infoIcon}></span>
                       <span style={styles.infoText}>{event.additionalInfo}</span>
                     </div>
                   );

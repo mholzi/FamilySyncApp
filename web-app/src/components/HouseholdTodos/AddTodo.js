@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { createHouseholdTodo } from '../../utils/householdTodosUtils';
+import TaskInstructions from './TaskInstructions/TaskInstructions';
+import ExamplePhotos from './TaskGuidance/ExamplePhotos';
 import './AddTodo.css';
 
 const AddTodo = ({ 
@@ -20,7 +22,13 @@ const AddTodo = ({
     isRecurring: editTodo?.isRecurring || false,
     recurringType: editTodo?.recurringType || 'weekly',
     recurringInterval: editTodo?.recurringInterval || 1,
-    recurringDays: editTodo?.recurringDays || [1] // Default to Monday
+    recurringDays: editTodo?.recurringDays || [1], // Default to Monday
+    // New enhanced fields
+    instructions: editTodo?.instructions || '',
+    difficulty: editTodo?.difficulty || 'easy',
+    firstTimeHelp: editTodo?.firstTimeHelp || '',
+    preferredTimeOfDay: editTodo?.preferredTimeOfDay || '',
+    examplePhotos: editTodo?.examplePhotos || []
   });
 
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -94,7 +102,14 @@ const AddTodo = ({
         isRecurring: formData.isRecurring,
         recurringType: formData.isRecurring ? formData.recurringType : null,
         recurringInterval: formData.isRecurring ? parseInt(formData.recurringInterval) : 1,
-        recurringDays: formData.isRecurring ? formData.recurringDays : []
+        recurringDays: formData.isRecurring ? formData.recurringDays : [],
+        // New enhanced fields
+        instructions: formData.instructions.trim(),
+        difficulty: formData.difficulty,
+        firstTimeHelp: formData.firstTimeHelp.trim(),
+        preferredTimeOfDay: formData.preferredTimeOfDay,
+        examplePhotos: formData.examplePhotos.map(photo => photo.url),
+        examplePhotosUploadedAt: formData.examplePhotos.length > 0 ? Timestamp.now() : null
       };
 
       if (editTodo) {
@@ -122,21 +137,10 @@ const AddTodo = ({
     }
   };
 
-  const handleRecurringDayToggle = (dayIndex) => {
-    setFormData(prev => ({
-      ...prev,
-      recurringDays: prev.recurringDays.includes(dayIndex)
-        ? prev.recurringDays.filter(d => d !== dayIndex)
-        : [...prev.recurringDays, dayIndex].sort()
-    }));
-  };
-
   const handleQuickDateSelect = (dateType) => {
     const date = dateType === 'today' ? getToday() : getTomorrow();
     handleInputChange('dueDate', date);
   };
-
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const categories = [
     { value: 'general', label: 'General', icon: '📋' },
     { value: 'cleaning', label: 'Cleaning', icon: '🧹' },
@@ -231,6 +235,53 @@ const AddTodo = ({
             {errors.dueDate && <span className="error-text">{errors.dueDate}</span>}
           </div>
 
+          {/* Recurring Task Settings - MOVED TO MAIN BODY */}
+          <div className="form-group">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={formData.isRecurring}
+                onChange={(e) => handleInputChange('isRecurring', e.target.checked)}
+              />
+              Make this a recurring task
+            </label>
+          </div>
+
+          {formData.isRecurring && (
+            <div className="recurring-options">
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="recurringType">Repeat</label>
+                  <select
+                    id="recurringType"
+                    value={formData.recurringType}
+                    onChange={(e) => handleInputChange('recurringType', e.target.value)}
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="recurringInterval">Every</label>
+                  <input
+                    id="recurringInterval"
+                    type="number"
+                    min="1"
+                    value={formData.recurringInterval}
+                    onChange={(e) => handleInputChange('recurringInterval', parseInt(e.target.value) || 1)}
+                    style={{ width: '80px' }}
+                  />
+                  <span className="input-suffix">
+                    {formData.recurringType === 'daily' ? 'day(s)' : 
+                     formData.recurringType === 'weekly' ? 'week(s)' : 'month(s)'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Advanced Options Toggle */}
           <button
             type="button"
@@ -269,72 +320,66 @@ const AddTodo = ({
                 {errors.estimatedTime && <span className="error-text">{errors.estimatedTime}</span>}
               </div>
 
-              {/* Recurring Options */}
+              {/* Task Difficulty */}
               <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={formData.isRecurring}
-                    onChange={(e) => handleInputChange('isRecurring', e.target.checked)}
-                  />
-                  Make this a recurring task
-                </label>
+                <label htmlFor="difficulty">Task Difficulty</label>
+                <select
+                  id="difficulty"
+                  value={formData.difficulty}
+                  onChange={(e) => handleInputChange('difficulty', e.target.value)}
+                >
+                  <option value="easy">Easy (Quick task)</option>
+                  <option value="moderate">Moderate (Standard task)</option>
+                  <option value="complex">Complex (Needs attention)</option>
+                </select>
               </div>
 
-              {formData.isRecurring && (
-                <div className="recurring-options">
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label htmlFor="recurringType">Repeat</label>
-                      <select
-                        id="recurringType"
-                        value={formData.recurringType}
-                        onChange={(e) => handleInputChange('recurringType', e.target.value)}
-                      >
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
-                      </select>
-                    </div>
+              {/* Preferred Time of Day */}
+              <div className="form-group">
+                <label htmlFor="preferredTimeOfDay">Preferred Time</label>
+                <select
+                  id="preferredTimeOfDay"
+                  value={formData.preferredTimeOfDay}
+                  onChange={(e) => handleInputChange('preferredTimeOfDay', e.target.value)}
+                >
+                  <option value="">No preference</option>
+                  <option value="morning">Morning</option>
+                  <option value="afternoon">Afternoon</option>
+                  <option value="evening">Evening</option>
+                </select>
+              </div>
 
-                    <div className="form-group">
-                      <label htmlFor="recurringInterval">Every</label>
-                      <input
-                        id="recurringInterval"
-                        type="number"
-                        min="1"
-                        max="30"
-                        value={formData.recurringInterval}
-                        onChange={(e) => handleInputChange('recurringInterval', e.target.value)}
-                      />
-                      <span className="interval-unit">
-                        {formData.recurringType === 'daily' && 'day(s)'}
-                        {formData.recurringType === 'weekly' && 'week(s)'}
-                        {formData.recurringType === 'monthly' && 'month(s)'}
-                      </span>
-                    </div>
-                  </div>
+              {/* Task Instructions */}
+              <TaskInstructions
+                value={formData.instructions}
+                onChange={(value) => handleInputChange('instructions', value)}
+                isEditing={true}
+              />
 
-                  {formData.recurringType === 'weekly' && (
-                    <div className="form-group">
-                      <label>Repeat on</label>
-                      <div className="day-selector">
-                        {dayNames.map((day, index) => (
-                          <button
-                            key={index}
-                            type="button"
-                            className={`day-btn ${formData.recurringDays.includes(index) ? 'selected' : ''}`}
-                            onClick={() => handleRecurringDayToggle(index)}
-                          >
-                            {day}
-                          </button>
-                        ))}
-                      </div>
-                      {errors.recurringDays && <span className="error-text">{errors.recurringDays}</span>}
-                    </div>
-                  )}
+              {/* First Time Help */}
+              <div className="form-group">
+                <label htmlFor="firstTimeHelp">First-Time Guidance</label>
+                <textarea
+                  id="firstTimeHelp"
+                  value={formData.firstTimeHelp}
+                  onChange={(e) => handleInputChange('firstTimeHelp', e.target.value)}
+                  placeholder="Extra tips for au pairs doing this task for the first time..."
+                  rows={2}
+                />
+                <div className="field-help">
+                  💡 This will be shown to new au pairs with less than 30 days experience
                 </div>
-              )}
+              </div>
+
+
+              {/* Example Photos */}
+              <ExamplePhotos
+                familyId={familyId}
+                photos={formData.examplePhotos}
+                onPhotosChange={(photos) => handleInputChange('examplePhotos', photos)}
+                isEditing={true}
+                taskTitle={formData.title || "this task"}
+              />
             </div>
           )}
 

@@ -30,6 +30,7 @@ const CalendarEventCard = ({
   event, 
   hasConflict = false, 
   onEdit, 
+  onDelete,
   userRole 
 }) => {
   const [showPopup, setShowPopup] = useState(false);
@@ -70,17 +71,6 @@ const CalendarEventCard = ({
     return styles[type] || styles.oneTime;
   };
 
-  const getResponsibilityInfo = (responsibility) => {
-    const responsibilities = {
-      parent: { label: 'Parent', icon: '👨‍👩‍👧', color: '#6366F1' },
-      au_pair: { label: 'Au Pair', icon: '👤', color: '#10B981' },
-      other_parent: { label: 'Other Parent', icon: '👤', color: '#F59E0B' },
-      grandparent: { label: 'Grandparent', icon: '👴', color: '#EC4899' },
-      child_alone: { label: 'Child Alone', icon: '🚶', color: '#94A3B8' },
-      school: { label: 'School', icon: '🏫', color: '#F59E0B' }
-    };
-    return responsibilities[responsibility] || responsibilities.au_pair;
-  };
 
   const formatTime = (minutes) => {
     const hours = Math.floor(minutes / 60);
@@ -96,7 +86,6 @@ const CalendarEventCard = ({
   };
 
   const typeStyle = getEventTypeStyle(event.type);
-  const responsibilityInfo = getResponsibilityInfo(event.responsibility);
   const startTime = formatTime(event.startMinutes);
   const endTime = formatTime(event.endMinutes);
   const duration = formatDuration(event.duration);
@@ -229,18 +218,18 @@ const CalendarEventCard = ({
                     style={styles.popupEditButton}
                     onClick={(e) => {
                       e.stopPropagation();
-                      onEdit();
+                      onEdit && onEdit(event);
                       setShowPopup(false);
                     }}
                   >
                     ✏️ Edit
                   </button>
-                  {event.type !== 'routine' && event.type !== 'school' && (
+                  {event.type !== 'routine' && event.type !== 'school' && onDelete && (
                     <button 
                       style={styles.popupDeleteButton}
                       onClick={(e) => {
                         e.stopPropagation();
-                        console.log('Delete event:', event.id);
+                        onDelete(event);
                         setShowPopup(false);
                       }}
                     >

@@ -1,5 +1,14 @@
-import { doc, setDoc, updateDoc, collection, addDoc, Timestamp } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, collection, addDoc, Timestamp, runTransaction, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { 
+  validateShoppingListData, 
+  validateShoppingItemInput, 
+  validateFamilyId, 
+  validateUserId,
+  sanitizeShoppingListData,
+  sanitizeShoppingItemData,
+  createUserFriendlyError
+} from './shoppingValidation';
 
 // Create a new family (called when a parent signs up)
 export const createFamily = async (userId, userName) => {
@@ -107,70 +116,143 @@ export const createCalendarEvent = async (familyId, eventData) => {
 // Create a shopping list
 export const createShoppingList = async (familyId, listData) => {
   try {
-    const listRef = await addDoc(collection(db, 'families', familyId, 'shopping'), {
+    // Validate inputs
+    validateFamilyId(familyId);
+    validateShoppingListData(listData);
+    
+    // Sanitize data
+    const sanitizedData = sanitizeShoppingListData({
       ...listData,
+      familyId,
       isArchived: false,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     });
+    
+    const listRef = await addDoc(collection(db, 'families', familyId, 'shopping'), sanitizedData);
     return listRef.id;
   } catch (error) {
     console.error('Error creating shopping list:', error);
-    throw error;
+    throw new Error(createUserFriendlyError(error));
   }
 };
 
-// Add item to shopping list
+// Add item to shopping list (transaction-based)
 export const addShoppingItem = async (familyId, listId, item, userId) => {
   try {
-    // Get the current shopping list
-    const listRef = doc(db, 'families', familyId, 'shopping', listId);
+    // Validate inputs
+    validateFamilyId(familyId);
+    validateUserId(userId);
+    validateShoppingItemInput(item, userId);
     
-    // Add the new item to the items array
-    const newItem = {
-      id: Date.now().toString(), // Simple ID generation
-      ...item,
-      isPurchased: false,
-      addedBy: userId,
-      purchasedBy: null,
-      purchasedAt: null
-    };
-
-    // Update the document by adding to the items array
-    await updateDoc(listRef, {
-      [`items.${newItem.id}`]: newItem,
-      updatedAt: Timestamp.now()
+    return await runTransaction(db, async (transaction) => {
+      const listRef = doc(db, 'families', familyId, 'shopping', listId);
+      const listDoc = await transaction.get(listRef);
+      
+      if (!listDoc.exists()) {
+        throw new Error('Shopping list not found');
+      }
+      
+      const listData = listDoc.data();
+      
+      // Ensure items is an object
+      if (!listData.items || typeof listData.items !== 'object' || Array.isArray(listData.items)) {
+        listData.items = {};
+      }
+      
+      // Create new item with validation
+      const newItem = sanitizeShoppingItemData({
+        ...item,
+        id: Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9)
+      }, userId);
+      
+      // Check for duplicate item names
+      const existingItem = Object.values(listData.items).find(
+        existingItem => existingItem.name.toLowerCase() === newItem.name.toLowerCase()
+      );
+      
+      if (existingItem) {
+        throw new Error('Item already exists in shopping list');
+      }
+      
+      // Add item to the list
+      const updatedItems = {
+        ...listData.items,
+        [newItem.id]: newItem
+      };
+      
+      // Update the document
+      transaction.update(listRef, {
+        items: updatedItems,
+        updatedAt: Timestamp.now()
+      });
+      
+      return newItem.id;
     });
-
-    return newItem.id;
   } catch (error) {
     console.error('Error adding shopping item:', error);
-    throw error;
+    throw new Error(createUserFriendlyError(error));
   }
 };
 
-// Toggle shopping item purchased status
+// Toggle shopping item purchased status (transaction-based)
 export const toggleShoppingItem = async (familyId, listId, itemId, isPurchased, userId) => {
   try {
-    const listRef = doc(db, 'families', familyId, 'shopping', listId);
+    // Validate inputs
+    validateFamilyId(familyId);
+    validateUserId(userId);
     
-    const updateData = {
-      [`items.${itemId}.isPurchased`]: isPurchased,
-      updatedAt: Timestamp.now()
-    };
-
-    if (isPurchased) {
-      updateData[`items.${itemId}.purchasedBy`] = userId;
-      updateData[`items.${itemId}.purchasedAt`] = Timestamp.now();
-    } else {
-      updateData[`items.${itemId}.purchasedBy`] = null;
-      updateData[`items.${itemId}.purchasedAt`] = null;
+    if (!itemId || typeof itemId !== 'string') {
+      throw new Error('Invalid itemId');
     }
-
-    await updateDoc(listRef, updateData);
+    
+    if (typeof isPurchased !== 'boolean') {
+      throw new Error('Invalid isPurchased value');
+    }
+    
+    return await runTransaction(db, async (transaction) => {
+      const listRef = doc(db, 'families', familyId, 'shopping', listId);
+      const listDoc = await transaction.get(listRef);
+      
+      if (!listDoc.exists()) {
+        throw new Error('Shopping list not found');
+      }
+      
+      const listData = listDoc.data();
+      
+      // Ensure items is an object
+      if (!listData.items || typeof listData.items !== 'object' || Array.isArray(listData.items)) {
+        throw new Error('Invalid shopping list data structure');
+      }
+      
+      // Check if item exists
+      if (!listData.items[itemId]) {
+        throw new Error('Item not found in shopping list');
+      }
+      
+      // Update the item
+      const updatedItems = {
+        ...listData.items,
+        [itemId]: {
+          ...listData.items[itemId],
+          isPurchased,
+          purchasedBy: isPurchased ? userId : null,
+          purchasedAt: isPurchased ? Timestamp.now() : null,
+          lastModified: Timestamp.now()
+        }
+      };
+      
+      // Update the document
+      transaction.update(listRef, {
+        items: updatedItems,
+        updatedAt: Timestamp.now()
+      });
+      
+      return true;
+    });
   } catch (error) {
     console.error('Error toggling shopping item:', error);
-    throw error;
+    throw new Error(createUserFriendlyError(error));
   }
 };
 

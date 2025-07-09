@@ -6,20 +6,44 @@ const AddShoppingList = ({ onCancel, onCreate, creating, familyId, currentUser }
   const [name, setName] = useState('');
   const [budget, setBudget] = useState('');
   const [selectedSupermarket, setSelectedSupermarket] = useState(null);
+  const [scheduledFor, setScheduledFor] = useState('today');
+
+  const getScheduledDate = (option) => {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    const dayAfter = new Date(today);
+    dayAfter.setDate(today.getDate() + 2);
+    
+    switch(option) {
+      case 'today':
+        return today;
+      case 'tomorrow':
+        return tomorrow;
+      case 'day-after':
+        return dayAfter;
+      case 'this-week':
+        return null; // No specific date, just this week
+      default:
+        return today;
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('Form submitted with name:', name, 'budget:', budget, 'supermarket:', selectedSupermarket);
+    console.log('Form submitted with name:', name, 'budget:', budget, 'supermarket:', selectedSupermarket, 'scheduledFor:', scheduledFor);
     
     if (!name.trim() || creating) {
       console.log('Form validation failed - name:', name.trim(), 'creating:', creating);
       return;
     }
 
+    const scheduledDate = getScheduledDate(scheduledFor);
     const listData = {
       name: name.trim(),
       budget: budget ? parseFloat(budget) : null,
-      scheduledFor: null,
+      scheduledFor: scheduledDate,
+      scheduledOption: scheduledFor,
       priority: 'normal',
       supermarket: selectedSupermarket
     };
@@ -66,6 +90,21 @@ const AddShoppingList = ({ onCancel, onCreate, creating, familyId, currentUser }
               showTitle={true}
               disabled={creating}
             />
+          </div>
+          
+          <div className="form-field">
+            <label htmlFor="scheduledFor">Schedule for:</label>
+            <select
+              id="scheduledFor"
+              value={scheduledFor}
+              onChange={(e) => setScheduledFor(e.target.value)}
+              disabled={creating}
+            >
+              <option value="today">Today</option>
+              <option value="tomorrow">Tomorrow</option>
+              <option value="day-after">Day after tomorrow</option>
+              <option value="this-week">This week</option>
+            </select>
           </div>
           
           <div className="form-actions">

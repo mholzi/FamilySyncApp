@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { completeHouseholdTodo, confirmHouseholdTodo } from '../../utils/householdTodosUtils';
+import TaskDetailModal from './TaskDetailModal';
 
 const SimpleTodoCard = ({ 
   todo, 
@@ -9,6 +10,7 @@ const SimpleTodoCard = ({
   onToggleComplete 
 }) => {
   const [isCompleting, setIsCompleting] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   const handleToggleComplete = async () => {
     if (isCompleting) return;
@@ -44,10 +46,6 @@ const SimpleTodoCard = ({
   const isOverdue = todo.status === 'overdue' || 
     (todo.dueDate && todo.dueDate.toDate() < new Date() && todo.status === 'pending');
 
-  const getUserInitials = (name) => {
-    if (!name) return 'A';
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  };
 
   const getPriorityColor = (priority) => {
     switch (priority) {
@@ -75,63 +73,132 @@ const SimpleTodoCard = ({
   };
 
   return (
-    <div style={{
-      ...styles.taskCard, 
-      ...(isCompleted ? styles.taskCardCompleted : {}),
-      ...(isOverdue ? styles.taskCardOverdue : {})
-    }}>
-      {/* Header with title and due date on the right */}
-      <div style={styles.taskHeader}>
-        <div style={styles.titleRow}>
-          <div style={{
-            ...styles.taskTitle,
-            ...(isCompleted ? styles.taskTitleCompleted : {})
-          }}>
-            {todo.title}
+    <>
+      <div 
+        style={{
+          ...styles.taskCard, 
+          ...(isCompleted ? styles.taskCardCompleted : {}),
+          ...(isOverdue ? styles.taskCardOverdue : {}),
+          cursor: 'pointer'
+        }}
+        onClick={() => setShowDetailModal(true)}
+        title="Click to view task details"
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setShowDetailModal(true);
+          }
+        }}
+      >
+        {/* Header with title and due date on the right */}
+        <div style={styles.taskHeader}>
+          <div style={styles.titleRow}>
+            <div style={{
+              ...styles.taskTitle,
+              ...(isCompleted ? styles.taskTitleCompleted : {})
+            }}>
+              {todo.title}
+            </div>
+            {todo.dueDate && (
+              <span style={styles.dueDateBadge}>
+                {formatDueDate(todo.dueDate)}
+              </span>
+            )}
           </div>
-          {todo.dueDate && (
-            <span style={styles.dueDateBadge}>
-              {formatDueDate(todo.dueDate)}
+          {todo.description && (
+            <div style={{...styles.taskDescription, marginTop: '10px'}}>
+              {todo.description}
+            </div>
+          )}
+        </div>
+        
+        {/* Spacer area */}
+        <div style={styles.spacerArea}>
+          {todo.estimatedTime && (
+            <span style={styles.timeEstimate}>
+              {formatEstimatedTime(todo.estimatedTime)}
             </span>
           )}
         </div>
-        {todo.description && (
-          <div style={{...styles.taskDescription, marginTop: '10px'}}>
-            {todo.description}
+        
+        {/* Bottom row with category tag on left and done button on right */}
+        <div style={styles.bottomRow}>
+          <div style={styles.leftBottomSection}>
+            {todo.category && (
+              <span style={getCategoryBadgeStyle(todo.category, todo.priority)}>
+                {todo.category.charAt(0).toUpperCase() + todo.category.slice(1)}
+              </span>
+            )}
           </div>
-        )}
-      </div>
-      
-      {/* Spacer area */}
-      <div style={styles.spacerArea}>
-        {todo.estimatedTime && (
-          <span style={styles.timeEstimate}>
-            {formatEstimatedTime(todo.estimatedTime)}
-          </span>
-        )}
-      </div>
-      
-      {/* Bottom row with category tag on left and done button on right */}
-      <div style={styles.bottomRow}>
-        <div style={styles.leftBottomSection}>
-          {todo.category && (
-            <span style={getCategoryBadgeStyle(todo.category, todo.priority)}>
-              {todo.category.charAt(0).toUpperCase() + todo.category.slice(1)}
-            </span>
-          )}
+          <button 
+            style={{
+              ...styles.doneButton,
+              ...(isCompleted ? styles.doneButtonCompleted : styles.doneButtonPending)
+            }}
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent card click
+              handleToggleComplete();
+            }}
+            disabled={isCompleting}
+          >
+            {isCompleting ? '...' : getButtonText()}
+          </button>
         </div>
-        <button 
-          style={{
-            ...styles.doneButton,
-            ...(isCompleted ? styles.doneButtonCompleted : styles.doneButtonPending)
+        
+        {/* Task Details Access - Always Available */}
+        <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e5e7eb' }}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent card click
+              setShowDetailModal(true);
+            }}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              background: '#f8fafc',
+              color: '#475569',
+              border: '1px solid #e2e8f0',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.background = '#f1f5f9';
+              e.target.style.borderColor = '#cbd5e1';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = '#f8fafc';
+              e.target.style.borderColor = '#e2e8f0';
+            }}
+          >
+            <span>View Task Details</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Enhanced Task Detail Modal */}
+      {showDetailModal && (
+        <TaskDetailModal
+          task={todo}
+          familyId={familyId}
+          userRole={userRole}
+          onClose={() => setShowDetailModal(false)}
+          onTaskUpdate={onToggleComplete}
+          onEdit={() => {
+            setShowDetailModal(false);
+            // Could add onEdit prop later if needed
           }}
-          onClick={handleToggleComplete}
-          disabled={isCompleting}
-        >
-          {isCompleting ? '...' : getButtonText()}
-        </button>
-      </div>
-    </div>
+        />
+      )}
+    </>
   );
 };
 

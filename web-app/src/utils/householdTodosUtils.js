@@ -5,6 +5,7 @@ import { db } from '../firebase';
 export const createHouseholdTodo = async (familyId, todoData, createdBy) => {
   try {
     const todoRef = await addDoc(collection(db, 'families', familyId, 'householdTodos'), {
+      // Existing fields
       title: todoData.title,
       description: todoData.description || '',
       priority: todoData.priority || 'medium', // high, medium, low
@@ -15,7 +16,7 @@ export const createHouseholdTodo = async (familyId, todoData, createdBy) => {
       recurringType: todoData.recurringType || null, // daily, weekly, monthly, custom
       recurringDays: todoData.recurringDays || [], // [0,1,2,3,4,5,6] for Sunday-Saturday
       recurringInterval: todoData.recurringInterval || 1, // every X days/weeks/months
-      status: 'pending', // pending, completed, overdue
+      status: 'pending', // pending, completed, overdue, confirmed
       isCompleted: false,
       completedAt: null,
       completedBy: null,
@@ -25,7 +26,21 @@ export const createHouseholdTodo = async (familyId, todoData, createdBy) => {
       createdBy: createdBy,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
-      nextDueDate: todoData.isRecurring ? calculateNextDueDate(todoData) : todoData.dueDate
+      nextDueDate: todoData.isRecurring ? calculateNextDueDate(todoData) : todoData.dueDate,
+      
+      // New enhanced fields
+      instructions: todoData.instructions || '',
+      examplePhotos: todoData.examplePhotos || [], // URLs of "how we like it done" photos
+      examplePhotosUploadedAt: todoData.examplePhotos?.length > 0 ? Timestamp.now() : null, // For 2-month expiration
+      difficulty: todoData.difficulty || 'easy', // easy, moderate, complex
+      firstTimeHelp: todoData.firstTimeHelp || '', // Additional guidance for new au pairs
+      preferredTimeOfDay: todoData.preferredTimeOfDay || '', // morning, afternoon, evening
+      templateId: todoData.templateId || null, // Reference to task template if used
+      
+      // Feedback and communication
+      feedback: [], // Array of feedback objects
+      helpRequests: [], // Array of help request objects
+      suggestions: [] // Array of suggestion objects
     });
     
     return todoRef.id;
@@ -164,7 +179,6 @@ const createNextRecurringTodo = async (familyId, originalTodo, createdBy) => {
     console.log('✅ Next recurring todo created successfully with ID:', newTodoId);
     
     // Check if the new todo will be visible in today/tomorrow view
-    const today = new Date();
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(23, 59, 59, 999);

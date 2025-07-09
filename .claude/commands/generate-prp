@@ -1,0 +1,182 @@
+#!/bin/bash
+# Generate PRP from INITIAL.md
+
+if [ ! -f "INITIAL.md" ]; then
+    echo "Error: INITIAL.md not found. Please create it first."
+    exit 1
+fi
+
+# Create PRP filename based on current date and feature name
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+FEATURE_NAME=$(grep -m 1 "# " INITIAL.md | sed 's/# //' | sed 's/ - Initial Requirements//' | tr ' ' '_' | tr '[:upper:]' '[:lower:]')
+PRP_FILE="PRPs/active/${FEATURE_NAME}_${TIMESTAMP}.prp.md"
+
+# Ensure PRPs directory exists
+mkdir -p PRPs/active
+
+# Generate PRP content
+cat > "$PRP_FILE" << 'EOF'
+# [Feature Name] - Product Requirements Prompt
+
+*Generated from INITIAL.md on $(date)*
+
+## GOAL
+<!-- What are we trying to achieve? Include the "why" -->
+
+## SUCCESS CRITERIA
+<!-- Measurable outcomes that define completion -->
+- [ ] 
+- [ ] 
+- [ ] 
+
+## ALL NEEDED CONTEXT
+
+### Requirements
+<!-- Copy from INITIAL.md FEATURE section -->
+
+### Code Examples to Follow
+<!-- Copy from INITIAL.md EXAMPLES section -->
+
+### Documentation References
+<!-- Copy from INITIAL.md DOCUMENTATION section -->
+
+### Known Gotchas
+<!-- Copy from INITIAL.md OTHER CONSIDERATIONS section -->
+
+## CURRENT CODEBASE TREE
+```
+web-app/src/
+├── components/
+├── hooks/
+├── pages/
+├── services/
+└── utils/
+```
+
+## DESIRED CODEBASE CHANGES
+```
+web-app/src/
+├── components/
+│   └── [NewComponent]/
+│       ├── [NewComponent].js
+│       ├── [NewComponent].module.css
+│       └── [NewComponent].test.js
+└── ...
+```
+
+## IMPLEMENTATION BLUEPRINT
+
+### Data Models
+```javascript
+// Define data structures needed
+const FeatureData = {
+  id: string,
+  // ... other fields
+};
+```
+
+### Task Breakdown
+1. **Setup Phase**
+   - [ ] Create component structure
+   - [ ] Set up basic styling
+   - [ ] Add to navigation/routing
+
+2. **Core Implementation**
+   - [ ] Implement main functionality
+   - [ ] Add Firebase integration
+   - [ ] Handle user input/validation
+
+3. **Enhancement Phase**
+   - [ ] Add loading states
+   - [ ] Implement error handling
+   - [ ] Add real-time sync
+
+4. **Polish Phase**
+   - [ ] Performance optimization
+   - [ ] Accessibility improvements
+   - [ ] Testing coverage
+
+### Per-Task Pseudocode
+
+#### Task 1: Setup Phase
+```javascript
+// 1. Create component structure
+// - Create component directory
+// - Add basic React component
+// - Export from index
+
+// 2. Set up basic styling
+// - Create CSS module
+// - Follow design system colors/spacing
+// - Implement responsive design
+
+// 3. Add to navigation
+// - Update routing configuration
+// - Add navigation links
+// - Test page accessibility
+```
+
+### Integration Points
+- **Authentication**: Use `useAuth` hook
+- **Database**: Firestore operations via `useFirestore`
+- **State Management**: Local state with useState/useReducer
+- **Navigation**: React Router for page transitions
+
+## VALIDATION LOOPS
+
+### Level 1: Syntax Validation
+```bash
+cd web-app && npm run lint
+cd web-app && npm run build
+```
+
+### Level 2: Unit Tests
+```bash
+cd web-app && npm test -- --coverage
+```
+
+### Level 3: Integration Tests
+```bash
+# Start Firebase emulator
+firebase emulators:start --only firestore,auth
+
+# Run integration tests
+cd web-app && npm run test:integration
+```
+
+### Level 4: Manual Validation
+- [ ] Feature works in development
+- [ ] No console errors
+- [ ] Design matches mockup
+- [ ] Accessibility scan passes
+
+## ANTI-PATTERNS TO AVOID
+- ❌ Direct DOM manipulation
+- ❌ Inline styles instead of CSS modules
+- ❌ Missing error boundaries
+- ❌ Hardcoded strings (use i18n)
+- ❌ Missing loading states
+- ❌ Unhandled promise rejections
+
+## FINAL CHECKLIST
+- [ ] All validation loops pass
+- [ ] Code follows examples/ patterns
+- [ ] Tests achieve minimum coverage
+- [ ] Documentation updated
+- [ ] Feature flag implemented (if needed)
+- [ ] Security review completed
+- [ ] Performance benchmarks met
+
+---
+
+*This PRP should be executed using the /execute-prp command*
+EOF
+
+# Replace placeholder content with actual INITIAL.md content
+if command -v claude-code >/dev/null 2>&1; then
+    echo "PRP generated at: $PRP_FILE"
+    echo "Next: Review and refine the PRP, then run: .claude/commands/execute-prp $PRP_FILE"
+else
+    echo "PRP template generated at: $PRP_FILE"
+    echo "Please review and customize the content, then execute manually."
+fi

@@ -1,0 +1,554 @@
+/* Appreciation Summary Component Styles */
+.appreciation-summary {
+  margin: 24px 0;
+  padding: 24px;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  position: relative;
+  overflow: hidden;
+}
+
+.appreciation-summary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ef4444, #f59e0b);
+}
+
+/* Loading State */
+.appreciation-summary.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e2e8f0;
+  border-top: 3px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.appreciation-summary.loading p {
+  margin: 0;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Empty State */
+.appreciation-summary.empty {
+  text-align: center;
+  padding: 48px 24px;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.7;
+}
+
+.appreciation-summary.empty h3 {
+  margin: 0 0 8px 0;
+  color: #6b7280;
+  font-size: 18px;
+}
+
+.appreciation-summary.empty p {
+  margin: 0;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Header */
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.summary-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+}
+
+.summary-icon {
+  font-size: 24px;
+  animation: celebrate 2s ease-in-out infinite;
+}
+
+@keyframes celebrate {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.1) rotate(-5deg); }
+  75% { transform: scale(1.1) rotate(5deg); }
+}
+
+.summary-title h3 {
+  margin: 0 0 4px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.summary-title p {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.time-range-selector {
+  flex-shrink: 0;
+}
+
+.time-range-select {
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: #374151;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.time-range-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Accomplishments Grid */
+.accomplishments-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.accomplishment-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.accomplishment-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+}
+
+.accomplishment-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.accomplishment-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+  animation: bounce 2s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.accomplishment-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 4px;
+}
+
+.accomplishment-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.accomplishment-description {
+  font-size: 11px;
+  color: #9ca3af;
+  line-height: 1.3;
+}
+
+/* Highlights Section */
+.highlights-section {
+  margin-bottom: 24px;
+}
+
+.highlights-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.highlights-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.highlight-item {
+  display: flex;
+  align-items: center;
+  background: white;
+  border-radius: 8px;
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s ease;
+}
+
+.highlight-item:hover {
+  background: #f8fafc;
+  border-color: #d1d5db;
+}
+
+.highlight-icon {
+  font-size: 20px;
+  margin-right: 12px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.highlight-content {
+  flex: 1;
+}
+
+.highlight-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 2px;
+}
+
+.highlight-description {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+/* Feedback Section */
+.feedback-section {
+  margin-bottom: 24px;
+}
+
+.feedback-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.feedback-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.feedback-item {
+  display: flex;
+  align-items: flex-start;
+  background: white;
+  border-radius: 8px;
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid #3b82f6;
+}
+
+.feedback-rating {
+  font-size: 18px;
+  margin-right: 12px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.feedback-content {
+  flex: 1;
+}
+
+.feedback-message {
+  font-size: 13px;
+  color: #374151;
+  font-style: italic;
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.feedback-task {
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* Motivation Section */
+.motivation-section {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #bfdbfe;
+  text-align: center;
+}
+
+.motivation-message {
+  font-size: 14px;
+  color: #1e40af;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .appreciation-summary {
+    margin: 16px 0;
+    padding: 16px;
+    border-radius: 12px;
+  }
+  
+  .summary-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+    margin-bottom: 20px;
+  }
+  
+  .summary-title {
+    align-items: center;
+  }
+  
+  .summary-title h3 {
+    font-size: 18px;
+  }
+  
+  .time-range-selector {
+    align-self: flex-start;
+  }
+  
+  .accomplishments-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  
+  .accomplishment-card {
+    padding: 12px 8px;
+  }
+  
+  .accomplishment-icon {
+    font-size: 20px;
+    margin-bottom: 6px;
+  }
+  
+  .accomplishment-value {
+    font-size: 20px;
+  }
+  
+  .accomplishment-title {
+    font-size: 11px;
+  }
+  
+  .accomplishment-description {
+    font-size: 10px;
+  }
+  
+  .highlights-section,
+  .feedback-section {
+    margin-bottom: 20px;
+  }
+  
+  .highlights-section h4,
+  .feedback-section h4 {
+    font-size: 15px;
+  }
+  
+  .highlight-item,
+  .feedback-item {
+    padding: 10px 12px;
+  }
+  
+  .highlight-icon {
+    font-size: 18px;
+    margin-right: 10px;
+  }
+  
+  .highlight-title {
+    font-size: 13px;
+  }
+  
+  .highlight-description {
+    font-size: 11px;
+  }
+  
+  .feedback-rating {
+    font-size: 16px;
+    margin-right: 10px;
+  }
+  
+  .feedback-message {
+    font-size: 12px;
+  }
+  
+  .feedback-task {
+    font-size: 10px;
+  }
+  
+  .motivation-section {
+    padding: 12px;
+  }
+  
+  .motivation-message {
+    font-size: 13px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .appreciation-summary {
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    border-color: #374151;
+  }
+  
+  .summary-title h3 {
+    color: #f9fafb;
+  }
+  
+  .summary-title p {
+    color: #d1d5db;
+  }
+  
+  .time-range-select {
+    background: #374151;
+    border-color: #4b5563;
+    color: #f9fafb;
+  }
+  
+  .accomplishment-card,
+  .highlight-item,
+  .feedback-item {
+    background: #374151;
+    border-color: #4b5563;
+  }
+  
+  .accomplishment-card:hover,
+  .highlight-item:hover {
+    background: #4b5563;
+    border-color: #6b7280;
+  }
+  
+  .accomplishment-value,
+  .highlight-title {
+    color: #f9fafb;
+  }
+  
+  .accomplishment-title,
+  .highlight-description,
+  .feedback-task {
+    color: #d1d5db;
+  }
+  
+  .accomplishment-description {
+    color: #9ca3af;
+  }
+  
+  .highlights-section h4,
+  .feedback-section h4 {
+    color: #f9fafb;
+  }
+  
+  .feedback-message {
+    color: #e5e7eb;
+  }
+  
+  .motivation-section {
+    background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+    border-color: #3b82f6;
+  }
+  
+  .motivation-message {
+    color: #dbeafe;
+  }
+  
+  .appreciation-summary.empty h3 {
+    color: #d1d5db;
+  }
+  
+  .appreciation-summary.empty p,
+  .appreciation-summary.loading p {
+    color: #9ca3af;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .summary-icon,
+  .accomplishment-icon,
+  .highlight-icon {
+    animation: none;
+  }
+  
+  .accomplishment-card {
+    transition: none;
+  }
+  
+  .loading-spinner {
+    animation: none;
+  }
+}
+
+/* Print styles */
+@media print {
+  .appreciation-summary {
+    background: none;
+    border: 1px solid #000000;
+    box-shadow: none;
+  }
+  
+  .appreciation-summary::before {
+    display: none;
+  }
+  
+  .time-range-selector {
+    display: none;
+  }
+  
+  .accomplishment-card,
+  .highlight-item,
+  .feedback-item,
+  .motivation-section {
+    background: none;
+    border: 1px solid #000000;
+  }
+}

@@ -263,6 +263,21 @@ body {
   color: #047857;
 }
 
+.badge-info {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #1D4ED8;
+}
+
+.badge-warning {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: #D97706;
+}
+
+.badge-success {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #047857;
+}
+
 /* Form Input Styles */
 .form-input {
   width: 100%;

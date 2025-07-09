@@ -349,6 +349,10 @@ export const createDefaultActivity = (template = null) => {
       endDate: null // Optional end date
     },
     assignedChildren: [], // Array of child IDs
+    transportation: {
+      dropoff: 'parent', // 'parent', 'au_pair', 'child_alone'
+      pickup: 'parent'   // 'parent', 'au_pair', 'child_alone'
+    },
     createdBy: null,
     familyId: null,
     isActive: true,

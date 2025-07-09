@@ -22,14 +22,15 @@ const RecurringActivitiesManager = ({
   familyId, 
   children = [], 
   userRole = 'parent',
-  onClose 
+  onClose,
+  primaryChildId = null 
 }) => {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showBuilder, setShowBuilder] = useState(false);
   const [editingActivity, setEditingActivity] = useState(null);
   const [selectedActivity, setSelectedActivity] = useState(null);
-  const [filter, setFilter] = useState('all'); // 'all', 'active', 'inactive'
+  // const [filter, setFilter] = useState('all'); // 'all', 'active', 'inactive' - unused
 
   // Load activities from Firestore
   useEffect(() => {
@@ -99,20 +100,34 @@ const RecurringActivitiesManager = ({
 
   const handleSaveActivity = async (activityData) => {
     try {
+      // Convert JavaScript Date objects to Firebase Timestamps
       const finalActivity = {
         ...activityData,
         familyId,
         createdBy: auth.currentUser.uid,
+        // Convert any Date objects to Timestamps
+        createdAt: editingActivity ? activityData.createdAt : Timestamp.now(),
         updatedAt: Timestamp.now()
       };
+
+      // Remove any problematic date fields and convert them properly
+      if (finalActivity.createdAt instanceof Date) {
+        finalActivity.createdAt = Timestamp.fromDate(finalActivity.createdAt);
+      }
+      if (finalActivity.updatedAt instanceof Date) {
+        finalActivity.updatedAt = Timestamp.fromDate(finalActivity.updatedAt);
+      }
+
+      console.log('Saving activity with data:', finalActivity);
 
       if (editingActivity) {
         // Update existing activity
         await updateDoc(doc(db, 'recurringActivities', editingActivity.id), finalActivity);
+        console.log('Activity updated successfully');
       } else {
         // Create new activity
-        finalActivity.createdAt = Timestamp.now();
-        await addDoc(collection(db, 'recurringActivities'), finalActivity);
+        const docRef = await addDoc(collection(db, 'recurringActivities'), finalActivity);
+        console.log('Activity created successfully with ID:', docRef.id);
       }
 
       setShowBuilder(false);
@@ -134,35 +149,19 @@ const RecurringActivitiesManager = ({
     }
   };
 
-  const handleToggleActive = async (activity) => {
-    try {
-      await updateDoc(doc(db, 'recurringActivities', activity.id), {
-        isActive: !activity.isActive,
-        updatedAt: Timestamp.now()
-      });
-    } catch (error) {
-      console.error('Error updating activity status:', error);
-      alert('Failed to update activity status. Please try again.');
-    }
-  };
+  // Removed handleToggleActive - no longer supporting active/inactive status
 
   const getFilteredActivities = () => {
-    switch (filter) {
-      case 'active':
-        return activities.filter(activity => activity.isActive);
-      case 'inactive':
-        return activities.filter(activity => !activity.isActive);
-      default:
-        return activities;
-    }
+    // Always return all activities - no active/inactive filtering
+    return activities;
   };
 
-  const getChildNames = (childIds) => {
-    return childIds
-      .map(id => children.find(child => child.id === id)?.name)
-      .filter(Boolean)
-      .join(', ');
-  };
+  // const getChildNames = (childIds) => {
+  //   return childIds
+  //     .map(id => children.find(child => child.id === id)?.name)
+  //     .filter(Boolean)
+  //     .join(', ');
+  // };
 
   if (showBuilder) {
     return (
@@ -174,6 +173,7 @@ const RecurringActivitiesManager = ({
           setShowBuilder(false);
           setEditingActivity(null);
         }}
+        primaryChildId={primaryChildId}
       />
     );
   }
@@ -205,28 +205,6 @@ const RecurringActivitiesManager = ({
         )}
       </div>
 
-      <div style={styles.controls}>
-        <div style={styles.filterTabs}>
-          {['all', 'active', 'inactive'].map(filterType => (
-            <button
-              key={filterType}
-              style={{
-                ...styles.filterTab,
-                ...(filter === filterType ? styles.filterTabActive : {})
-              }}
-              onClick={() => setFilter(filterType)}
-            >
-              {filterType.charAt(0).toUpperCase() + filterType.slice(1)}
-              <span style={styles.filterCount}>
-                ({filterType === 'all' 
-                  ? activities.length 
-                  : activities.filter(a => filterType === 'active' ? a.isActive : !a.isActive).length
-                })
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
 
       <div style={styles.content}>
         {loading ? (
@@ -235,10 +213,7 @@ const RecurringActivitiesManager = ({
           <div style={styles.emptyState}>
             <div style={styles.emptyIcon}>📅</div>
             <h2 style={styles.emptyTitle}>
-              {filter === 'all' 
-                ? 'No activities yet' 
-                : `No ${filter} activities`
-              }
+              No activities yet
             </h2>
             <p style={styles.emptyDescription}>
               {userRole === 'parent' 
@@ -246,7 +221,7 @@ const RecurringActivitiesManager = ({
                 : 'Your parents haven\'t set up any recurring activities yet.'
               }
             </p>
-            {userRole === 'parent' && filter === 'all' && (
+            {userRole === 'parent' && (
               <button onClick={handleCreateActivity} style={styles.emptyButton}>
                 Create Your First Activity
               </button>
@@ -260,9 +235,6 @@ const RecurringActivitiesManager = ({
                 activity={activity}
                 children={children}
                 userRole={userRole}
-                onEdit={() => handleEditActivity(activity)}
-                onDelete={() => handleDeleteActivity(activity.id)}
-                onToggleActive={() => handleToggleActive(activity)}
                 onViewDetails={() => setSelectedActivity(activity)}
               />
             ))}
@@ -277,19 +249,13 @@ const ActivityCard = ({
   activity, 
   children, 
   userRole, 
-  onEdit, 
-  onDelete, 
-  onToggleActive, 
   onViewDetails 
 }) => {
   const category = ACTIVITY_CATEGORIES[activity.category];
   const nextOccurrences = getNextOccurrences(activity, 3);
   
   return (
-    <div style={{
-      ...styles.activityCard,
-      ...(activity.isActive ? {} : styles.activityCardInactive)
-    }}>
+    <div style={styles.activityCard} onClick={onViewDetails}>
       <div style={styles.cardHeader}>
         <div style={styles.cardTitle}>
           <span style={styles.activityIcon}>{activity.icon || category?.icon || '📌'}</span>
@@ -300,45 +266,19 @@ const ActivityCard = ({
             </div>
           </div>
         </div>
-        
-        <div style={styles.cardActions}>
-          {!activity.isActive && (
-            <span style={styles.inactiveLabel}>Inactive</span>
-          )}
-          {userRole === 'parent' && (
-            <div style={styles.actionButtons}>
-              <button onClick={onEdit} style={styles.actionButton} title="Edit">
-                ✏️
-              </button>
-              <button 
-                onClick={onToggleActive} 
-                style={styles.actionButton}
-                title={activity.isActive ? 'Deactivate' : 'Activate'}
-              >
-                {activity.isActive ? '⏸️' : '▶️'}
-              </button>
-              <button onClick={onDelete} style={styles.deleteButton} title="Delete">
-                🗑️
-              </button>
-            </div>
-          )}
-        </div>
       </div>
 
       <div style={styles.cardContent}>
         <div style={styles.infoRow}>
-          <span style={styles.infoIcon}>🕐</span>
           <span>{activity.time} ({activity.duration} min)</span>
         </div>
         
         <div style={styles.infoRow}>
-          <span style={styles.infoIcon}>📍</span>
           <span>{activity.location.name || activity.location.address}</span>
         </div>
         
         {activity.assignedChildren.length > 0 && (
           <div style={styles.infoRow}>
-            <span style={styles.infoIcon}>👶</span>
             <span>
               {activity.assignedChildren
                 .map(id => children.find(child => child.id === id)?.name)
@@ -351,12 +291,11 @@ const ActivityCard = ({
 
         {activity.contact.name && (
           <div style={styles.infoRow}>
-            <span style={styles.infoIcon}>👤</span>
             <span>{activity.contact.name} ({activity.contact.role})</span>
           </div>
         )}
 
-        {nextOccurrences.length > 0 && activity.isActive && (
+        {nextOccurrences.length > 0 && (
           <div style={styles.nextOccurrences}>
             <div style={styles.nextTitle}>Next occurrences:</div>
             {nextOccurrences.slice(0, 2).map((occurrence, index) => (
@@ -375,12 +314,6 @@ const ActivityCard = ({
             )}
           </div>
         )}
-      </div>
-
-      <div style={styles.cardFooter}>
-        <button onClick={onViewDetails} style={styles.viewDetailsButton}>
-          View Details
-        </button>
       </div>
     </div>
   );

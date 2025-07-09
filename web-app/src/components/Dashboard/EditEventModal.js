@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createEventOverride, deleteEventOverride } from '../../utils/eventOverridesUtils';
+import { createEventOverride } from '../../utils/eventOverridesUtils';
 import { PICKUP_PERSON_OPTIONS, pickupPersonToResponsibility, responsibilityToPickupPerson } from '../../utils/schoolPickupUtils';
 
 const EditEventModal = ({ event, familyId, onClose, onSave }) => {

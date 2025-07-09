@@ -39,6 +39,16 @@ service cloud.firestore {
     match /families/{familyId} {
       allow read, write: if isFamilyMember(familyId);
       
+      // Shopping Lists - family members only with additional validation
+      match /shopping/{shoppingId} {
+        allow read: if isFamilyMember(familyId);
+        allow write: if isFamilyMember(familyId) && 
+                       request.resource.data.familyId == familyId;
+        allow create: if isFamilyMember(familyId) && 
+                        request.resource.data.familyId == familyId;
+        allow delete: if isFamilyMember(familyId);
+      }
+      
       // Family subcollections (e.g., data/items for shopping intelligence)
       match /{subcollection=**} {
         allow read, write: if isFamilyMember(familyId);
@@ -97,6 +107,42 @@ service cloud.firestore {
                      isFamilyMember(resource.data.familyId);
       allow create: if request.auth != null && 
                       isFamilyMember(request.resource.data.familyId);
+    }
+    
+    // Recurring Activities - family members only
+    match /recurringActivities/{activityId} {
+      allow read: if request.auth != null && 
+                    resource != null && 
+                    isFamilyMember(resource.data.familyId);
+      allow update: if request.auth != null && 
+                      resource != null && 
+                      isFamilyMember(resource.data.familyId);
+      allow delete: if request.auth != null && 
+                      resource != null && 
+                      isFamilyMember(resource.data.familyId);
+      allow create: if request.auth != null && 
+                      isFamilyMember(request.resource.data.familyId);
+    }
+    
+    // External Events - read-only for authenticated users (shared external calendar data)
+    match /externalEvents/{eventId} {
+      allow read: if request.auth != null;
+      allow write: if false; // External events are read-only
+    }
+    
+    // Integration Logs - system use only (no user access)
+    match /integrationLogs/{logId} {
+      allow read, write: if false;
+    }
+    
+    // Payment Deadlines - system use only (no user access)  
+    match /paymentDeadlines/{deadlineId} {
+      allow read, write: if false;
+    }
+    
+    // Test Connection - system use only (no user access)
+    match /test-connection/{testId} {
+      allow read, write: if false;
     }
     
     // Deny all other access by default

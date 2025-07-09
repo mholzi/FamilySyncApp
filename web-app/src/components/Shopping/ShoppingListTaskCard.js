@@ -1,14 +1,51 @@
 import React from 'react';
 
 const ShoppingListTaskCard = ({ list, onNavigate }) => {
-  const items = Array.isArray(list.items) 
-    ? list.items 
-    : Object.values(list.items || {});
+  // Items are always stored as objects, not arrays
+  const items = Object.values(list.items || {});
   
   const completedItems = items.filter(item => item.isPurchased).length;
   const totalItems = items.length;
   const remainingItems = totalItems - completedItems;
   const isCompleted = totalItems > 0 && completedItems === totalItems;
+
+  const getScheduleDisplay = () => {
+    if (!list.scheduledFor && !list.scheduledOption) return '';
+    
+    if (list.scheduledOption === 'this-week') return 'This week';
+    
+    if (list.scheduledFor) {
+      const scheduledDate = new Date(list.scheduledFor);
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+      
+      // Reset hours for date comparison
+      const scheduleDay = new Date(scheduledDate.getFullYear(), scheduledDate.getMonth(), scheduledDate.getDate());
+      const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const tomorrowDay = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate());
+      
+      if (scheduleDay.getTime() === todayDay.getTime()) return 'Today';
+      if (scheduleDay.getTime() === tomorrowDay.getTime()) return 'Tomorrow';
+      
+      // Check if overdue
+      if (scheduleDay < todayDay) return 'Overdue';
+      
+      // Show day after tomorrow or specific date
+      const dayAfter = new Date(tomorrow);
+      dayAfter.setDate(tomorrow.getDate() + 1);
+      const dayAfterDay = new Date(dayAfter.getFullYear(), dayAfter.getMonth(), dayAfter.getDate());
+      
+      if (scheduleDay.getTime() === dayAfterDay.getTime()) return 'Day after tomorrow';
+      
+      return scheduledDate.toLocaleDateString();
+    }
+    
+    return '';
+  };
+
+  const scheduleDisplay = getScheduleDisplay();
+  const isOverdue = scheduleDisplay === 'Overdue';
 
   const handleClick = () => {
     if (onNavigate) {
@@ -24,7 +61,17 @@ const ShoppingListTaskCard = ({ list, onNavigate }) => {
       <div style={styles.taskHeader}>
         <div style={styles.taskIcon}>🛒</div>
         <div style={styles.taskContent}>
-          <h4 style={styles.taskTitle}>{list.name}</h4>
+          <div style={styles.titleRow}>
+            <h4 style={styles.taskTitle}>{list.name}</h4>
+            {scheduleDisplay && (
+              <span style={{
+                ...styles.scheduleBadge,
+                ...(isOverdue ? styles.overdueBadge : {})
+              }}>
+                {scheduleDisplay}
+              </span>
+            )}
+          </div>
           <p style={styles.taskDescription}>
             {totalItems === 0 
               ? 'No items added yet'
@@ -72,12 +119,32 @@ const styles = {
     flex: 1,
     minWidth: 0
   },
+  titleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: '4px'
+  },
   taskTitle: {
     margin: 0,
     fontSize: '16px',
     fontWeight: '600',
     color: '#1f2937',
-    marginBottom: '4px'
+    flex: 1
+  },
+  scheduleBadge: {
+    backgroundColor: '#e0f2fe',
+    color: '#0277bd',
+    padding: '2px 8px',
+    borderRadius: '12px',
+    fontSize: '11px',
+    fontWeight: '500',
+    marginLeft: '8px',
+    whiteSpace: 'nowrap'
+  },
+  overdueBadge: {
+    backgroundColor: '#ffebee',
+    color: '#c62828'
   },
   taskDescription: {
     margin: 0,

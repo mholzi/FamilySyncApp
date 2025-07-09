@@ -4,7 +4,7 @@ import {
   ACTIVITY_CATEGORIES, 
   RECURRENCE_TYPES, 
   DAY_NAMES, 
-  COMMON_TIME_SLOTS,
+  // COMMON_TIME_SLOTS, // unused
   createDefaultActivity,
   validateActivityData,
   formatRecurrenceDescription
@@ -14,12 +14,18 @@ const RecurringActivityBuilder = ({
   children = [], 
   onSave, 
   onCancel, 
-  editingActivity = null 
+  editingActivity = null,
+  primaryChildId = null 
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
-  const [activity, setActivity] = useState(() => 
-    editingActivity || createDefaultActivity()
-  );
+  const [activity, setActivity] = useState(() => {
+    const defaultActivity = editingActivity || createDefaultActivity();
+    // If we have a primary child and no editing activity, pre-select that child
+    if (primaryChildId && !editingActivity && !defaultActivity.assignedChildren.includes(primaryChildId)) {
+      defaultActivity.assignedChildren = [primaryChildId];
+    }
+    return defaultActivity;
+  });
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [validationErrors, setValidationErrors] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -64,9 +70,12 @@ const RecurringActivityBuilder = ({
   };
 
   const handleSave = async () => {
+    console.log('Attempting to save activity:', activity);
     const validation = validateActivityData(activity);
+    console.log('Validation result:', validation);
     
     if (!validation.isValid) {
+      console.log('Validation failed with errors:', validation.errors);
       setValidationErrors(validation.errors);
       return;
     }
@@ -223,28 +232,48 @@ const RecurringActivityBuilder = ({
         <div style={styles.formGroup}>
           <label style={styles.label}>Assigned Children</label>
           <div style={styles.checkboxGrid}>
-            {children.map(child => (
-              <label key={child.id} style={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={activity.assignedChildren.includes(child.id)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      updateActivity({
-                        assignedChildren: [...activity.assignedChildren, child.id]
-                      });
-                    } else {
-                      updateActivity({
-                        assignedChildren: activity.assignedChildren.filter(id => id !== child.id)
-                      });
-                    }
+            {children.map(child => {
+              const isPrimary = child.id === primaryChildId;
+              const isSelected = activity.assignedChildren.includes(child.id);
+              
+              return (
+                <label 
+                  key={child.id} 
+                  style={{
+                    ...styles.checkboxLabel,
+                    ...(isPrimary ? styles.primaryChildLabel : {}),
+                    ...(isSelected ? styles.selectedChildLabel : {})
                   }}
-                  style={styles.checkbox}
-                />
-                <span>{child.name}</span>
-              </label>
-            ))}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        updateActivity({
+                          assignedChildren: [...activity.assignedChildren, child.id]
+                        });
+                      } else {
+                        updateActivity({
+                          assignedChildren: activity.assignedChildren.filter(id => id !== child.id)
+                        });
+                      }
+                    }}
+                    style={styles.checkbox}
+                  />
+                  <span>
+                    {child.name}
+                    {isPrimary && <span style={styles.primaryBadge}> (Primary)</span>}
+                  </span>
+                </label>
+              );
+            })}
           </div>
+          {primaryChildId && (
+            <p style={styles.helperText}>
+              This activity is being created for the primary child, but you can also include other children if relevant.
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -438,6 +467,36 @@ const RecurringActivityBuilder = ({
           />
         </div>
 
+        <h3 style={styles.sectionTitle}>Transportation</h3>
+        
+        <div style={styles.formRow}>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Drop-off Responsibility</label>
+            <select
+              value={activity.transportation.dropoff}
+              onChange={(e) => updateNestedField('transportation.dropoff', e.target.value)}
+              style={styles.select}
+            >
+              <option value="parent">Parent</option>
+              <option value="au_pair">Au Pair</option>
+              <option value="child_alone">Child goes alone</option>
+            </select>
+          </div>
+          
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Pick-up Responsibility</label>
+            <select
+              value={activity.transportation.pickup}
+              onChange={(e) => updateNestedField('transportation.pickup', e.target.value)}
+              style={styles.select}
+            >
+              <option value="parent">Parent</option>
+              <option value="au_pair">Au Pair</option>
+              <option value="child_alone">Child goes alone</option>
+            </select>
+          </div>
+        </div>
+
         <div style={styles.summaryCard}>
           <h3 style={styles.summaryTitle}>Activity Summary</h3>
           <div style={styles.summaryItem}>
@@ -458,6 +517,9 @@ const RecurringActivityBuilder = ({
           </div>
           <div style={styles.summaryItem}>
             🔄 {formatRecurrenceDescription(activity.recurrence)}
+          </div>
+          <div style={styles.summaryItem}>
+            🚗 Drop-off: {activity.transportation.dropoff === 'parent' ? 'Parent' : activity.transportation.dropoff === 'au_pair' ? 'Au Pair' : 'Child alone'} | Pick-up: {activity.transportation.pickup === 'parent' ? 'Parent' : activity.transportation.pickup === 'au_pair' ? 'Au Pair' : 'Child alone'}
           </div>
           {activity.requirements.items.length > 0 && (
             <div style={styles.summaryItem}>
@@ -612,7 +674,9 @@ const styles = {
   },
   templateCard: {
     backgroundColor: 'var(--white)',
-    border: '2px solid var(--border-light)',
+    borderWidth: '2px',
+    borderStyle: 'solid',
+    borderColor: 'var(--border-light)',
     borderRadius: 'var(--radius-lg)',
     padding: 'var(--space-4)',
     textAlign: 'center',
@@ -625,7 +689,9 @@ const styles = {
   },
   customTemplateCard: {
     backgroundColor: '#f8f9fa',
-    border: '2px dashed var(--border-medium)',
+    borderWidth: '2px',
+    borderStyle: 'dashed',
+    borderColor: 'var(--border-medium)',
     borderRadius: 'var(--radius-lg)',
     padding: 'var(--space-4)',
     textAlign: 'center',
@@ -668,7 +734,9 @@ const styles = {
   },
   input: {
     padding: 'var(--space-3)',
-    border: '1px solid var(--border-medium)',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: 'var(--border-medium)',
     borderRadius: 'var(--radius-md)',
     fontSize: 'var(--font-size-base)',
     transition: 'var(--transition-fast)',
@@ -680,7 +748,9 @@ const styles = {
   },
   select: {
     padding: 'var(--space-3)',
-    border: '1px solid var(--border-medium)',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: 'var(--border-medium)',
     borderRadius: 'var(--radius-md)',
     fontSize: 'var(--font-size-base)',
     backgroundColor: 'var(--white)',
@@ -688,7 +758,9 @@ const styles = {
   },
   textarea: {
     padding: 'var(--space-3)',
-    border: '1px solid var(--border-medium)',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: 'var(--border-medium)',
     borderRadius: 'var(--radius-md)',
     fontSize: 'var(--font-size-base)',
     resize: 'vertical',
@@ -703,11 +775,34 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: 'var(--space-2)',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    padding: 'var(--space-2)',
+    borderRadius: 'var(--radius-md)',
+    transition: 'var(--transition-fast)'
+  },
+  primaryChildLabel: {
+    backgroundColor: 'var(--purple-50)',
+    borderWidth: '2px',
+    borderStyle: 'solid',
+    borderColor: 'var(--primary-purple)'
+  },
+  selectedChildLabel: {
+    backgroundColor: 'var(--green-50)'
+  },
+  primaryBadge: {
+    fontSize: 'var(--font-size-sm)',
+    color: 'var(--primary-purple)',
+    fontWeight: 'var(--font-weight-semibold)'
   },
   checkbox: {
     width: '16px',
     height: '16px'
+  },
+  helperText: {
+    fontSize: 'var(--font-size-sm)',
+    color: 'var(--text-secondary)',
+    marginTop: 'var(--space-2)',
+    fontStyle: 'italic'
   },
   sectionTitle: {
     fontSize: 'var(--font-size-lg)',
@@ -724,7 +819,9 @@ const styles = {
   },
   dayButton: {
     padding: 'var(--space-2) var(--space-3)',
-    border: '1px solid var(--border-medium)',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: 'var(--border-medium)',
     borderRadius: 'var(--radius-md)',
     backgroundColor: 'var(--white)',
     cursor: 'pointer',
@@ -750,7 +847,9 @@ const styles = {
   itemInput: {
     flex: 1,
     padding: 'var(--space-2) var(--space-3)',
-    border: '1px solid var(--border-medium)',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: 'var(--border-medium)',
     borderRadius: 'var(--radius-md)',
     fontSize: 'var(--font-size-sm)'
   },
@@ -765,7 +864,9 @@ const styles = {
   },
   addButton: {
     padding: 'var(--space-2) var(--space-3)',
-    border: '1px dashed var(--border-medium)',
+    borderWidth: '1px',
+    borderStyle: 'dashed',
+    borderColor: 'var(--border-medium)',
     borderRadius: 'var(--radius-md)',
     backgroundColor: 'transparent',
     color: 'var(--primary-purple)',
@@ -797,7 +898,9 @@ const styles = {
   },
   errorContainer: {
     backgroundColor: '#fef2f2',
-    border: '1px solid #fecaca',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: '#fecaca',
     borderRadius: 'var(--radius-md)',
     padding: 'var(--space-4)',
     marginTop: 'var(--space-4)'
@@ -831,7 +934,9 @@ const styles = {
   },
   cancelButton: {
     padding: 'var(--space-3) var(--space-4)',
-    border: '1px solid var(--border-medium)',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: 'var(--border-medium)',
     borderRadius: 'var(--radius-md)',
     backgroundColor: 'var(--white)',
     color: 'var(--text-secondary)',
@@ -841,7 +946,9 @@ const styles = {
   },
   prevButton: {
     padding: 'var(--space-3) var(--space-4)',
-    border: '1px solid var(--primary-purple)',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: 'var(--primary-purple)',
     borderRadius: 'var(--radius-md)',
     backgroundColor: 'var(--white)',
     color: 'var(--primary-purple)',

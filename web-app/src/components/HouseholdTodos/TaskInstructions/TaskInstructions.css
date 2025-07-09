@@ -1,0 +1,397 @@
+/* Task Instructions Component Styles */
+.task-instructions-display {
+  margin: 16px 0;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.task-instructions-display h4 {
+  margin: 0 0 12px 0;
+  color: #495057;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.instructions-content {
+  color: #6c757d;
+  line-height: 1.6;
+}
+
+.formatted-text {
+  font-family: inherit;
+}
+
+.formatted-text h5 {
+  margin: 16px 0 8px 0;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.formatted-text p {
+  margin: 8px 0;
+  color: #6c757d;
+}
+
+.formatted-text li {
+  margin: 4px 0;
+  color: #6c757d;
+  list-style-type: disc;
+  margin-left: 20px;
+}
+
+.formatted-text ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.formatted-text ol li {
+  list-style-type: decimal;
+  margin-left: 0;
+}
+
+.warning-text {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 8px 0;
+  color: #856404;
+  font-weight: 500;
+}
+
+.no-instructions {
+  font-style: italic;
+  color: #adb5bd;
+  margin: 0;
+}
+
+/* Editor Styles */
+.task-instructions-editor {
+  margin: 16px 0;
+}
+
+.task-instructions-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #495057;
+  background: white;
+  resize: vertical;
+  min-height: 100px;
+}
+
+.task-instructions-textarea:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.task-instructions-textarea::placeholder {
+  color: #adb5bd;
+  font-style: italic;
+}
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.editor-label {
+  font-weight: 600;
+  color: #495057;
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.editor-helper {
+  font-weight: 400;
+  color: #6c757d;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.preview-toggle {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.preview-toggle:hover {
+  background: #e9ecef;
+}
+
+.preview-toggle.active {
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.preview-container {
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 16px;
+  background: #f8f9fa;
+  min-height: 200px;
+}
+
+.editor-container {
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.editor-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.format-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.format-btn {
+  background: transparent;
+  border: 1px solid #dee2e6;
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 28px;
+}
+
+.format-btn:hover {
+  background: #e9ecef;
+}
+
+.format-btn:active {
+  background: #dee2e6;
+}
+
+.template-dropdown {
+  position: relative;
+}
+
+.template-select {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  min-width: 120px;
+}
+
+.template-select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.instructions-textarea {
+  width: 100%;
+  padding: 16px;
+  border: none;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #495057;
+  background: white;
+  min-height: 200px;
+}
+
+.instructions-textarea:focus {
+  outline: none;
+}
+
+.instructions-textarea::placeholder {
+  color: #adb5bd;
+  font-style: italic;
+}
+
+.editor-help {
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-top: 1px solid #dee2e6;
+  font-size: 11px;
+  color: #6c757d;
+}
+
+.formatting-help,
+.keyboard-shortcuts {
+  margin: 2px 0;
+}
+
+.formatting-help strong,
+.keyboard-shortcuts strong {
+  color: #495057;
+  margin-right: 8px;
+}
+
+.formatting-help span,
+.keyboard-shortcuts span {
+  color: #6c757d;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .editor-header {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  
+  .editor-toolbar {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+  
+  .format-buttons {
+    justify-content: center;
+  }
+  
+  .template-select {
+    width: 100%;
+  }
+  
+  .editor-help {
+    text-align: center;
+  }
+  
+  .formatting-help,
+  .keyboard-shortcuts {
+    display: block;
+    margin: 4px 0;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .task-instructions-display {
+    background: #2d3748;
+    border-color: #4a5568;
+  }
+  
+  .task-instructions-display h4 {
+    color: #e2e8f0;
+  }
+  
+  .instructions-content {
+    color: #cbd5e0;
+  }
+  
+  .formatted-text h5 {
+    color: #e2e8f0;
+  }
+  
+  .formatted-text p,
+  .formatted-text li {
+    color: #cbd5e0;
+  }
+  
+  .warning-text {
+    background: #744210;
+    border-color: #975a16;
+    color: #ffd89b;
+  }
+  
+  .no-instructions {
+    color: #718096;
+  }
+  
+  .editor-label {
+    color: #e2e8f0;
+  }
+  
+  .editor-helper {
+    color: #cbd5e0;
+  }
+  
+  .preview-toggle {
+    background: #4a5568;
+    border-color: #718096;
+    color: #e2e8f0;
+  }
+  
+  .preview-toggle:hover {
+    background: #2d3748;
+  }
+  
+  .preview-container {
+    background: #2d3748;
+    border-color: #4a5568;
+  }
+  
+  .editor-container {
+    border-color: #4a5568;
+  }
+  
+  .editor-toolbar {
+    background: #4a5568;
+    border-color: #718096;
+  }
+  
+  .format-btn {
+    background: transparent;
+    border-color: #718096;
+    color: #e2e8f0;
+  }
+  
+  .format-btn:hover {
+    background: #2d3748;
+  }
+  
+  .template-select {
+    background: #2d3748;
+    border-color: #718096;
+    color: #e2e8f0;
+  }
+  
+  .instructions-textarea {
+    background: #2d3748;
+    color: #e2e8f0;
+  }
+  
+  .instructions-textarea::placeholder {
+    color: #718096;
+  }
+  
+  .editor-help {
+    background: #4a5568;
+    border-color: #718096;
+    color: #cbd5e0;
+  }
+  
+  .formatting-help strong,
+  .keyboard-shortcuts strong {
+    color: #e2e8f0;
+  }
+}

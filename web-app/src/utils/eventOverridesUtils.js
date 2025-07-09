@@ -4,7 +4,6 @@ import {
   setDoc, 
   deleteDoc, 
   query, 
-  where, 
   onSnapshot,
   Timestamp 
 } from 'firebase/firestore';

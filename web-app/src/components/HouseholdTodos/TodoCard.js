@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { updateHouseholdTodo } from '../../utils/householdTodosUtils';
+import TaskDetailModal from './TaskDetailModal';
+import DifficultyBadge from './TaskGuidance/DifficultyBadge';
 import '../../styles/DesignSystem.css';
 
 const TodoCard = ({ 
@@ -17,6 +19,7 @@ const TodoCard = ({
   const [isCompleting, setIsCompleting] = useState(false);
   const [completionNotes, setCompletionNotes] = useState('');
   const [showCompletionForm, setShowCompletionForm] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   
   // Inline editing states
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -388,16 +391,21 @@ const TodoCard = ({
                     <span className="text-xs text-tertiary ml-2 opacity-0 hover:opacity-60 transition-opacity">✏️</span>
                   )}
                 </h3>
-                <div 
-                  className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full"
-                  style={{ 
-                    backgroundColor: `${getPriorityColor(todo.priority)}15`,
-                    color: getPriorityColor(todo.priority)
-                  }}
-                  title={getPriorityLabel(todo.priority)}
-                >
-                  <span className="text-sm">{getPriorityIcon(todo.priority)}</span>
-                  <span className="capitalize">{todo.priority || 'normal'}</span>
+                <div className="flex items-center gap-2">
+                  {todo.difficulty && (
+                    <DifficultyBadge difficulty={todo.difficulty} showLabel={false} size="small" />
+                  )}
+                  <div 
+                    className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full"
+                    style={{ 
+                      backgroundColor: `${getPriorityColor(todo.priority)}15`,
+                      color: getPriorityColor(todo.priority)
+                    }}
+                    title={getPriorityLabel(todo.priority)}
+                  >
+                    <span className="text-sm">{getPriorityIcon(todo.priority)}</span>
+                    <span className="capitalize">{todo.priority || 'normal'}</span>
+                  </div>
                 </div>
               </div>
             )}
@@ -407,6 +415,7 @@ const TodoCard = ({
                   {todo.category}
                 </span>
               )}
+              
             </div>
           </div>
           
@@ -486,6 +495,16 @@ const TodoCard = ({
           </div>
         )}
 
+        {/* Task Details Access Button */}
+        <div className="mt-3 pt-3 border-t border-gray-200">
+          <button
+            onClick={() => setShowDetailModal(true)}
+            className="w-full p-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+          >
+            <span>View Task Details</span>
+          </button>
+        </div>
+
         {showActions && todo.status === 'pending' && (
           <div className="flex gap-2 justify-end mt-4">
             {userRole === 'aupair' && (
@@ -548,6 +567,18 @@ const TodoCard = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Enhanced Task Detail Modal */}
+      {showDetailModal && (
+        <TaskDetailModal
+          task={todo}
+          familyId={familyId}
+          userRole={userRole}
+          onClose={() => setShowDetailModal(false)}
+          onTaskUpdate={onComplete}
+          onEdit={onEdit}
+        />
       )}
     </div>
   );

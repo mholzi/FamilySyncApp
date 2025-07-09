@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import CalendarEventCard from './CalendarEventCard';
 import CalendarQuickAdd from './CalendarQuickAdd';
 import CalendarChildSelector from './CalendarChildSelector';
+import EditEventModal from '../Dashboard/EditEventModal';
 
 // Helper functions for getting different types of events
 const getRoutineEvents = (child, date) => {
@@ -271,6 +272,8 @@ const CalendarDayView = ({
   const [selectedChildren, setSelectedChildren] = useState('all');
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [timeRange, setTimeRange] = useState({ start: 7, end: 21 }); // Default 7 AM - 9 PM
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
 
   // Get all events for the selected date and children
   const dayEvents = useMemo(() => {
@@ -352,6 +355,45 @@ const CalendarDayView = ({
     console.log('Adding event:', eventData);
     setShowQuickAdd(false);
     // Refresh events after adding
+  };
+
+  const handleEditEvent = (event) => {
+    // Transform the calendar event to match the format expected by EditEventModal
+    const transformedEvent = {
+      ...event,
+      children: event.childName ? [{ child: { id: event.childId, name: event.childName } }] : [],
+      isToday: selectedDate.toDateString() === new Date().toDateString()
+    };
+    setEditingEvent(transformedEvent);
+    setShowEditModal(true);
+  };
+
+  const handleDeleteEvent = (event) => {
+    // For now, just show a confirmation - in a real app you'd implement deletion
+    const confirmDelete = window.confirm(`Are you sure you want to delete "${event.title}"?`);
+    if (confirmDelete) {
+      if (event.type === 'activity') {
+        // For recurring activities, you might want to delete the entire activity
+        // or just create a cancellation override
+        console.log('Deleting recurring activity:', event.id);
+        // TODO: Implement activity deletion
+      } else if (event.type === 'routine' || event.type === 'school') {
+        // For routine/school events, create a cancellation override
+        console.log('Cancelling routine/school event:', event.id);
+        // TODO: Implement event cancellation via override
+      }
+    }
+  };
+
+  const handleSaveEventChanges = () => {
+    // The component will re-render due to the event overrides subscription
+    setShowEditModal(false);
+    setEditingEvent(null);
+    
+    // Force a small delay to ensure Firestore has time to propagate the change
+    setTimeout(() => {
+      console.log('Event override saved');
+    }, 100);
   };
 
   // Calculate layout for overlapping events
@@ -489,7 +531,8 @@ const CalendarDayView = ({
                   <CalendarEventCard
                     event={event}
                     hasConflict={hasConflicts(event)}
-                    onEdit={() => console.log('Edit event:', event.id)}
+                    onEdit={() => handleEditEvent(event)}
+                    onDelete={() => handleDeleteEvent(event)}
                     userRole={userRole}
                   />
                 </div>
@@ -521,6 +564,16 @@ const CalendarDayView = ({
           onSave={handleQuickAdd}
           onCancel={() => setShowQuickAdd(false)}
           userRole={userRole}
+        />
+      )}
+
+      {/* Edit Event Modal */}
+      {showEditModal && editingEvent && (
+        <EditEventModal
+          event={editingEvent}
+          familyId={familyData?.id}
+          onClose={() => setShowEditModal(false)}
+          onSave={handleSaveEventChanges}
         />
       )}
     </div>
