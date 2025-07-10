@@ -16,6 +16,11 @@ const ShoppingListTaskCard = ({ list, onNavigate }) => {
     
     if (list.scheduledFor) {
       const scheduledDate = new Date(list.scheduledFor);
+      const now = new Date();
+      
+      // Check if overdue (scheduled time has passed)
+      if (scheduledDate < now) return 'Overdue';
+      
       const today = new Date();
       const tomorrow = new Date(today);
       tomorrow.setDate(today.getDate() + 1);
@@ -25,20 +30,26 @@ const ShoppingListTaskCard = ({ list, onNavigate }) => {
       const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
       const tomorrowDay = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate());
       
-      if (scheduleDay.getTime() === todayDay.getTime()) return 'Today';
-      if (scheduleDay.getTime() === tomorrowDay.getTime()) return 'Tomorrow';
+      if (scheduleDay.getTime() === todayDay.getTime()) {
+        const timeStr = scheduledDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return `Today at ${timeStr}`;
+      }
+      if (scheduleDay.getTime() === tomorrowDay.getTime()) {
+        const timeStr = scheduledDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return `Tomorrow at ${timeStr}`;
+      }
       
-      // Check if overdue
-      if (scheduleDay < todayDay) return 'Overdue';
-      
-      // Show day after tomorrow or specific date
+      // Show day after tomorrow or specific date with time
       const dayAfter = new Date(tomorrow);
       dayAfter.setDate(tomorrow.getDate() + 1);
       const dayAfterDay = new Date(dayAfter.getFullYear(), dayAfter.getMonth(), dayAfter.getDate());
       
-      if (scheduleDay.getTime() === dayAfterDay.getTime()) return 'Day after tomorrow';
+      if (scheduleDay.getTime() === dayAfterDay.getTime()) {
+        const timeStr = scheduledDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return `Day after tomorrow at ${timeStr}`;
+      }
       
-      return scheduledDate.toLocaleDateString();
+      return scheduledDate.toLocaleDateString() + ' at ' + scheduledDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
     
     return '';
@@ -55,7 +66,10 @@ const ShoppingListTaskCard = ({ list, onNavigate }) => {
 
   return (
     <div 
-      style={styles.taskCard}
+      style={{
+        ...styles.taskCard,
+        ...(isOverdue ? styles.overdueCard : {})
+      }}
       onClick={handleClick}
     >
       <div style={styles.taskHeader}>
@@ -93,18 +107,18 @@ const ShoppingListTaskCard = ({ list, onNavigate }) => {
 
 const styles = {
   taskCard: {
-    backgroundColor: '#fff',
-    border: '1px solid #e5e7eb',
-    borderRadius: '12px',
+    backgroundColor: 'var(--md-sys-color-surface-container-low)',
+    border: '1px solid var(--md-sys-color-outline-variant)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
     padding: '16px',
     cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    boxShadow: 'var(--md-sys-elevation-level1)',
     marginBottom: '8px',
-    ':hover': {
-      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-      transform: 'translateY(-1px)'
-    }
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between'
   },
   taskHeader: {
     display: 'flex',
@@ -129,35 +143,40 @@ const styles = {
     margin: 0,
     fontSize: '16px',
     fontWeight: '600',
-    color: '#1f2937',
+    color: 'var(--md-sys-color-on-surface)',
     flex: 1
   },
   scheduleBadge: {
-    backgroundColor: '#e0f2fe',
-    color: '#0277bd',
+    backgroundColor: 'var(--md-sys-color-primary-container)',
+    color: 'var(--md-sys-color-on-primary-container)',
     padding: '2px 8px',
-    borderRadius: '12px',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
     fontSize: '11px',
     fontWeight: '500',
     marginLeft: '8px',
     whiteSpace: 'nowrap'
   },
   overdueBadge: {
-    backgroundColor: '#ffebee',
-    color: '#c62828'
+    backgroundColor: 'var(--md-sys-color-error-container)',
+    color: 'var(--md-sys-color-on-error-container)'
+  },
+  overdueCard: {
+    borderColor: 'var(--md-sys-color-error)',
+    borderWidth: '2px',
+    backgroundColor: 'var(--md-sys-color-error-container)'
   },
   taskDescription: {
     margin: 0,
     fontSize: '14px',
-    color: '#6b7280',
+    color: 'var(--md-sys-color-on-surface-variant)',
     lineHeight: '1.4'
   },
   completedBadge: {
     marginTop: '8px',
-    backgroundColor: '#d1fae5',
-    color: '#065f46',
+    backgroundColor: 'var(--md-sys-color-secondary-container)',
+    color: 'var(--md-sys-color-on-secondary-container)',
     padding: '4px 8px',
-    borderRadius: '6px',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
     fontSize: '12px',
     fontWeight: '500',
     alignSelf: 'flex-start'

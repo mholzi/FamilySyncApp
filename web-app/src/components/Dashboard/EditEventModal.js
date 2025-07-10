@@ -327,15 +327,15 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10000,
-    padding: 'var(--space-4)'
+    padding: '16px'
   },
   modal: {
     width: '100%',
     maxWidth: '600px',
     maxHeight: '90vh',
-    backgroundColor: 'var(--white)',
-    borderRadius: 'var(--radius-lg)',
-    boxShadow: 'var(--shadow-xl)',
+    backgroundColor: 'var(--md-sys-color-surface)',
+    borderRadius: 'var(--md-sys-shape-corner-large)',
+    boxShadow: 'var(--md-sys-elevation-level5)',
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden'
@@ -344,160 +344,161 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 'var(--space-4)',
-    borderBottom: '1px solid var(--border-light)'
+    padding: '16px',
+    borderBottom: '1px solid var(--md-sys-color-outline-variant)'
   },
   title: {
-    fontSize: 'var(--font-size-lg)',
-    fontWeight: 'var(--font-weight-semibold)',
-    color: 'var(--text-primary)',
+    fontSize: '20px',
+    fontWeight: '600',
+    color: 'var(--md-sys-color-on-surface)',
     margin: 0
   },
   closeButton: {
     background: 'none',
     border: 'none',
-    fontSize: 'var(--font-size-xl)',
+    fontSize: '24px',
     cursor: 'pointer',
-    padding: 'var(--space-1)',
-    color: 'var(--text-secondary)',
-    borderRadius: 'var(--radius-sm)'
+    padding: '4px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    borderRadius: 'var(--md-sys-shape-corner-small)'
   },
   content: {
     flex: 1,
     overflow: 'auto',
-    padding: 'var(--space-4)'
+    padding: '16px'
   },
   eventInfo: {
-    backgroundColor: '#f8f9fa',
-    padding: 'var(--space-3)',
-    borderRadius: 'var(--radius-md)',
-    marginBottom: 'var(--space-4)'
+    backgroundColor: 'var(--md-sys-color-surface-container-low)',
+    padding: '12px',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    marginBottom: '16px'
   },
   eventDate: {
-    fontSize: 'var(--font-size-base)',
-    fontWeight: 'var(--font-weight-medium)',
-    color: 'var(--text-primary)',
-    marginBottom: 'var(--space-1)'
+    fontSize: '16px',
+    fontWeight: '500',
+    color: 'var(--md-sys-color-on-surface)',
+    marginBottom: '4px'
   },
   childrenNames: {
-    fontSize: 'var(--font-size-sm)',
-    color: 'var(--text-secondary)'
+    fontSize: '14px',
+    color: 'var(--md-sys-color-on-surface-variant)'
   },
   form: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 'var(--space-4)'
+    gap: '16px'
   },
   formGroup: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 'var(--space-2)'
+    gap: '8px'
   },
   label: {
-    fontSize: 'var(--font-size-sm)',
-    fontWeight: 'var(--font-weight-medium)',
-    color: 'var(--text-primary)'
+    fontSize: '14px',
+    fontWeight: '500',
+    color: 'var(--md-sys-color-on-surface)'
   },
   input: {
-    padding: 'var(--space-3)',
-    border: '1px solid var(--border-light)',
-    borderRadius: 'var(--radius-md)',
-    fontSize: 'var(--font-size-base)',
+    padding: '12px',
+    border: '1px solid var(--md-sys-color-outline-variant)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    fontSize: '16px',
     outline: 'none',
-    transition: 'var(--transition-fast)'
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
   },
   textarea: {
-    padding: 'var(--space-3)',
-    border: '1px solid var(--border-light)',
-    borderRadius: 'var(--radius-md)',
-    fontSize: 'var(--font-size-base)',
+    padding: '12px',
+    border: '1px solid var(--md-sys-color-outline-variant)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    fontSize: '16px',
     outline: 'none',
     resize: 'vertical',
     fontFamily: 'inherit',
-    transition: 'var(--transition-fast)'
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
   },
   responsibilityOptions: {
     display: 'grid',
     gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: 'var(--space-2)'
+    gap: '8px'
   },
   responsibilityButton: {
-    padding: 'var(--space-3)',
-    border: '1px solid var(--border-light)',
-    borderRadius: 'var(--radius-md)',
-    backgroundColor: 'var(--white)',
+    padding: '12px',
+    border: '1px solid var(--md-sys-color-outline)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)',
+    color: 'var(--md-sys-color-on-surface)',
     cursor: 'pointer',
-    transition: 'var(--transition-fast)',
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: 'var(--font-size-sm)',
-    fontWeight: 'var(--font-weight-medium)'
+    fontSize: '14px',
+    fontWeight: '500'
   },
   responsibilityButtonActive: {
-    backgroundColor: 'var(--primary-purple)',
-    color: 'var(--white)',
-    border: '1px solid var(--primary-purple)'
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)',
+    border: '1px solid var(--md-sys-color-primary)'
   },
   notice: {
     display: 'flex',
     alignItems: 'center',
-    gap: 'var(--space-2)',
-    marginTop: 'var(--space-4)',
-    padding: 'var(--space-3)',
-    backgroundColor: '#e3f2fd',
-    borderRadius: 'var(--radius-md)'
+    gap: '8px',
+    marginTop: '16px',
+    padding: '12px',
+    backgroundColor: 'var(--md-sys-color-primary-container)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)'
   },
   noticeIcon: {
-    fontSize: 'var(--font-size-base)'
+    fontSize: '16px'
   },
   noticeText: {
-    fontSize: 'var(--font-size-sm)',
-    color: '#1976d2'
+    fontSize: '14px',
+    color: 'var(--md-sys-color-on-primary-container)'
   },
   footer: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 'var(--space-4)',
-    borderTop: '1px solid var(--border-light)'
+    padding: '16px',
+    borderTop: '1px solid var(--md-sys-color-outline-variant)'
   },
   footerRight: {
     display: 'flex',
-    gap: 'var(--space-3)'
+    gap: '12px'
   },
   cancelEventButton: {
-    padding: 'var(--space-2) var(--space-4)',
-    border: '1px solid #ef4444',
-    borderRadius: 'var(--radius-md)',
-    backgroundColor: 'var(--white)',
-    color: '#ef4444',
-    fontSize: 'var(--font-size-sm)',
-    fontWeight: 'var(--font-weight-medium)',
+    padding: '8px 16px',
+    border: '1px solid var(--md-sys-color-error)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    backgroundColor: 'var(--md-sys-color-surface)',
+    color: 'var(--md-sys-color-error)',
+    fontSize: '14px',
+    fontWeight: '500',
     cursor: 'pointer',
-    transition: 'var(--transition-fast)'
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
   },
   cancelButton: {
-    padding: 'var(--space-2) var(--space-4)',
-    border: '1px solid var(--border-light)',
-    borderRadius: 'var(--radius-md)',
-    backgroundColor: 'var(--white)',
-    color: 'var(--text-secondary)',
-    fontSize: 'var(--font-size-sm)',
-    fontWeight: 'var(--font-weight-medium)',
+    padding: '8px 16px',
+    border: '1px solid var(--md-sys-color-outline-variant)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    backgroundColor: 'var(--md-sys-color-surface)',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    fontSize: '14px',
+    fontWeight: '500',
     cursor: 'pointer',
-    transition: 'var(--transition-fast)'
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
   },
   saveButton: {
-    padding: 'var(--space-2) var(--space-4)',
+    padding: '8px 16px',
     border: 'none',
-    borderRadius: 'var(--radius-md)',
-    backgroundColor: 'var(--primary-purple)',
-    color: 'var(--white)',
-    fontSize: 'var(--font-size-sm)',
-    fontWeight: 'var(--font-weight-medium)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)',
+    fontSize: '14px',
+    fontWeight: '500',
     cursor: 'pointer',
-    transition: 'var(--transition-fast)'
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
   }
 };
 

@@ -14,24 +14,25 @@ function AddChildFlow({ user, familyId, existingChildren = [], editingChild = nu
   // Initialize with different data based on edit mode
   const getInitialChildData = () => {
     if (editingChild) {
-      // Don't generate tempId for editing mode
+      // Load existing child data for editing
       return {
-        name: '',
-        dateOfBirth: null,
-        phoneNumber: '',
-        profilePictureUrl: null,
-        allergies: [],
-        medications: [],
-        emergencyContacts: [],
-        carePreferences: {
+        id: editingChild.id,
+        name: editingChild.name || '',
+        dateOfBirth: editingChild.dateOfBirth || null,
+        phoneNumber: editingChild.phoneNumber || '',
+        profilePictureUrl: editingChild.profilePictureUrl || null,
+        allergies: editingChild.allergies || [],
+        medications: editingChild.medications || [],
+        emergencyContacts: editingChild.emergencyContacts || [],
+        carePreferences: editingChild.carePreferences || {
           napTimes: [],
           bedtime: null,
           mealPreferences: [],
           dailyRoutine: null,
           weeklyActivities: []
         },
-        schoolSchedule: null,
-        scheduleType: null
+        schoolSchedule: editingChild.schoolSchedule || null,
+        scheduleType: editingChild.scheduleType || null
       };
     } else {
       // Only generate tempId for new children
@@ -227,10 +228,10 @@ function AddChildFlow({ user, familyId, existingChildren = [], editingChild = nu
 const styles = {
   container: {
     minHeight: '100vh',
-    backgroundColor: '#F2F2F7',
+    backgroundColor: 'var(--md-sys-color-surface)',
     display: 'flex',
     flexDirection: 'column',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+    fontFamily: 'var(--md-sys-typescale-body-large-font-family-name)',
     position: 'relative'
   },
   
@@ -241,25 +242,26 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1000
   },
   loadingContent: {
-    backgroundColor: 'white',
-    borderRadius: '16px',
+    backgroundColor: 'var(--md-sys-color-surface-container-high)',
+    borderRadius: 'var(--md-sys-shape-corner-large)',
     padding: '30px',
     textAlign: 'center',
     maxWidth: '300px',
-    width: '90%'
+    width: '90%',
+    boxShadow: 'var(--md-sys-elevation-level3)'
   },
   loadingSpinner: {
     width: '40px',
     height: '40px',
-    border: '4px solid #E5E5EA',
-    borderTop: '4px solid #007AFF',
+    border: '4px solid var(--md-sys-color-surface-variant)',
+    borderTop: '4px solid var(--md-sys-color-primary)',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite',
     margin: '0 auto 20px auto'
@@ -267,12 +269,12 @@ const styles = {
   loadingText: {
     fontSize: '18px',
     fontWeight: '600',
-    color: '#000',
+    color: 'var(--md-sys-color-on-surface)',
     marginBottom: '8px'
   },
   loadingSubtext: {
     fontSize: '14px',
-    color: '#666',
+    color: 'var(--md-sys-color-on-surface-variant)',
     lineHeight: '1.4'
   },
   
@@ -283,19 +285,20 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1000
   },
   successContent: {
-    backgroundColor: 'white',
-    borderRadius: '16px',
+    backgroundColor: 'var(--md-sys-color-surface-container-high)',
+    borderRadius: 'var(--md-sys-shape-corner-large)',
     padding: '30px',
     textAlign: 'center',
     maxWidth: '300px',
-    width: '90%'
+    width: '90%',
+    boxShadow: 'var(--md-sys-elevation-level3)'
   },
   successIcon: {
     fontSize: '48px',
@@ -304,12 +307,12 @@ const styles = {
   successText: {
     fontSize: '18px',
     fontWeight: '600',
-    color: '#000',
+    color: 'var(--md-sys-color-on-surface)',
     marginBottom: '8px'
   },
   successSubtext: {
     fontSize: '14px',
-    color: '#666'
+    color: 'var(--md-sys-color-on-surface-variant)'
   }
 };
 

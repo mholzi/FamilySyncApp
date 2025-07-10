@@ -4,6 +4,7 @@ import { db } from '../../firebase';
 import { getNextOccurrences } from '../../utils/recurringActivityTemplates';
 import { subscribeToEventOverrides, getEventOverride, applyEventOverride } from '../../utils/eventOverridesUtils';
 import { useCalendar } from '../../hooks/useCalendar';
+import { useShopping } from '../../hooks/useShopping';
 import EditEventModal from './EditEventModal';
 
 // Import child color utility from EnhancedChildCard
@@ -38,7 +39,8 @@ const UpcomingEventsForMe = ({
   familyId = null,
   userId = null,
   maxEvents = 5,
-  recurringActivities = []
+  recurringActivities = [],
+  onNavigate = null
 }) => {
   const [babysittingRequests, setBabysittingRequests] = useState([]);
   const [eventOverrides, setEventOverrides] = useState({});
@@ -48,6 +50,9 @@ const UpcomingEventsForMe = ({
 
   // Get calendar events using the useCalendar hook
   const { events: calendarEvents, loading: calendarLoading, error: calendarError } = useCalendar(familyId, userId);
+  
+  // Get shopping lists using the useShopping hook
+  const { shoppingLists, loading: shoppingLoading, error: shoppingError } = useShopping(familyId);
 
   // Fetch accepted babysitting requests from Firestore
   useEffect(() => {
@@ -833,6 +838,72 @@ const UpcomingEventsForMe = ({
       }
     });
 
+    // Add shopping tasks scheduled for today
+    if (shoppingLists && shoppingLists.length > 0) {
+      shoppingLists.forEach((shoppingList) => {
+        try {
+          // Check if shopping list is scheduled for today
+          const shouldShowShoppingTask = () => {
+            if (!shoppingList.scheduledFor && !shoppingList.scheduledOption) return false;
+            
+            if (shoppingList.scheduledOption === 'this-week') return true;
+            
+            if (shoppingList.scheduledFor) {
+              const scheduledDate = new Date(shoppingList.scheduledFor);
+              const scheduleDay = new Date(scheduledDate.getFullYear(), scheduledDate.getMonth(), scheduledDate.getDate());
+              const todayDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+              
+              return scheduleDay <= todayDay;
+            }
+            
+            return false;
+          };
+
+          // Only show for au pairs and if scheduled for today
+          if (userRole === 'aupair' && shouldShowShoppingTask()) {
+            // Calculate a reasonable time for shopping (default to 10:00 AM if not specified)
+            const shoppingTime = shoppingList.scheduledTime || '10:00';
+            const eventTime = timeToMinutes(shoppingTime);
+            
+            // Only show if shopping is upcoming today
+            if (eventTime > currentTime) {
+              // Get items count for display
+              const items = Object.values(shoppingList.items || {});
+              const completedItems = items.filter(item => item.isPurchased).length;
+              const totalItems = items.length;
+              const remainingItems = totalItems - completedItems;
+              
+              // Use first child for color consistency or create a default
+              const defaultChild = children[0];
+              if (defaultChild) {
+                const childColor = getChildColor(defaultChild.id);
+                
+                addEventToGroup({
+                  title: `Shopping: ${shoppingList.name}`,
+                  time: shoppingTime,
+                  minutes: eventTime,
+                  child: defaultChild,
+                  childColor: childColor,
+                  type: 'shopping',
+                  isToday: true,
+                  description: totalItems === 0 
+                    ? 'No items added yet'
+                    : `${remainingItems} of ${totalItems} items remaining`,
+                  location: shoppingList.supermarket?.name || 'Supermarket',
+                  additionalInfo: shoppingList.supermarket?.location?.address || null,
+                  responsibility: 'au_pair',
+                  originalResponsibility: 'au_pair',
+                  shoppingListId: shoppingList.id
+                });
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('Error processing shopping list:', error, shoppingList);
+        }
+      });
+    }
+
     // Add tomorrow's events if we need more to reach maxEvents
     if (eventGroups.size < maxEvents) {
       children.forEach((child, childIndex) => {
@@ -1100,8 +1171,8 @@ const UpcomingEventsForMe = ({
   if (upcomingEvents.length === 0) {
     return (
       <div style={styles.container}>
-        <div style={styles.header}>
-          <h3 style={styles.title}>Upcoming Events</h3>
+        <div className="md3-flex md3-flex-between md3-flex-center md3-mb-16">
+          <div style={styles.title}>Upcoming Events</div>
         </div>
         <div style={styles.emptyState}>
           <div style={styles.emptyIcon}></div>
@@ -1118,8 +1189,8 @@ const UpcomingEventsForMe = ({
 
   return (
     <div style={styles.container} className="upcoming-events-container">
-      <div style={styles.header}>
-        <h3 style={styles.title}>Upcoming Events</h3>
+      <div className="md3-flex md3-flex-between md3-flex-center md3-mb-16">
+        <div style={styles.title}>Upcoming Events</div>
         <div style={styles.filterButtons}>
           <button
             style={{
@@ -1144,7 +1215,15 @@ const UpcomingEventsForMe = ({
       
       <div style={styles.eventsList}>
         {upcomingEvents.map((event) => (
-          <div key={event.id} style={styles.eventCard} className="event-card">
+          <div 
+            key={event.id} 
+            style={{
+              ...styles.eventCard,
+              ...(event.type === 'shopping' ? { cursor: 'pointer' } : {})
+            }}
+            className="event-card"
+            onClick={event.type === 'shopping' && onNavigate ? () => onNavigate('shopping') : undefined}
+          >
             {/* Time and Day indicator */}
             <div style={styles.timeSection}>
               <div style={styles.timeContent}>
@@ -1195,16 +1274,20 @@ const UpcomingEventsForMe = ({
                 if (event.type === 'school_pickup' && event.responsibility === 'au_pair') {
                   const schoolAddress = event.child?.schoolInfo?.address || event.location || 'School';
                   return (
-                    <div style={styles.eventLocation}>
+                    <div style={styles.eventLocationContainer}>
                       <span style={styles.locationLabel}>Location:</span>
-                      <span style={styles.locationText}>{schoolAddress}</span>
+                      <div style={styles.eventLocation}>
+                        <span style={styles.locationText}>{schoolAddress}</span>
+                      </div>
                     </div>
                   );
                 } else if (event.location) {
                   return (
-                    <div style={styles.eventLocation}>
+                    <div style={styles.eventLocationContainer}>
                       <span style={styles.locationLabel}>Location:</span>
-                      <span style={styles.locationText}>{event.location}</span>
+                      <div style={styles.eventLocation}>
+                        <span style={styles.locationText}>{event.location}</span>
+                      </div>
                     </div>
                   );
                 }
@@ -1322,175 +1405,190 @@ const styles = {
     gap: 'var(--space-3)'
   },
   title: {
-    fontSize: 'var(--font-size-lg)',
-    fontWeight: 'var(--font-weight-semibold)',
-    color: 'var(--text-primary)',
+    fontSize: '24px',
+    fontWeight: '400',
+    color: 'var(--md-sys-color-on-surface)',
     margin: 0,
     textAlign: 'left',
-    flex: 1
+    flex: 1,
+    lineHeight: '32px'
   },
   filterButtons: {
     display: 'flex',
-    gap: 'var(--space-2)',
-    backgroundColor: '#f8f9fa',
-    padding: '2px',
-    borderRadius: 'var(--radius-md)',
-    border: '1px solid var(--border-light)'
+    gap: '4px',
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)',
+    padding: '4px',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    border: '1px solid var(--md-sys-color-outline-variant)'
   },
   filterButton: {
-    padding: 'var(--space-2) var(--space-3)',
+    padding: '8px 12px',
     border: 'none',
-    borderRadius: 'var(--radius-sm)',
+    borderRadius: 'var(--md-sys-shape-corner-extra-small)',
     backgroundColor: 'transparent',
-    color: 'var(--text-secondary)',
-    fontSize: 'var(--font-size-sm)',
-    fontWeight: 'var(--font-weight-medium)',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    fontSize: '14px',
+    fontWeight: '500',
     cursor: 'pointer',
-    transition: 'var(--transition-fast)',
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
     whiteSpace: 'nowrap'
   },
   filterButtonActive: {
-    backgroundColor: 'var(--white)',
-    color: 'var(--primary-purple)',
-    boxShadow: 'var(--shadow-sm)'
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)',
+    boxShadow: 'var(--md-sys-elevation-level1)'
   },
   eventsList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 'var(--space-3)'
+    gap: '12px'
   },
   eventCard: {
-    backgroundColor: 'var(--white)',
-    borderRadius: 'var(--radius-lg)',
-    padding: 'var(--space-4)',
-    boxShadow: 'var(--shadow-sm)',
-    border: '1px solid var(--border-light)',
-    transition: 'var(--transition-normal)',
+    backgroundColor: 'var(--md-sys-color-surface-container-low)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    padding: '16px',
+    boxShadow: 'var(--md-sys-elevation-level1)',
+    border: '1px solid var(--md-sys-color-outline-variant)',
+    transition: 'var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard)',
     position: 'relative',
     display: 'flex',
-    gap: 'var(--space-4)',
+    gap: '16px',
     alignItems: 'flex-start',
     paddingBottom: '50px' // Add extra space for the responsibility badge
   },
   timeSection: {
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center',
-    minWidth: '60px',
-    textAlign: 'center'
+    alignItems: 'flex-start',
+    minWidth: '70px',
+    textAlign: 'left',
+    paddingLeft: '0px' // Align with card padding, responsibility badge has absolute positioning
   },
   timeContent: {
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center'
+    alignItems: 'flex-start'
   },
   timeDisplay: {
-    fontSize: 'var(--font-size-lg)',
-    fontWeight: 'var(--font-weight-bold)',
-    color: 'var(--text-primary)',
-    lineHeight: 'var(--line-height-tight)'
+    fontSize: '18px',
+    fontWeight: '700',
+    color: 'var(--md-sys-color-primary)',
+    lineHeight: '1.3'
   },
   dayIndicator: {
-    fontSize: 'var(--font-size-xs)',
-    color: 'var(--text-tertiary)',
-    backgroundColor: '#fafbfc',
-    padding: 'var(--space-1) var(--space-2)',
-    borderRadius: 'var(--radius-sm)',
-    marginTop: 'var(--space-1)',
-    fontWeight: 'var(--font-weight-medium)'
+    fontSize: '12px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)',
+    padding: '4px 8px',
+    borderRadius: 'var(--md-sys-shape-corner-extra-small)',
+    marginTop: '4px',
+    fontWeight: '500'
   },
   eventContent: {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
-    gap: 'var(--space-2)',
+    gap: '8px',
     minWidth: 0
   },
   eventHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: 'var(--space-2)',
-    marginBottom: 'var(--space-2)'
+    gap: '8px',
+    marginBottom: '8px'
   },
   eventTitle: {
-    fontSize: 'var(--font-size-base)',
-    fontWeight: 'var(--font-weight-semibold)',
-    color: 'var(--text-primary)',
-    lineHeight: 'var(--line-height-tight)',
+    fontSize: '16px',
+    fontWeight: '600',
+    color: 'var(--md-sys-color-on-surface)',
+    lineHeight: '1.3',
     flex: 1,
     display: 'flex',
     alignItems: 'center',
-    gap: 'var(--space-2)'
+    gap: '8px'
   },
   modifiedBadge: {
-    fontSize: 'var(--font-size-xs)',
-    fontWeight: 'var(--font-weight-medium)',
-    color: '#f59e0b',
-    backgroundColor: '#fef3c7',
+    fontSize: '11px',
+    fontWeight: '500',
+    color: 'var(--md-sys-color-on-tertiary-container)',
+    backgroundColor: 'var(--md-sys-color-tertiary-container)',
     padding: '2px 6px',
-    borderRadius: 'var(--radius-sm)',
+    borderRadius: 'var(--md-sys-shape-corner-extra-small)',
     textTransform: 'uppercase',
     letterSpacing: '0.5px'
   },
   editButton: {
     border: 'none',
-    borderRadius: 'var(--radius-md)',
-    padding: 'var(--space-2) var(--space-3)',
-    fontSize: 'var(--font-size-xs)',
-    fontWeight: 'var(--font-weight-medium)',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    padding: '8px 12px',
+    fontSize: '12px',
+    fontWeight: '500',
     cursor: 'pointer',
-    transition: 'var(--transition-fast)',
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
     minWidth: '80px',
-    backgroundColor: '#f3f4f6',
-    color: 'var(--text-primary)',
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)',
+    color: 'var(--md-sys-color-on-surface)',
     position: 'absolute',
     bottom: '10px',
     right: '10px'
   },
   responsibilityBadge: {
     display: 'inline-block',
-    padding: '2px 6px',
-    borderRadius: 'var(--radius-sm)',
-    fontSize: 'var(--font-size-xs)',
-    fontWeight: 'var(--font-weight-medium)',
+    padding: '4px 8px',
+    borderRadius: 'var(--md-sys-shape-corner-extra-small)',
+    fontSize: '11px',
+    fontWeight: '500',
     textAlign: 'center',
     textTransform: 'uppercase',
     letterSpacing: '0.3px',
-    opacity: 0.8,
+    opacity: 0.9,
     position: 'absolute',
     bottom: '10px',
     left: '10px' // 10px margin from the left edge
   },
   eventDescription: {
-    fontSize: 'var(--font-size-sm)',
-    color: 'var(--text-secondary)',
-    lineHeight: 'var(--line-height-normal)'
+    fontSize: '14px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    lineHeight: '1.4',
+    marginBottom: '4px'
   },
-  eventLocation: {
+  eventLocationContainer: {
     display: 'flex',
     alignItems: 'center',
-    gap: 'var(--space-1)',
-    fontSize: 'var(--font-size-sm)',
-    color: 'var(--text-secondary)'
+    gap: '8px',
+    marginBottom: '4px'
+  },
+  eventLocation: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    fontSize: '13px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)',
+    padding: '6px 12px',
+    borderRadius: 'var(--md-sys-shape-corner-extra-small)'
   },
   locationLabel: {
-    fontWeight: 'var(--font-weight-bold)',
-    marginRight: 'var(--space-1)'
+    fontWeight: '600',
+    color: 'var(--md-sys-color-primary)',
+    fontSize: '13px'
   },
   locationText: {
+    fontSize: '13px',
+    color: 'var(--md-sys-color-on-surface-variant)',
     flex: 1
   },
   additionalInfo: {
     display: 'flex',
     alignItems: 'flex-start',
-    gap: 'var(--space-1)',
-    fontSize: 'var(--font-size-xs)',
-    color: 'var(--text-tertiary)',
-    backgroundColor: '#f8f9fa',
-    padding: 'var(--space-2)',
-    borderRadius: 'var(--radius-sm)',
-    lineHeight: 'var(--line-height-normal)'
+    gap: '4px',
+    fontSize: '12px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)',
+    padding: '6px 8px',
+    borderRadius: 'var(--md-sys-shape-corner-extra-small)',
+    lineHeight: '1.4',
+    marginBottom: '4px'
   },
   infoIcon: {
     fontSize: 'var(--font-size-xs)',
@@ -1498,11 +1596,14 @@ const styles = {
     flexShrink: 0
   },
   infoText: {
-    flex: 1
+    flex: 1,
+    fontSize: '12px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    lineHeight: '1.4'
   },
   childIndicators: {
     position: 'absolute',
-    top: 'calc(var(--space-3) + 10px)',
+    top: '24px', // 16px (card padding) + 8px (additional margin)
     right: 0,
     display: 'flex',
     alignItems: 'center'
@@ -1511,20 +1612,20 @@ const styles = {
     position: 'absolute',
     width: '32px',
     height: '32px',
-    borderRadius: '50%',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: 'var(--font-size-sm)',
-    fontWeight: 'var(--font-weight-bold)',
+    fontSize: '12px',
+    fontWeight: '700',
     color: 'white',
-    boxShadow: 'var(--shadow-sm)',
+    boxShadow: 'var(--md-sys-elevation-level1)',
     border: '2px solid white'
   },
   emptyState: {
     textAlign: 'center',
-    padding: 'var(--space-8)',
-    color: 'var(--text-secondary)'
+    padding: '32px',
+    color: 'var(--md-sys-color-on-surface-variant)'
   },
   emptyIcon: {
     fontSize: 'var(--font-size-4xl)',

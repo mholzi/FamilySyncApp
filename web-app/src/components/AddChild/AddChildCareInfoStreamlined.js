@@ -1405,9 +1405,11 @@ const styles = {
   container: {
     display: 'flex',
     flexDirection: 'column',
-    minHeight: '100vh',
-    backgroundColor: '#F2F2F7',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
+    height: '100vh',
+    backgroundColor: 'var(--md-sys-color-surface)',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+    position: 'relative',
+    overflow: 'hidden'
   },
   
   header: {
@@ -1415,8 +1417,8 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '15px 20px',
-    backgroundColor: 'white',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+    backgroundColor: 'var(--md-sys-color-surface-container)',
+    boxShadow: 'var(--md-sys-elevation-level1)'
   },
   
   backButton: {
@@ -1424,13 +1426,13 @@ const styles = {
     border: 'none',
     fontSize: '20px',
     cursor: 'pointer',
-    color: '#007AFF'
+    color: 'var(--md-sys-color-primary)'
   },
   
   title: {
     fontSize: '18px',
     fontWeight: '600',
-    color: '#000',
+    color: 'var(--md-sys-color-on-surface)',
     margin: 0
   },
   
@@ -1455,13 +1457,16 @@ const styles = {
   },
   
   saveStatusError: {
-    color: '#FF3B30'
+    color: 'var(--md-sys-color-error)'
   },
   
   content: {
     flex: 1,
     padding: '20px',
-    paddingBottom: '100px'
+    paddingBottom: '180px', // Increased to account for fixed footer
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    height: '100%'
   },
   
   progressIndicator: {
@@ -1476,7 +1481,7 @@ const styles = {
   progressBar: {
     flex: '1 1 auto',
     height: '4px',
-    backgroundColor: '#E5E5EA',
+    backgroundColor: 'var(--md-sys-color-surface-variant)',
     borderRadius: '2px',
     overflow: 'hidden',
     minWidth: '0'
@@ -1485,14 +1490,14 @@ const styles = {
   progressFill: {
     width: '66%',
     height: '100%',
-    backgroundColor: '#007AFF',
+    backgroundColor: 'var(--md-sys-color-primary)',
     borderRadius: '2px'
   },
   
   progressText: {
     flex: '0 0 auto',
     fontSize: '12px',
-    color: '#666',
+    color: 'var(--md-sys-color-on-surface-variant)',
     fontWeight: '500',
     whiteSpace: 'nowrap'
   },
@@ -1510,13 +1515,13 @@ const styles = {
   subtitle: {
     fontSize: '20px',
     fontWeight: '600',
-    color: '#000',
+    color: 'var(--md-sys-color-on-surface)',
     margin: '0 0 10px 0'
   },
   
   infoText: {
     fontSize: '16px',
-    color: '#666',
+    color: 'var(--md-sys-color-on-surface-variant)',
     lineHeight: '1.4',
     margin: 0
   },
@@ -1528,10 +1533,10 @@ const styles = {
   },
   
   essentialSection: {
-    backgroundColor: 'white',
+    backgroundColor: 'var(--md-sys-color-surface-container)',
     borderRadius: '12px',
     padding: '20px',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+    boxShadow: 'var(--md-sys-elevation-level2)'
   },
   
   optionalSections: {
@@ -1543,7 +1548,7 @@ const styles = {
   sectionTitle: {
     fontSize: '18px',
     fontWeight: '600',
-    color: '#000',
+    color: 'var(--md-sys-color-on-surface)',
     margin: '0 0 20px 0'
   },
   
@@ -1556,7 +1561,7 @@ const styles = {
   label: {
     fontSize: '16px',
     fontWeight: '500',
-    color: '#000',
+    color: 'var(--md-sys-color-on-surface)',
     marginBottom: '8px'
   },
   
@@ -1568,7 +1573,7 @@ const styles = {
   
   helpText: {
     fontSize: '12px',
-    color: '#8E8E93',
+    color: 'var(--md-sys-color-outline)',
     marginTop: '4px',
     lineHeight: '1.4'
   },
@@ -1583,15 +1588,15 @@ const styles = {
     flex: 1,
     padding: '12px',
     borderRadius: '8px',
-    border: '1px solid #E5E5EA',
+    border: '1px solid var(--md-sys-color-outline-variant)',
     fontSize: '16px',
-    backgroundColor: 'white',
+    backgroundColor: 'var(--md-sys-color-surface-container)',
     outline: 'none'
   },
   
   quickAddButton: {
-    backgroundColor: '#007AFF',
-    color: 'white',
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)',
     border: 'none',
     borderRadius: '6px',
     padding: '12px 16px',
@@ -1608,12 +1613,12 @@ const styles = {
   },
   
   suggestionChip: {
-    backgroundColor: '#F2F2F7',
-    border: '1px solid #D1D1D6',
+    backgroundColor: 'var(--md-sys-color-surface)',
+    border: '1px solid var(--md-sys-color-outline)',
     borderRadius: '16px',
     padding: '6px 12px',
     fontSize: '12px',
-    color: '#007AFF',
+    color: 'var(--md-sys-color-primary)',
     cursor: 'pointer'
   },
   
@@ -1625,11 +1630,11 @@ const styles = {
   },
   
   itemChip: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: 'var(--md-sys-color-primary-container)',
     borderRadius: '16px',
     padding: '6px 12px',
     fontSize: '14px',
-    color: '#1976D2',
+    color: 'var(--md-sys-color-on-primary-container)',
     display: 'flex',
     alignItems: 'center',
     gap: '6px'
@@ -1638,7 +1643,7 @@ const styles = {
   removeChip: {
     backgroundColor: 'transparent',
     border: 'none',
-    color: '#1976D2',
+    color: 'var(--md-sys-color-on-primary-container)',
     fontSize: '16px',
     cursor: 'pointer',
     width: '16px',
@@ -1649,10 +1654,10 @@ const styles = {
   },
   
   expandableCard: {
-    backgroundColor: 'white',
+    backgroundColor: 'var(--md-sys-color-surface-container)',
     borderRadius: '12px',
     overflow: 'hidden',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+    boxShadow: 'var(--md-sys-elevation-level2)'
   },
   
   expandHeader: {
@@ -1674,45 +1679,45 @@ const styles = {
   expandTitle: {
     fontSize: '16px',
     fontWeight: '500',
-    color: '#000',
+    color: 'var(--md-sys-color-on-surface)',
     display: 'flex',
     alignItems: 'center',
     gap: '8px'
   },
   
   completed: {
-    color: '#34C759',
+    color: 'var(--md-sys-color-primary)',
     fontSize: '14px'
   },
   
   expandSubtitle: {
     fontSize: '14px',
-    color: '#666',
+    color: 'var(--md-sys-color-on-surface-variant)',
     marginTop: '2px',
     display: 'block'
   },
   
   expandIcon: {
-    color: '#C7C7CC',
+    color: 'var(--md-sys-color-outline)',
     fontSize: '12px',
     marginLeft: '10px'
   },
   
   expandContent: {
     padding: '0 20px 20px 20px',
-    borderTop: '1px solid #F2F2F7'
+    borderTop: '1px solid var(--md-sys-color-outline-variant)'
   },
   
   expandDescription: {
     fontSize: '14px',
-    color: '#666',
+    color: 'var(--md-sys-color-on-surface-variant)',
     margin: '0 0 15px 0',
     lineHeight: '1.4'
   },
   
   actionButton: {
-    backgroundColor: '#007AFF',
-    color: 'white',
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)',
     border: 'none',
     borderRadius: '8px',
     padding: '12px 20px',
@@ -1723,9 +1728,9 @@ const styles = {
   },
   
   editButton: {
-    backgroundColor: '#F2F2F7',
-    color: '#007AFF',
-    border: '1px solid #D1D1D6',
+    backgroundColor: 'var(--md-sys-color-surface)',
+    color: 'var(--md-sys-color-primary)',
+    border: '1px solid var(--md-sys-color-outline)',
     borderRadius: '6px',
     padding: '8px 16px',
     fontSize: '14px',
@@ -1755,7 +1760,7 @@ const styles = {
     alignItems: 'center',
     gap: '8px',
     padding: '8px',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: 'var(--md-sys-color-surface-container-low)',
     borderRadius: '8px',
     border: '1px solid #E5E5EA'
   },
@@ -1774,19 +1779,19 @@ const styles = {
   scheduleTime: {
     fontSize: '13px',
     fontWeight: '600',
-    color: '#007AFF',
+    color: 'var(--md-sys-color-primary)',
     lineHeight: 1
   },
 
   scheduleLabel: {
     fontSize: '12px',
-    color: '#333',
+    color: 'var(--md-sys-color-on-surface)',
     lineHeight: 1.2,
     marginTop: '2px'
   },
 
   scheduleDetail: {
-    color: '#666',
+    color: 'var(--md-sys-color-on-surface-variant)',
     fontWeight: '400'
   },
 
@@ -1799,7 +1804,7 @@ const styles = {
   scheduleTypeDisplay: {
     fontSize: '14px',
     fontWeight: '600',
-    color: '#007AFF',
+    color: 'var(--md-sys-color-primary)',
     marginBottom: '5px'
   },
 
@@ -1818,7 +1823,7 @@ const styles = {
     alignItems: 'center',
     gap: '12px',
     padding: '10px',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: 'var(--md-sys-color-surface-container-low)',
     borderRadius: '8px',
     border: '1px solid #E5E5EA'
   },
@@ -1826,33 +1831,33 @@ const styles = {
   schoolDayLabel: {
     fontSize: '12px',
     fontWeight: '600',
-    color: '#333',
+    color: 'var(--md-sys-color-on-surface)',
     minWidth: '35px'
   },
 
   schoolTimeRange: {
     fontSize: '12px',
     fontWeight: '600',
-    color: '#007AFF',
+    color: 'var(--md-sys-color-primary)',
     minWidth: '80px'
   },
 
   schoolTypeLabel: {
     fontSize: '11px',
     padding: '4px 8px',
-    backgroundColor: '#007AFF',
-    color: 'white',
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)',
     borderRadius: '12px',
     fontWeight: '500'
   },
 
   kinderbetreuungLabel: {
-    backgroundColor: '#FF9500'
+    backgroundColor: 'var(--md-sys-color-tertiary)'
   },
 
   noScheduleText: {
     fontSize: '14px',
-    color: '#666',
+    color: 'var(--md-sys-color-on-surface-variant)',
     fontStyle: 'italic',
     textAlign: 'center',
     padding: '20px'
@@ -1875,22 +1880,22 @@ const styles = {
   loadingTitle: {
     fontSize: '20px',
     fontWeight: '600',
-    color: '#000',
+    color: 'var(--md-sys-color-on-surface)',
     margin: '0 0 10px 0'
   },
 
   loadingText: {
     fontSize: '16px',
-    color: '#666',
+    color: 'var(--md-sys-color-on-surface-variant)',
     margin: 0
   },
   
   textarea: {
     padding: '12px',
     borderRadius: '8px',
-    border: '1px solid #E5E5EA',
+    border: '1px solid var(--md-sys-color-outline-variant)',
     fontSize: '16px',
-    backgroundColor: 'white',
+    backgroundColor: 'var(--md-sys-color-surface-container)',
     outline: 'none',
     resize: 'vertical',
     fontFamily: 'inherit'
@@ -1902,7 +1907,7 @@ const styles = {
     left: 0,
     right: 0,
     padding: '20px',
-    backgroundColor: 'white',
+    backgroundColor: 'var(--md-sys-color-surface-container)',
     borderTop: '1px solid #E5E5EA',
     display: 'flex',
     gap: '15px',
@@ -1913,9 +1918,9 @@ const styles = {
     flex: 1,
     padding: '15px',
     borderRadius: '8px',
-    border: '1px solid #E5E5EA',
-    backgroundColor: 'white',
-    color: '#8E8E93',
+    border: '1px solid var(--md-sys-color-outline-variant)',
+    backgroundColor: 'var(--md-sys-color-surface-container)',
+    color: 'var(--md-sys-color-outline)',
     fontSize: '16px',
     fontWeight: '500',
     cursor: 'pointer'
@@ -1926,8 +1931,8 @@ const styles = {
     padding: '15px',
     borderRadius: '8px',
     border: 'none',
-    backgroundColor: '#007AFF',
-    color: 'white',
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)',
     fontSize: '16px',
     fontWeight: '600',
     cursor: 'pointer'
@@ -1944,7 +1949,7 @@ const styles = {
   scheduleTypeBadge: {
     fontSize: '10px',
     fontWeight: '600',
-    color: 'white',
+    color: 'var(--md-sys-color-on-primary)',
     padding: '4px 8px',
     borderRadius: '12px',
     textTransform: 'uppercase',
@@ -1954,11 +1959,11 @@ const styles = {
   // Recurring Activities Styles
   noActivitiesText: {
     fontSize: '14px',
-    color: '#8E8E93',
+    color: 'var(--md-sys-color-outline)',
     fontStyle: 'italic',
     textAlign: 'center',
     padding: '20px',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: 'var(--md-sys-color-surface-container-low)',
     borderRadius: '8px',
     marginBottom: '15px'
   },
@@ -1971,11 +1976,11 @@ const styles = {
   },
 
   activityItem: {
-    backgroundColor: '#F8F9FA',
+    backgroundColor: 'var(--md-sys-color-surface-container-low)',
     borderRadius: '8px',
     padding: '12px',
     cursor: 'pointer',
-    border: '1px solid #E5E5EA',
+    border: '1px solid var(--md-sys-color-outline-variant)',
     transition: 'all 0.2s ease'
   },
 
@@ -1994,7 +1999,7 @@ const styles = {
 
   activityTime: {
     fontSize: '14px',
-    color: '#007AFF',
+    color: 'var(--md-sys-color-primary)',
     fontWeight: '500'
   },
 
@@ -2011,14 +2016,14 @@ const styles = {
 
   activityRecurrence: {
     fontSize: '12px',
-    color: '#8E8E93',
+    color: 'var(--md-sys-color-outline)',
     textTransform: 'uppercase',
     letterSpacing: '0.5px'
   },
 
   activityNext: {
     fontSize: '12px',
-    color: '#FF9500',
+    color: 'var(--md-sys-color-tertiary)',
     fontWeight: '500'
   },
 
@@ -2029,7 +2034,7 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'var(--md-sys-color-scrim)',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
@@ -2037,7 +2042,7 @@ const styles = {
   },
 
   modalContent: {
-    backgroundColor: 'white',
+    backgroundColor: 'var(--md-sys-color-surface-container)',
     borderRadius: '12px',
     width: '90%',
     maxWidth: '500px',
@@ -2058,7 +2063,7 @@ const styles = {
   modalTitle: {
     fontSize: '18px',
     fontWeight: '600',
-    color: '#000',
+    color: 'var(--md-sys-color-on-surface)',
     margin: 0,
     flex: 1
   },
@@ -2070,8 +2075,8 @@ const styles = {
   },
 
   editButtonSecondary: {
-    backgroundColor: '#007AFF',
-    color: 'white',
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)',
     border: 'none',
     borderRadius: '6px',
     padding: '8px 16px',
@@ -2082,8 +2087,8 @@ const styles = {
   },
 
   deleteButton: {
-    backgroundColor: '#FF3B30',
-    color: 'white',
+    backgroundColor: 'var(--md-sys-color-error)',
+    color: 'var(--md-sys-color-on-primary)',
     border: 'none',
     borderRadius: '6px',
     padding: '8px 16px',
@@ -2098,7 +2103,7 @@ const styles = {
     border: 'none',
     fontSize: '18px',
     cursor: 'pointer',
-    color: '#8E8E93',
+    color: 'var(--md-sys-color-outline)',
     padding: '5px'
   },
 
@@ -2123,7 +2128,7 @@ const styles = {
   infoLabel: {
     fontSize: '12px',
     fontWeight: '600',
-    color: '#8E8E93',
+    color: 'var(--md-sys-color-outline)',
     textTransform: 'uppercase',
     letterSpacing: '0.5px'
   },
@@ -2135,7 +2140,7 @@ const styles = {
   occurrencesTitle: {
     fontSize: '16px',
     fontWeight: '600',
-    color: '#000',
+    color: 'var(--md-sys-color-on-surface)',
     marginBottom: '12px'
   },
 
@@ -2150,7 +2155,7 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '8px 12px',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: 'var(--md-sys-color-surface-container-low)',
     borderRadius: '8px'
   },
 
@@ -2162,7 +2167,7 @@ const styles = {
 
   occurrenceTime: {
     fontSize: '14px',
-    color: '#007AFF'
+    color: 'var(--md-sys-color-primary)'
   },
 
   itemsSection: {
@@ -2172,7 +2177,7 @@ const styles = {
   itemsTitle: {
     fontSize: '16px',
     fontWeight: '600',
-    color: '#000',
+    color: 'var(--md-sys-color-on-surface)',
     marginBottom: '12px'
   },
 
@@ -2187,7 +2192,7 @@ const styles = {
 
   itemsListItem: {
     padding: '8px 12px',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: 'var(--md-sys-color-surface-container-low)',
     borderRadius: '8px',
     fontSize: '14px',
     color: '#000'
@@ -2200,22 +2205,22 @@ const styles = {
   notesTitle: {
     fontSize: '16px',
     fontWeight: '600',
-    color: '#000',
+    color: 'var(--md-sys-color-on-surface)',
     marginBottom: '12px'
   },
 
   notesText: {
     fontSize: '14px',
-    color: '#666',
+    color: 'var(--md-sys-color-on-surface-variant)',
     lineHeight: '1.5',
     margin: 0
   },
   
   // Edit Mode Header Styles
   editModeHeader: {
-    backgroundColor: 'white',
+    backgroundColor: 'var(--md-sys-color-surface-container)',
     padding: '15px 20px',
-    borderBottom: '1px solid #E5E5EA',
+    borderBottom: '1px solid var(--md-sys-color-outline-variant)',
     marginBottom: '10px'
   },
   
@@ -2229,8 +2234,8 @@ const styles = {
     width: '60px',
     height: '60px',
     borderRadius: '30px',
-    backgroundColor: '#34C759',
-    color: 'white',
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2252,13 +2257,13 @@ const styles = {
   childName: {
     fontSize: '20px',
     fontWeight: '600',
-    color: '#000',
+    color: 'var(--md-sys-color-on-surface)',
     margin: '0 0 4px 0'
   },
   
   childAge: {
     fontSize: '14px',
-    color: '#8E8E93',
+    color: 'var(--md-sys-color-outline)',
     margin: 0
   }
 };

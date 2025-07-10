@@ -1,18 +1,28 @@
 export const DashboardStates = {
+  WELCOME: 'welcome',
+  SETUP_CHILDREN: 'setup_children',
   FIRST_TIME_NO_CHILDREN: 'first_time_no_children',
   HAS_CHILDREN_NO_TASKS: 'has_children_no_tasks', 
   FULLY_SETUP: 'fully_setup'
 };
 
-export const getDashboardState = (userData, children, tasks) => {
-  // First time user with no children and hasn't seen welcome screen
-  if (!userData?.hasSeenWelcomeScreen && children.length === 0) {
-    return DashboardStates.FIRST_TIME_NO_CHILDREN;
+export const getDashboardState = (userData, familyData, children, familyLoading, userRole) => {
+  // Add null checks for arrays
+  const childrenArray = children || [];
+  
+  // If still loading, return a default state
+  if (familyLoading) {
+    return DashboardStates.FULLY_SETUP;
   }
   
-  // Has children but no tasks yet
-  if (children.length > 0 && tasks.length === 0) {
-    return DashboardStates.HAS_CHILDREN_NO_TASKS;
+  // First time user with no children and hasn't seen welcome screen
+  if (!userData?.hasSeenWelcomeScreen && childrenArray.length === 0) {
+    return DashboardStates.WELCOME;
+  }
+  
+  // Parent users need to set up children first
+  if (childrenArray.length === 0 && userRole === 'parent') {
+    return DashboardStates.SETUP_CHILDREN;
   }
   
   // Fully set up

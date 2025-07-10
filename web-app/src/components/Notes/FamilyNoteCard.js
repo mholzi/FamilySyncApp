@@ -39,11 +39,11 @@ const FamilyNoteCard = ({
   const getPriorityColor = (priority) => {
     switch (priority) {
       case 'urgent':
-        return '#ef4444'; // red
+        return 'var(--md-sys-color-error)'; // red
       case 'important':
-        return '#f97316'; // orange
+        return 'var(--md-sys-color-tertiary)'; // orange
       default:
-        return '#d1d5db'; // gray
+        return 'var(--md-sys-color-outline)'; // gray
     }
   };
 
@@ -106,13 +106,22 @@ const FamilyNoteCard = ({
 
   const getPriorityBadgeStyle = (priority) => {
     const priorityColor = getPriorityColor(priority);
+    
+    // Extract RGB values from CSS variable for opacity
+    let bgColor = 'var(--md-sys-color-surface-container-highest)';
+    if (priority === 'urgent') {
+      bgColor = 'var(--md-sys-color-error-container)';
+    } else if (priority === 'important') {
+      bgColor = 'var(--md-sys-color-tertiary-container)';
+    }
+    
     return {
-      fontSize: 'var(--font-size-xs)',
+      fontSize: '12px',
       color: priorityColor,
-      backgroundColor: `${priorityColor}20`, // 20% opacity of priority color for better visibility
-      padding: 'var(--space-1) var(--space-2)',
-      borderRadius: 'var(--radius-sm)',
-      fontWeight: 'var(--font-weight-medium)',
+      backgroundColor: bgColor,
+      padding: '4px 8px',
+      borderRadius: 'var(--md-sys-shape-corner-extra-small)',
+      fontWeight: '500',
       flexShrink: 0,
       whiteSpace: 'nowrap'
     };
@@ -214,61 +223,61 @@ const FamilyNoteCard = ({
 
 const styles = {
   noteCard: {
-    backgroundColor: 'var(--white)',
-    borderRadius: 'var(--radius-lg)',
-    padding: 'var(--space-4)',
-    marginBottom: 'var(--space-3)',
-    boxShadow: 'var(--shadow-sm)',
-    border: '1px solid var(--border-light)',
-    transition: 'var(--transition-normal)',
+    backgroundColor: 'var(--md-sys-color-surface-container-low)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    padding: '16px',
+    marginBottom: '12px',
+    boxShadow: 'var(--md-sys-elevation-level1)',
+    border: '1px solid var(--md-sys-color-outline-variant)',
+    transition: 'var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard)',
     minWidth: '240px',
     display: 'flex',
     flexDirection: 'column',
     minHeight: '120px'
   },
   noteHeader: {
-    marginBottom: 'calc(var(--space-3) + 10px)'
+    marginBottom: '20px'
   },
   contentRow: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: 'var(--space-2)',
-    marginBottom: 'var(--space-1)'
+    gap: '8px',
+    marginBottom: '4px'
   },
   authorTitle: {
-    fontSize: 'var(--font-size-sm)',
-    fontWeight: 'var(--font-weight-semibold)',
-    color: 'var(--text-primary)',
-    lineHeight: 'var(--line-height-tight)',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: 'var(--md-sys-color-on-surface)',
+    lineHeight: '1.3',
     flex: 1,
     textAlign: 'left'
   },
   noteContent: {
-    fontSize: 'calc(var(--font-size-xs) * 1.2)',
-    color: 'var(--text-secondary)',
-    lineHeight: 'var(--line-height-normal)',
+    fontSize: '13px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    lineHeight: '1.4',
     textAlign: 'left',
     flex: 1
   },
   editedTag: {
-    fontSize: 'var(--font-size-xs)',
-    color: 'var(--text-tertiary)',
+    fontSize: '12px',
+    color: 'var(--md-sys-color-on-surface-variant)',
     fontStyle: 'italic'
   },
   headerRight: {
     display: 'flex',
     alignItems: 'center',
-    gap: 'var(--space-2)',
+    gap: '8px',
     marginRight: '5px'
   },
   timeStamp: {
-    fontSize: 'var(--font-size-xs)',
-    color: 'var(--text-tertiary)',
-    backgroundColor: '#fef3c7',
-    padding: 'var(--space-1) var(--space-2)',
-    borderRadius: 'var(--radius-sm)',
-    fontWeight: 'var(--font-weight-medium)',
+    fontSize: '12px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)',
+    padding: '4px 8px',
+    borderRadius: 'var(--md-sys-shape-corner-extra-small)',
+    fontWeight: '500',
     flexShrink: 0,
     whiteSpace: 'nowrap'
   },
@@ -279,7 +288,7 @@ const styles = {
   spacerArea: {
     display: 'flex',
     justifyContent: 'flex-end',
-    marginBottom: 'var(--space-3)',
+    marginBottom: '12px',
     minHeight: '20px',
     flex: 1
   },
@@ -287,7 +296,7 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 'var(--space-2)',
+    gap: '8px',
     marginTop: 'auto',
     position: 'relative',
     zIndex: 5
@@ -295,20 +304,20 @@ const styles = {
   leftBottomSection: {
     display: 'flex',
     alignItems: 'center',
-    gap: 'var(--space-2)'
+    gap: '8px'
   },
   priorityBadge: {
-    fontSize: 'var(--font-size-xs)',
-    color: 'var(--primary-purple)',
-    backgroundColor: '#f3f4f6',
-    padding: 'var(--space-2) var(--space-3)',
-    borderRadius: 'var(--radius-md)',
-    fontWeight: 'var(--font-weight-medium)',
+    fontSize: '12px',
+    color: 'var(--md-sys-color-primary)',
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)',
+    padding: '8px 12px',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    fontWeight: '500',
     minWidth: '80px',
     textAlign: 'center',
     border: '1px solid transparent',
     cursor: 'default',
-    transition: 'var(--transition-fast)',
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
     height: 'auto',
     display: 'flex',
     alignItems: 'center',
@@ -317,90 +326,92 @@ const styles = {
   actions: {
     display: 'flex',
     alignItems: 'center',
-    gap: 'var(--space-2)'
+    gap: '8px'
   },
   dismissButton: {
     border: 'none',
-    borderRadius: 'var(--radius-md)',
-    padding: 'var(--space-2) var(--space-3)',
-    fontSize: 'var(--font-size-xs)',
-    fontWeight: 'var(--font-weight-medium)',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    padding: '8px 12px',
+    fontSize: '12px',
+    fontWeight: '500',
     cursor: 'pointer',
-    transition: 'var(--transition-fast)',
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
     minWidth: '80px',
-    backgroundColor: 'var(--primary-purple)',
-    color: 'var(--white)'
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)'
   },
   editButton: {
-    border: 'none',
-    borderRadius: 'var(--radius-md)',
-    padding: 'var(--space-2) var(--space-3)',
-    fontSize: 'var(--font-size-xs)',
-    fontWeight: 'var(--font-weight-medium)',
+    border: '1px solid var(--md-sys-color-outline-variant)',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    padding: '8px 12px',
+    fontSize: '12px',
+    fontWeight: '500',
     cursor: 'pointer',
-    transition: 'var(--transition-fast)',
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
     minWidth: '80px',
-    backgroundColor: '#f3f4f6',
-    color: 'var(--text-primary)'
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)',
+    color: 'var(--md-sys-color-on-surface-variant)'
   },
   likeButton: {
     border: 'none',
-    borderRadius: 'var(--radius-md)',
-    padding: 'var(--space-1) var(--space-2)',
-    fontSize: 'var(--font-size-xs)',
-    fontWeight: 'var(--font-weight-medium)',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    padding: '4px 8px',
+    fontSize: '12px',
+    fontWeight: '500',
     cursor: 'pointer',
-    transition: 'var(--transition-fast)',
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
     backgroundColor: 'transparent',
-    color: 'var(--text-secondary)',
+    color: 'var(--md-sys-color-on-surface-variant)',
     display: 'flex',
     alignItems: 'center',
-    gap: 'var(--space-1)',
+    gap: '4px',
     position: 'relative',
     zIndex: 10
   },
   likeButtonActive: {
-    color: '#ef4444' // Red for liked state
+    color: 'var(--md-sys-color-error)' // Red for liked state
   },
   likeIcon: {
-    fontSize: 'var(--font-size-base)'
+    fontSize: '16px'
   },
   likeCount: {
-    fontSize: 'var(--font-size-xs)',
-    marginLeft: 'var(--space-1)'
+    fontSize: '12px',
+    marginLeft: '4px'
   }
 };
 
 // Add hover effects
 if (typeof document !== 'undefined') {
-  const style = document.createElement('style');
-  style.textContent = `
+  const styleElement = document.createElement('style');
+  styleElement.textContent = `
     .family-note-card {
-      transition: all 0.2s ease;
+      transition: all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
     }
     
     .family-note-card:hover {
-      box-shadow: var(--shadow-md);
+      box-shadow: var(--md-sys-elevation-level2);
       transform: translateY(-1px);
     }
     
-    
     .family-note-card .dismiss-button:hover {
-      background-color: var(--gray-50);
-      border-color: var(--gray-300);
-      color: var(--text-primary);
+      box-shadow: var(--md-sys-elevation-level1);
     }
     
     .family-note-card .edit-button:hover {
-      background-color: var(--gray-200);
-      color: var(--text-primary);
+      background-color: var(--md-sys-color-surface-container);
+      color: var(--md-sys-color-on-surface);
     }
     
     .family-note-card .like-button:hover {
-      background-color: var(--gray-50);
+      background-color: var(--md-sys-color-surface-container-highest);
     }
   `;
-  document.head.appendChild(style);
+  
+  // Only add if not already present
+  if (!document.querySelector('#family-note-card-styles')) {
+    styleElement.id = 'family-note-card-styles';
+    document.head.appendChild(styleElement);
+  }
 }
 
 export default React.memo(FamilyNoteCard, (prevProps, nextProps) => {

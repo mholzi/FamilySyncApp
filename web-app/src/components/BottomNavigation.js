@@ -1,51 +1,83 @@
 import React from 'react';
 
 const BottomNavigation = ({ currentView, onNavigate, pendingApprovalCount = 0 }) => {
+  const getNavItemStyle = (viewName) => ({
+    cursor: 'pointer',
+    color: currentView === viewName ? 'var(--md-sys-color-primary)' : 'var(--md-sys-color-on-surface-variant)',
+    backgroundColor: currentView === viewName ? 'var(--md-sys-color-primary-container)' : 'transparent',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    position: 'relative',
+    margin: '4px'
+  });
+
+  const getIconStyle = (viewName) => ({
+    marginBottom: '2px',
+    fontSize: currentView === viewName ? '24px' : '20px',
+    transition: 'font-size var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
+  });
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white" style={{ borderTop: '1px solid var(--border-light)' }}>
-      <div className="flex">
+    <nav className="md3-surface-container md3-elevation-2" style={{ 
+      position: 'fixed', 
+      bottom: 0, 
+      left: 0, 
+      right: 0, 
+      zIndex: 1000,
+      borderTop: '1px solid var(--md-sys-color-outline-variant)' 
+    }}>
+      <div className="md3-flex">
         <div 
-          className={`flex-1 flex flex-col items-center p-3 cursor-pointer transition-colors ${
-            currentView === 'dashboard' ? 'text-primary' : 'text-tertiary'
-          }`}
+          className={`md3-flex-1 md3-flex md3-flex-column md3-flex-center md3-p-12 md3-touch-target`}
+          style={getNavItemStyle('dashboard')}
           onClick={() => onNavigate('dashboard')}
         >
-          <span className="text-xl mb-1">🏠</span>
-          <span className="text-xs font-medium">Home</span>
+          <span className="md3-title-medium" style={getIconStyle('dashboard')}>🏠</span>
+          <span className="md3-label-small">Home</span>
         </div>
         <div 
-          className={`flex-1 flex flex-col items-center p-3 cursor-pointer transition-colors ${
-            currentView === 'smart_calendar' ? 'text-primary' : 'text-tertiary'
-          }`}
-          onClick={() => onNavigate('smart_calendar')}
+          className={`md3-flex-1 md3-flex md3-flex-column md3-flex-center md3-p-12 md3-touch-target`}
+          style={getNavItemStyle('calendar')}
+          onClick={() => onNavigate('calendar')}
         >
-          <span className="text-xl mb-1">📅</span>
-          <span className="text-xs font-medium">Calendar</span>
+          <span className="md3-title-medium" style={getIconStyle('calendar')}>📅</span>
+          <span className="md3-label-small">Calendar</span>
         </div>
         <div 
-          className={`flex-1 flex flex-col items-center p-3 cursor-pointer transition-colors relative ${
-            currentView === 'shopping' ? 'text-primary' : 'text-tertiary'
-          }`}
+          className={`md3-flex-1 md3-flex md3-flex-column md3-flex-center md3-p-12 md3-touch-target`}
+          style={getNavItemStyle('shopping')}
           onClick={() => onNavigate('shopping')}
         >
-          <span className="text-xl mb-1">🛒</span>
-          <span className="text-xs font-medium">Shopping</span>
+          <span className="md3-title-medium" style={getIconStyle('shopping')}>🛒</span>
+          <span className="md3-label-small">Shopping</span>
           {pendingApprovalCount > 0 && (
-            <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white" 
-                 style={{ backgroundColor: 'var(--secondary-orange)' }}>
+            <div style={{ 
+              position: 'absolute',
+              top: '-2px',
+              right: '8px',
+              width: '20px',
+              height: '20px',
+              borderRadius: 'var(--md-sys-shape-corner-full)',
+              backgroundColor: 'var(--md-sys-color-error)',
+              color: 'var(--md-sys-color-on-error)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '10px',
+              fontWeight: 'bold'
+            }}>
               {pendingApprovalCount}
             </div>
           )}
         </div>
         <div 
-          className={`flex-1 flex flex-col items-center p-3 cursor-pointer transition-colors ${
-            currentView === 'messages' ? 'text-primary' : 'text-tertiary'
-          }`}
-          onClick={() => onNavigate('messages')}
+          className={`md3-flex-1 md3-flex md3-flex-column md3-flex-center md3-p-12 md3-touch-target`}
+          style={getNavItemStyle('notes')}
+          onClick={() => onNavigate('notes')}
         >
-          <span className="text-xl mb-1">📧</span>
-          <span className="text-xs font-medium">Messages</span>
-      </div>
+          <span className="md3-title-medium" style={getIconStyle('notes')}>📧</span>
+          <span className="md3-label-small">Notes</span>
+        </div>
       </div>
     </nav>
   );

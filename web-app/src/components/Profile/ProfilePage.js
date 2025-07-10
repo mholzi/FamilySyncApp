@@ -367,9 +367,10 @@ const ProfilePage = ({ user, onBack }) => {
 
 const styles = {
   container: {
-    minHeight: '100vh',
+    minHeight: 'calc(100vh - 64px)', // Account for bottom navigation
     backgroundColor: '#F2F2F7',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+    paddingBottom: '20px' // Extra padding for bottom navigation
   },
   header: {
     display: 'flex',

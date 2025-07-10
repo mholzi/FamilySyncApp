@@ -254,10 +254,8 @@ const EnhancedChildCard = ({
                 name: activity.name,
                 time: occurrence.time,
                 minutes: timeToMinutes(occurrence.time),
-                icon: activity.icon || '🏃',
                 isActivity: true,
                 isTomorrow: isTomorrow,
-                location: activity.location?.name || activity.location?.address,
                 transportation: activity.transportation
               });
             }
@@ -491,10 +489,7 @@ const EnhancedChildCard = ({
               <div key={`${routine.name}-${routine.time}`} style={styles.activityItem}>
                 <div style={styles.activityRow}>
                   <div style={styles.activityName}>
-                    {routine.isActivity && routine.icon} {routine.name}
-                    {routine.isActivity && routine.location && (
-                      <div style={styles.activityLocation}>📍 {routine.location}</div>
-                    )}
+                    {routine.name}
                   </div>
                   <div style={styles.activityTime}>
                     {routine.isTomorrow && (
@@ -540,11 +535,7 @@ const EnhancedChildCard = ({
         {/* Edit button - Only show for parents */}
         {userRole === 'parent' && (
           <button 
-            style={{
-              ...styles.editButton,
-              borderColor: childColor.primary,
-              color: childColor.primary
-            }}
+            style={styles.editButton}
             onClick={() => onEditChild && onEditChild(child)}
           >
             Edit
@@ -557,17 +548,17 @@ const EnhancedChildCard = ({
 
 const styles = {
   card: {
-    backgroundColor: 'var(--white)',
-    borderRadius: 'var(--radius-lg)',
-    padding: 'var(--space-4)',
+    backgroundColor: 'var(--md-sys-color-surface-container-low)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    padding: '16px',
     minWidth: '280px',
     maxWidth: '320px',
-    boxShadow: 'var(--shadow-sm)',
-    border: '1px solid var(--border-light)',
-    transition: 'var(--transition-normal)',
+    boxShadow: 'var(--md-sys-elevation-level1)',
+    border: '1px solid var(--md-sys-color-outline-variant)',
+    transition: 'var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard)',
     display: 'flex',
     flexDirection: 'column',
-    gap: 'var(--space-3)'
+    gap: '12px'
   },
   
   header: {
@@ -579,7 +570,7 @@ const styles = {
   childInfo: {
     display: 'flex',
     alignItems: 'center',
-    gap: 'var(--space-3)',
+    gap: '12px',
     flex: 1
   },
   
@@ -590,21 +581,21 @@ const styles = {
   profileImage: {
     width: '48px',
     height: '48px',
-    borderRadius: 'var(--radius-full)',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
     objectFit: 'cover',
-    border: '2px solid var(--border-light)'
+    border: '2px solid var(--md-sys-color-outline-variant)'
   },
   
   profilePlaceholder: {
     width: '48px',
     height: '48px',
-    borderRadius: 'var(--radius-full)',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: 'var(--font-size-lg)',
-    fontWeight: 'var(--font-weight-semibold)',
-    border: '2px solid var(--border-light)'
+    fontSize: '18px',
+    fontWeight: '600',
+    border: '2px solid var(--md-sys-color-outline-variant)'
   },
   
   nameSection: {
@@ -613,11 +604,12 @@ const styles = {
   },
   
   childName: {
-    fontSize: 'var(--font-size-lg)',
-    fontWeight: 'var(--font-weight-semibold)',
-    color: 'var(--text-primary)',
-    lineHeight: 'var(--line-height-tight)',
-    marginBottom: 'var(--space-1)'
+    fontSize: '18px',
+    fontWeight: '600',
+    color: 'var(--md-sys-color-on-surface)',
+    lineHeight: '1.3',
+    marginBottom: '4px',
+    textAlign: 'left' // Align name to the left
   },
   
   
@@ -630,9 +622,9 @@ const styles = {
   statusIndicator: {
     display: 'flex',
     alignItems: 'center',
-    gap: 'var(--space-1)',
-    fontSize: 'var(--font-size-xs)',
-    fontWeight: 'var(--font-weight-medium)'
+    gap: '4px',
+    fontSize: '12px',
+    fontWeight: '500'
   },
   
   statusIcon: {
@@ -640,27 +632,28 @@ const styles = {
   },
   
   statusText: {
-    fontSize: 'var(--font-size-xs)',
-    backgroundColor: '#fafbfc',
-    padding: 'var(--space-1) var(--space-2)',
-    borderRadius: 'var(--radius-sm)',
-    fontWeight: 'var(--font-weight-medium)'
+    fontSize: '12px',
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)',
+    padding: '4px 8px',
+    borderRadius: 'var(--md-sys-shape-corner-extra-small)',
+    fontWeight: '500',
+    marginTop: '-3px' // Reduce margin from top by 3px
   },
   
   activitiesSection: {
-    backgroundColor: '#fafbfc',
-    borderRadius: 'var(--radius-md)',
-    padding: 'var(--space-3)',
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    padding: '12px',
     minHeight: '60px',
     display: 'flex',
     flexDirection: 'column',
-    gap: 'var(--space-2)'
+    gap: '8px'
   },
   
   activitiesLabel: {
-    fontSize: 'var(--font-size-xs)',
-    fontWeight: 'var(--font-weight-semibold)',
-    color: 'var(--text-secondary)',
+    fontSize: '12px',
+    fontWeight: '600',
+    color: 'var(--md-sys-color-on-surface-variant)',
     textTransform: 'uppercase',
     letterSpacing: '0.5px'
   },
@@ -668,8 +661,8 @@ const styles = {
   noActivities: {
     display: 'flex',
     alignItems: 'center',
-    gap: 'var(--space-2)',
-    padding: 'var(--space-2) 0'
+    gap: '8px',
+    padding: '8px 0'
   },
   
   noActivitiesIcon: {
@@ -677,21 +670,21 @@ const styles = {
   },
   
   noActivitiesText: {
-    fontSize: 'var(--font-size-sm)',
-    color: 'var(--text-tertiary)',
+    fontSize: '14px',
+    color: 'var(--md-sys-color-on-surface-variant)',
     fontStyle: 'italic'
   },
   
   activitiesList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 'var(--space-2)'
+    gap: '8px'
   },
   
   activityItem: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 'var(--space-1)'
+    gap: '4px'
   },
   
   activityRow: {
@@ -702,13 +695,13 @@ const styles = {
   },
   
   activityName: {
-    fontSize: 'var(--font-size-sm)',
-    fontWeight: 'var(--font-weight-semibold)',
-    color: 'var(--text-primary)',
-    lineHeight: 'var(--line-height-tight)',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: 'var(--md-sys-color-on-surface)',
+    lineHeight: '1.3',
     display: 'flex',
     alignItems: 'center',
-    gap: 'var(--space-1)'
+    gap: '4px'
   },
   
   activityIcon: {
@@ -716,25 +709,25 @@ const styles = {
   },
   
   duration: {
-    fontSize: 'var(--font-size-xs)',
-    color: 'var(--text-tertiary)',
-    fontWeight: 'var(--font-weight-normal)'
+    fontSize: '12px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    fontWeight: '400'
   },
   
   tomorrowLabel: {
-    fontSize: 'var(--font-size-xs)',
-    color: 'var(--secondary-orange)',
-    fontWeight: 'var(--font-weight-medium)',
-    marginRight: 'var(--space-1)'
+    fontSize: '12px',
+    color: 'var(--md-sys-color-tertiary)',
+    fontWeight: '500',
+    marginRight: '4px'
   },
   
   activityTime: {
-    fontSize: 'var(--font-size-xs)',
-    color: 'var(--text-secondary)',
-    fontWeight: 'var(--font-weight-medium)',
-    backgroundColor: 'var(--white)',
-    padding: 'var(--space-1) var(--space-2)',
-    borderRadius: 'var(--radius-sm)',
+    fontSize: '12px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    fontWeight: '500',
+    backgroundColor: 'var(--md-sys-color-surface)',
+    padding: '4px 8px',
+    borderRadius: 'var(--md-sys-shape-corner-extra-small)',
     alignSelf: 'flex-start'
   },
   
@@ -748,49 +741,50 @@ const styles = {
   actions: {
     display: 'flex',
     justifyContent: 'flex-end',
-    gap: 'var(--space-2)',
-    marginTop: 'var(--space-1)'
+    gap: '8px',
+    marginTop: '4px'
   },
   
   editButton: {
-    padding: 'var(--space-1) var(--space-3)',
-    backgroundColor: 'transparent',
-    border: '1px solid',
-    borderRadius: 'var(--radius-md)',
-    fontSize: 'var(--font-size-xs)',
-    fontWeight: 'var(--font-weight-medium)',
+    border: 'none',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    padding: '8px 12px',
+    fontSize: '12px',
+    fontWeight: '500',
     cursor: 'pointer',
-    transition: 'var(--transition-fast)',
-    minHeight: '28px'
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    minWidth: '80px',
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)'
   },
   
   sleepButton: {
     border: 'none',
-    borderRadius: 'var(--radius-md)',
-    padding: 'var(--space-2) var(--space-3)',
-    fontSize: 'var(--font-size-xs)',
-    fontWeight: 'var(--font-weight-medium)',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    padding: '8px 12px',
+    fontSize: '12px',
+    fontWeight: '500',
     cursor: 'pointer',
-    transition: 'var(--transition-fast)',
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
     minWidth: '80px',
-    backgroundColor: 'var(--primary-purple)',
-    color: 'var(--white)'
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)'
   },
 
   activityLocation: {
-    fontSize: 'var(--font-size-xs)',
-    color: 'var(--text-tertiary)',
-    marginTop: 'var(--space-1)'
+    fontSize: '12px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    marginTop: '4px'
   },
 
   transportationInfo: {
-    fontSize: 'var(--font-size-xs)',
-    color: 'var(--text-secondary)',
-    marginTop: 'var(--space-1)',
-    padding: 'var(--space-1) var(--space-2)',
-    backgroundColor: 'var(--gray-50)',
-    borderRadius: 'var(--radius-sm)',
-    borderLeft: '3px solid var(--primary-purple)'
+    fontSize: '12px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    marginTop: '4px',
+    padding: '4px 8px',
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)',
+    borderRadius: 'var(--md-sys-shape-corner-extra-small)',
+    borderLeft: '3px solid var(--md-sys-color-primary)'
   }
 };
 

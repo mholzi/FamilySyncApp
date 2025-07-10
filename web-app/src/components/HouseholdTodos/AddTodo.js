@@ -175,6 +175,18 @@ const AddTodo = ({
             {errors.title && <span className="error-text">{errors.title}</span>}
           </div>
 
+          {/* Description - Moved here from advanced options */}
+          <div className="form-group">
+            <label htmlFor="description">Description</label>
+            <textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => handleInputChange('description', e.target.value)}
+              placeholder="Additional details or instructions..."
+              rows={3}
+            />
+          </div>
+
           {/* Priority and Category Row */}
           <div className="form-row">
             {/* Priority */}
@@ -218,6 +230,7 @@ const AddTodo = ({
                 value={formData.dueDate}
                 onChange={(e) => handleInputChange('dueDate', e.target.value)}
                 className={errors.dueDate ? 'error' : ''}
+                style={{ width: 'auto', minWidth: '140px' }}
               />
               <div className="quick-date-buttons">
                 <button
@@ -239,52 +252,52 @@ const AddTodo = ({
             {errors.dueDate && <span className="error-text">{errors.dueDate}</span>}
           </div>
 
-          {/* Recurring Task Settings - MOVED TO MAIN BODY */}
+          {/* Recurring Task Settings */}
           <div className="form-group">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={formData.isRecurring}
-                onChange={(e) => handleInputChange('isRecurring', e.target.checked)}
-              />
-              Make this a recurring task
-            </label>
-          </div>
-
-          {formData.isRecurring && (
-            <div className="recurring-options">
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="recurringType">Repeat</label>
+            <label>Recurring Task</label>
+            <div className="recurring-container">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={formData.isRecurring}
+                  onChange={(e) => handleInputChange('isRecurring', e.target.checked)}
+                  className="recurring-checkbox"
+                />
+                <span>Repeat this task</span>
+              </label>
+              
+              {formData.isRecurring && (
+                <div className="recurring-inline-options">
                   <select
                     id="recurringType"
                     value={formData.recurringType}
                     onChange={(e) => handleInputChange('recurringType', e.target.value)}
+                    className="recurring-type-select"
                   >
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
                     <option value="monthly">Monthly</option>
                   </select>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="recurringInterval">Every</label>
+                  
+                  <span className="recurring-text">every</span>
+                  
                   <input
                     id="recurringInterval"
                     type="number"
                     min="1"
                     value={formData.recurringInterval}
                     onChange={(e) => handleInputChange('recurringInterval', parseInt(e.target.value) || 1)}
-                    style={{ width: '80px' }}
+                    className="recurring-interval-input"
                   />
-                  <span className="input-suffix">
+                  
+                  <span className="recurring-text">
                     {formData.recurringType === 'daily' ? 'day(s)' : 
                      formData.recurringType === 'weekly' ? 'week(s)' : 'month(s)'}
                   </span>
                 </div>
-              </div>
+              )}
             </div>
-          )}
+          </div>
 
           {/* Advanced Options Toggle */}
           <button
@@ -297,17 +310,6 @@ const AddTodo = ({
 
           {showAdvanced && (
             <div className="advanced-options">
-              {/* Description */}
-              <div className="form-group">
-                <label htmlFor="description">Description</label>
-                <textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  placeholder="Additional details or instructions..."
-                  rows={3}
-                />
-              </div>
 
 
               {/* Preferred Time of Day */}

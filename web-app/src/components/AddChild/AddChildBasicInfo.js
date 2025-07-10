@@ -815,7 +815,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     minHeight: '100vh',
-    backgroundColor: '#F2F2F7',
+    backgroundColor: 'var(--md-sys-color-surface)',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
   },
   header: {
@@ -823,20 +823,20 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '15px 20px',
-    backgroundColor: 'white',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+    backgroundColor: 'var(--md-sys-color-surface-container)',
+    boxShadow: 'var(--md-sys-elevation-level1)'
   },
   backButton: {
     backgroundColor: 'transparent',
     border: 'none',
     fontSize: '20px',
     cursor: 'pointer',
-    color: '#007AFF'
+    color: 'var(--md-sys-color-primary)'
   },
   title: {
     fontSize: '18px',
     fontWeight: '600',
-    color: '#000',
+    color: 'var(--md-sys-color-on-surface)',
     margin: 0
   },
   placeholder: {
@@ -847,7 +847,7 @@ const styles = {
     border: 'none',
     fontSize: '20px',
     cursor: 'pointer',
-    color: '#FF3B30',
+    color: 'var(--md-sys-color-error)',
     width: '20px',
     display: 'flex',
     alignItems: 'center',
@@ -874,11 +874,11 @@ const styles = {
   },
   saveStatusSaved: {
     fontSize: '16px',
-    color: '#34C759'
+    color: 'var(--md-sys-color-primary)'
   },
   saveStatusError: {
     fontSize: '16px',
-    color: '#FF3B30'
+    color: 'var(--md-sys-color-error)'
   },
   content: {
     flex: 1,
@@ -897,7 +897,7 @@ const styles = {
   subtitle: {
     fontSize: '20px',
     fontWeight: '600',
-    color: '#000',
+    color: 'var(--md-sys-color-on-surface)',
     margin: 0
   },
   photoSection: {
@@ -909,13 +909,13 @@ const styles = {
     width: '100px',
     height: '100px',
     borderRadius: '50px',
-    border: '2px dashed #C7C7CC',
+    border: '2px dashed var(--md-sys-color-outline-variant)',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer',
-    backgroundColor: 'white',
+    backgroundColor: 'var(--md-sys-color-surface-container)',
     position: 'relative',
     overflow: 'hidden'
   },
@@ -935,11 +935,11 @@ const styles = {
   photoText: {
     fontSize: '12px',
     fontWeight: '500',
-    color: '#007AFF'
+    color: 'var(--md-sys-color-primary)'
   },
   photoSubtext: {
     fontSize: '10px',
-    color: '#8E8E93'
+    color: 'var(--md-sys-color-on-surface-variant)'
   },
   formSection: {
     display: 'flex',
@@ -953,7 +953,7 @@ const styles = {
   label: {
     fontSize: '16px',
     fontWeight: '500',
-    color: '#000',
+    color: 'var(--md-sys-color-on-surface)',
     marginBottom: '8px'
   },
   input: {
@@ -961,30 +961,31 @@ const styles = {
     borderRadius: '8px',
     borderWidth: '1px',
     borderStyle: 'solid',
-    borderColor: '#E5E5EA',
+    borderColor: 'var(--md-sys-color-outline)',
     fontSize: '16px',
-    backgroundColor: 'white',
+    backgroundColor: 'var(--md-sys-color-surface-container)',
+    color: 'var(--md-sys-color-on-surface)',
     outline: 'none',
     transition: 'border-color 0.2s ease'
   },
   inputError: {
-    borderColor: '#FF3B30'
+    borderColor: 'var(--md-sys-color-error)'
   },
   ageDisplay: {
     fontSize: '14px',
-    color: '#34C759',
+    color: 'var(--md-sys-color-primary)',
     marginTop: '5px',
     fontWeight: '500'
   },
   helpText: {
     fontSize: '12px',
-    color: '#8E8E93',
+    color: 'var(--md-sys-color-on-surface-variant)',
     marginTop: '5px',
     lineHeight: '1.4'
   },
   errorText: {
     fontSize: '12px',
-    color: '#FF3B30',
+    color: 'var(--md-sys-color-error)',
     marginTop: '5px'
   },
   buttonSection: {
@@ -993,8 +994,8 @@ const styles = {
     left: 0,
     right: 0,
     padding: '20px',
-    backgroundColor: 'white',
-    borderTop: '1px solid #E5E5EA',
+    backgroundColor: 'var(--md-sys-color-surface-container)',
+    borderTop: '1px solid var(--md-sys-color-outline-variant)',
     display: 'flex',
     gap: '15px',
     zIndex: 100 // Ensure it appears above other elements
@@ -1003,9 +1004,9 @@ const styles = {
     flex: 1,
     padding: '15px',
     borderRadius: '8px',
-    border: '1px solid #E5E5EA',
-    backgroundColor: 'white',
-    color: '#8E8E93',
+    border: '1px solid var(--md-sys-color-outline)',
+    backgroundColor: 'var(--md-sys-color-surface-container)',
+    color: 'var(--md-sys-color-on-surface-variant)',
     fontSize: '16px',
     fontWeight: '500',
     cursor: 'pointer'
@@ -1015,21 +1016,22 @@ const styles = {
     padding: '15px',
     borderRadius: '8px',
     border: 'none',
-    backgroundColor: '#007AFF',
-    color: 'white',
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)',
     fontSize: '16px',
     fontWeight: '600',
     cursor: 'pointer'
   },
   continueButtonDisabled: {
-    backgroundColor: '#C7C7CC',
+    backgroundColor: 'var(--md-sys-color-on-surface)',
+    opacity: 0.38,
     cursor: 'not-allowed'
   },
 
   // Warning Card Styles
   warningCard: {
-    backgroundColor: '#FFF3CD',
-    border: '1px solid #FFEAA7',
+    backgroundColor: 'var(--md-sys-color-tertiary-container)',
+    border: '1px solid var(--md-sys-color-outline-variant)',
     borderRadius: '8px',
     padding: '15px',
     display: 'flex',
@@ -1037,8 +1039,8 @@ const styles = {
     marginTop: '15px'
   },
   errorCard: {
-    backgroundColor: '#F8D7DA',
-    border: '1px solid #F5C6CB'
+    backgroundColor: 'var(--md-sys-color-error-container)',
+    border: '1px solid var(--md-sys-color-error)'
   },
   warningIcon: {
     fontSize: '20px',
@@ -1049,7 +1051,7 @@ const styles = {
   },
   warningText: {
     fontSize: '14px',
-    color: '#856404',
+    color: 'var(--md-sys-color-on-tertiary-container)',
     marginBottom: '10px',
     lineHeight: '1.4'
   },
@@ -1058,8 +1060,8 @@ const styles = {
     gap: '10px'
   },
   warningButtonPrimary: {
-    backgroundColor: '#007AFF',
-    color: 'white',
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)',
     border: 'none',
     borderRadius: '6px',
     padding: '8px 16px',
@@ -1069,8 +1071,8 @@ const styles = {
   },
   warningButtonSecondary: {
     backgroundColor: 'transparent',
-    color: '#856404',
-    border: '1px solid #856404',
+    color: 'var(--md-sys-color-primary)',
+    border: '1px solid var(--md-sys-color-outline)',
     borderRadius: '6px',
     padding: '8px 16px',
     fontSize: '14px',
@@ -1092,13 +1094,13 @@ const styles = {
     zIndex: 1000
   },
   deleteConfirmDialog: {
-    backgroundColor: 'white',
+    backgroundColor: 'var(--md-sys-color-surface-container)',
     borderRadius: '16px',
     padding: '30px',
     textAlign: 'center',
     maxWidth: '320px',
     width: '90%',
-    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)'
+    boxShadow: 'var(--md-sys-elevation-level5)'
   },
   deleteConfirmIcon: {
     fontSize: '48px',
@@ -1107,12 +1109,12 @@ const styles = {
   deleteConfirmTitle: {
     fontSize: '20px',
     fontWeight: '600',
-    color: '#000',
+    color: 'var(--md-sys-color-on-surface)',
     margin: '0 0 10px 0'
   },
   deleteConfirmText: {
     fontSize: '14px',
-    color: '#666',
+    color: 'var(--md-sys-color-on-surface-variant)',
     lineHeight: '1.4',
     margin: '0 0 25px 0'
   },
@@ -1124,9 +1126,9 @@ const styles = {
     flex: 1,
     padding: '12px',
     borderRadius: '8px',
-    border: '1px solid #E5E5EA',
-    backgroundColor: 'white',
-    color: '#666',
+    border: '1px solid var(--md-sys-color-outline)',
+    backgroundColor: 'var(--md-sys-color-surface-container)',
+    color: 'var(--md-sys-color-on-surface-variant)',
     fontSize: '16px',
     fontWeight: '500',
     cursor: 'pointer'
@@ -1136,8 +1138,8 @@ const styles = {
     padding: '12px',
     borderRadius: '8px',
     border: 'none',
-    backgroundColor: '#FF3B30',
-    color: 'white',
+    backgroundColor: 'var(--md-sys-color-error)',
+    color: 'var(--md-sys-color-on-error)',
     fontSize: '16px',
     fontWeight: '600',
     cursor: 'pointer'
@@ -1158,7 +1160,7 @@ const styles = {
   progressBar: {
     flex: '1 1 auto',
     height: '4px',
-    backgroundColor: '#E5E5EA',
+    backgroundColor: 'var(--md-sys-color-surface-variant)',
     borderRadius: '2px',
     overflow: 'hidden',
     minWidth: '0'
@@ -1167,14 +1169,14 @@ const styles = {
   progressFill: {
     width: '33%',
     height: '100%',
-    backgroundColor: '#007AFF',
+    backgroundColor: 'var(--md-sys-color-primary)',
     borderRadius: '2px'
   },
   
   stepText: {
     flex: '0 0 auto',
     fontSize: '12px',
-    color: '#666',
+    color: 'var(--md-sys-color-on-surface-variant)',
     fontWeight: '500',
     whiteSpace: 'nowrap'
   },
@@ -1182,7 +1184,7 @@ const styles = {
   // Updated info text
   infoText: {
     fontSize: '16px',
-    color: '#666',
+    color: 'var(--md-sys-color-on-surface-variant)',
     lineHeight: '1.4',
     margin: 0
   },
@@ -1191,7 +1193,7 @@ const styles = {
   optional: {
     fontSize: '14px',
     fontWeight: '400',
-    color: '#666'
+    color: 'var(--md-sys-color-on-surface-variant)'
   },
 
   // Small photo styles
@@ -1211,12 +1213,12 @@ const styles = {
     width: '60px',
     height: '60px',
     borderRadius: '30px',
-    border: '2px dashed #C7C7CC',
+    border: '2px dashed var(--md-sys-color-outline-variant)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer',
-    backgroundColor: 'white',
+    backgroundColor: 'var(--md-sys-color-surface-container)',
     overflow: 'hidden'
   },
 
@@ -1241,7 +1243,7 @@ const styles = {
 
   photoLabel: {
     fontSize: '14px',
-    color: '#666'
+    color: 'var(--md-sys-color-on-surface-variant)'
   },
 
   photoLabelContainer: {
@@ -1265,8 +1267,8 @@ const styles = {
     position: 'absolute',
     width: '40px',
     height: '40px',
-    border: '3px solid #E5E5EA',
-    borderTop: '3px solid #007AFF',
+    border: '3px solid var(--md-sys-color-surface-variant)',
+    borderTop: '3px solid var(--md-sys-color-primary)',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite'
   },
@@ -1286,13 +1288,13 @@ const styles = {
 
   progressTrack: {
     fill: 'none',
-    stroke: '#E5E5EA',
+    stroke: 'var(--md-sys-color-surface-variant)',
     strokeWidth: '3'
   },
 
   progressFillCircle: {
     fill: 'none',
-    stroke: '#007AFF',
+    stroke: 'var(--md-sys-color-primary)',
     strokeWidth: '3',
     strokeLinecap: 'round',
     transition: 'stroke-dasharray 0.3s ease'
@@ -1302,7 +1304,7 @@ const styles = {
     position: 'absolute',
     fontSize: '10px',
     fontWeight: '600',
-    color: '#007AFF'
+    color: 'var(--md-sys-color-primary)'
   },
 
   uploadProgressContainer: {
@@ -1315,21 +1317,21 @@ const styles = {
   uploadProgressBar: {
     flex: 1,
     height: '4px',
-    backgroundColor: '#E5E5EA',
+    backgroundColor: 'var(--md-sys-color-surface-variant)',
     borderRadius: '2px',
     overflow: 'hidden'
   },
 
   uploadProgressFill: {
     height: '100%',
-    backgroundColor: '#007AFF',
+    backgroundColor: 'var(--md-sys-color-primary)',
     borderRadius: '2px',
     transition: 'width 0.3s ease'
   },
 
   cancelUploadButton: {
-    backgroundColor: '#FF3B30',
-    color: 'white',
+    backgroundColor: 'var(--md-sys-color-error)',
+    color: 'var(--md-sys-color-on-error)',
     border: 'none',
     borderRadius: '12px',
     width: '24px',
@@ -1358,15 +1360,15 @@ const styles = {
     borderRadius: '12px',
     borderWidth: '2px',
     borderStyle: 'solid',
-    borderColor: '#E5E5EA',
-    backgroundColor: 'white',
+    borderColor: 'var(--md-sys-color-outline)',
+    backgroundColor: 'var(--md-sys-color-surface-container)',
     cursor: 'pointer',
     transition: 'all 0.2s ease',
     textAlign: 'center'
   },
   scheduleTypeButtonActive: {
-    borderColor: '#007AFF',
-    backgroundColor: '#F0F7FF'
+    borderColor: 'var(--md-sys-color-primary)',
+    backgroundColor: 'var(--md-sys-color-primary-container)'
   },
   scheduleTypeIcon: {
     fontSize: '24px',
@@ -1375,12 +1377,12 @@ const styles = {
   scheduleTypeLabel: {
     fontSize: '16px',
     fontWeight: '600',
-    color: '#000',
+    color: 'var(--md-sys-color-on-surface)',
     marginBottom: '4px'
   },
   scheduleTypeDescription: {
     fontSize: '13px',
-    color: '#666',
+    color: 'var(--md-sys-color-on-surface-variant)',
     lineHeight: '1.3'
   }
 };

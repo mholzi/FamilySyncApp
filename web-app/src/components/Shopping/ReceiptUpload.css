@@ -143,3 +143,140 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* Multiple Receipt Styles */
+.existing-receipts {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #F8F9FA;
+  border-radius: 8px;
+  border: 1px solid #E9ECEF;
+}
+
+.existing-receipts h5 {
+  margin: 0 0 12px 0;
+  color: #333;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.receipt-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #E9ECEF;
+}
+
+.receipt-item:last-child {
+  border-bottom: none;
+}
+
+.receipt-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.receipt-amount {
+  font-weight: 600;
+  color: #333;
+  font-size: 16px;
+}
+
+.receipt-note {
+  color: #6C757D;
+  font-size: 14px;
+}
+
+.receipt-photo {
+  color: #007AFF;
+  font-size: 12px;
+}
+
+.delete-receipt-btn {
+  background: #DC3545;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.delete-receipt-btn:hover {
+  background: #C82333;
+}
+
+.total-amount {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #DEE2E6;
+  text-align: right;
+  font-size: 18px;
+  color: #333;
+}
+
+.add-receipt-section {
+  margin-bottom: 20px;
+}
+
+.add-receipt-btn {
+  background: #28A745;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  width: 100%;
+}
+
+.add-receipt-btn:hover {
+  background: #218838;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #E9ECEF;
+}
+
+.close-btn {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid #DEE2E6;
+  background: white;
+  color: #6C757D;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: #F8F9FA;
+  border-color: #ADB5BD;
+}
+
+.send-approval-btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  background: #FF6B35;
+  color: white;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.send-approval-btn:hover {
+  background: #E55A2B;
+}

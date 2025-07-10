@@ -193,116 +193,124 @@ const styles = {
     width: '100%'
   },
   header: {
-    marginBottom: 'var(--space-4)'
+    marginBottom: '16px'
   },
   title: {
-    fontSize: 'var(--font-size-lg)',
-    fontWeight: 'var(--font-weight-semibold)',
-    color: 'var(--text-primary)',
+    fontSize: '24px',
+    fontWeight: '400',
+    color: 'var(--md-sys-color-on-surface)',
     margin: 0,
-    textAlign: 'left'
+    textAlign: 'left',
+    lineHeight: '32px'
   },
   addButtonContainer: {
     display: 'flex',
     justifyContent: 'center',
-    marginTop: 'var(--space-4)'
+    marginTop: '16px'
   },
   addButton: {
     border: 'none',
-    borderRadius: 'var(--radius-md)',
-    padding: 'var(--space-2) var(--space-4)',
-    fontSize: 'var(--font-size-sm)',
-    fontWeight: 'var(--font-weight-medium)',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    padding: '10px 24px',
+    fontSize: '14px',
+    fontWeight: '500',
     cursor: 'pointer',
-    transition: 'var(--transition-fast)',
-    backgroundColor: 'var(--primary-purple)',
-    color: 'var(--white)',
-    minWidth: '120px'
+    transition: 'var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard)',
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)',
+    minWidth: '120px',
+    height: '40px',
+    boxShadow: 'var(--md-sys-elevation-level1)',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden'
   },
   footer: {
     textAlign: 'center',
-    marginTop: 'var(--space-4)',
-    borderTop: '1px solid var(--border-light)',
-    paddingTop: 'var(--space-3)'
+    marginTop: '16px',
+    borderTop: '1px solid var(--md-sys-color-outline-variant)',
+    paddingTop: '12px'
   },
   viewAllLink: {
     background: 'none',
     border: 'none',
-    color: 'var(--primary-purple)',
-    fontSize: 'var(--font-size-sm)',
-    fontWeight: 'var(--font-weight-medium)',
+    color: 'var(--md-sys-color-primary)',
+    fontSize: '14px',
+    fontWeight: '500',
     cursor: 'pointer',
-    padding: 'var(--space-2) 0',
-    transition: 'opacity 0.2s ease',
+    padding: '8px 0',
+    transition: 'opacity var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
     width: '100%'
   },
   notesList: {
     display: 'grid',
     gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: 'var(--space-3)'
+    gap: '12px'
   },
   emptyState: {
     textAlign: 'center',
-    padding: 'var(--space-8)',
-    color: 'var(--text-secondary)'
+    padding: '32px',
+    color: 'var(--md-sys-color-on-surface-variant)'
   },
   emptyIcon: {
-    fontSize: 'var(--font-size-4xl)',
-    marginBottom: 'var(--space-3)'
+    fontSize: '48px',
+    marginBottom: '12px'
   },
   emptyText: {
-    fontSize: 'var(--font-size-base)',
-    fontWeight: 'var(--font-weight-medium)',
-    color: 'var(--text-primary)',
-    margin: '0 0 var(--space-2) 0'
+    fontSize: '16px',
+    fontWeight: '500',
+    color: 'var(--md-sys-color-on-surface)',
+    margin: '0 0 8px 0'
   },
   emptySubtext: {
-    fontSize: 'var(--font-size-sm)',
-    color: 'var(--text-secondary)',
-    margin: '0 0 var(--space-4) 0'
+    fontSize: '14px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    margin: '0 0 16px 0'
   },
   loading: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 'var(--space-3)',
-    padding: 'var(--space-8)',
-    color: 'var(--text-secondary)'
+    gap: '12px',
+    padding: '32px',
+    color: 'var(--md-sys-color-on-surface-variant)'
   },
   loadingSpinner: {
     width: '20px',
     height: '20px',
-    border: '2px solid var(--gray-200)',
-    borderTop: '2px solid var(--primary-purple)',
+    border: '2px solid var(--md-sys-color-outline-variant)',
+    borderTop: '2px solid var(--md-sys-color-primary)',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite'
   },
   error: {
-    padding: 'var(--space-4)',
-    backgroundColor: '#FEF2F2',
-    border: '1px solid #FECACA',
-    borderRadius: 'var(--radius-md)',
-    color: '#DC2626',
-    fontSize: 'var(--font-size-sm)'
+    padding: '16px',
+    backgroundColor: 'var(--md-sys-color-error-container)',
+    border: '1px solid var(--md-sys-color-error)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    color: 'var(--md-sys-color-on-error-container)',
+    fontSize: '14px'
   },
   unreadBadge: {
-    marginLeft: 'var(--space-3)',
-    backgroundColor: '#ef4444',
-    color: 'var(--white)',
-    fontSize: 'var(--font-size-xs)',
-    fontWeight: 'var(--font-weight-normal)',
-    padding: 'var(--space-1) var(--space-2)',
-    borderRadius: 'var(--radius-full)',
+    marginLeft: '12px',
+    backgroundColor: 'var(--md-sys-color-error)',
+    color: 'var(--md-sys-color-on-error)',
+    fontSize: '12px',
+    fontWeight: '400',
+    padding: '4px 8px',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
     display: 'inline-block'
   },
   viewAllBadge: {
-    marginLeft: 'var(--space-2)',
-    backgroundColor: '#ef4444',
-    color: 'var(--white)',
-    fontSize: 'var(--font-size-xs)',
-    fontWeight: 'var(--font-weight-normal)',
-    padding: 'var(--space-1) var(--space-2)',
-    borderRadius: 'var(--radius-sm)',
+    marginLeft: '8px',
+    backgroundColor: 'var(--md-sys-color-error)',
+    color: 'var(--md-sys-color-on-error)',
+    fontSize: '12px',
+    fontWeight: '400',
+    padding: '4px 8px',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
     display: 'inline-block'
   }
 };
@@ -313,7 +321,7 @@ if (typeof document !== 'undefined') {
   styleElement.textContent = `
     /* Add button hover effects */
     .family-notes-container .add-note-button:hover {
-      background-color: var(--primary-purple-dark, #5B21B6);
+      box-shadow: var(--md-sys-elevation-level2);
       transform: translateY(-1px);
     }
     
@@ -330,8 +338,8 @@ if (typeof document !== 'undefined') {
     /* Mobile responsiveness */
     @media (max-width: 768px) {
       .family-notes-container .add-note-button {
-        padding: var(--space-2) var(--space-3);
-        font-size: var(--font-size-xs);
+        padding: 8px 16px;
+        font-size: 14px;
         min-width: 100px;
       }
       
@@ -345,6 +353,12 @@ if (typeof document !== 'undefined') {
     .family-notes-container {
       position: relative;
       z-index: 1;
+    }
+    
+    /* Loading spinner animation */
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
   `;
   

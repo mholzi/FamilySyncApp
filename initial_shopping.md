@@ -14,11 +14,12 @@ As an **au pair**, I want to **complete assigned shopping lists and get reimburs
 
 ### Detailed Requirements
 1. **Shopping List Management**
-   - Parents create shopping lists with name and supermarket selection
+   - Parents manually create shopping lists with name and supermarket selection
    - Parents schedule shopping trips with specific dates/times for au pair
    - Parents can add/remove/modify items even after scheduling
-   - Track completion status per item and overall list
+   - Track completion status per item and overall list (no substitution notes)
    - All shopping lists are assigned to au pair for completion
+   - No recurring/automatic list creation
 
 2. **Item Management & Family Database**
    - Maintain family item database with product photos and guidance notes
@@ -27,11 +28,13 @@ As an **au pair**, I want to **complete assigned shopping lists and get reimburs
    - Support autocomplete from previously purchased items
 
 3. **Receipt & Payment System**
-   - Upload receipt photos after shopping completion
-   - Enter actual total amount spent
+   - Upload multiple receipt photos per shopping trip (for split purchases across stores)
+   - Upload receipt photos automatically marks shopping as completed
+   - Enter actual total amount spent across all receipts
    - Parent approval workflow for reimbursements
    - Payment status tracking (pending → approved → paid out → confirmed)
    - Support for au pair payment confirmation
+   - Completed shopping lists remain visible with "completed" status (not archived)
 
 4. **Role-Based Access Control**
    - **Parents**: Create and schedule shopping lists, approve receipts, manage payments
@@ -266,6 +269,10 @@ The shopping system is **fully implemented** with the following components:
 3. Price comparison across supermarkets
 4. Shopping list sharing with non-family members
 5. Bulk operations for managing multiple lists
+6. Recurring/automatic shopping list creation
+7. Spending limits or budget tracking
+8. Shopping completion time tracking
+9. Substitution notes during shopping
 
 ---
 

@@ -9,6 +9,7 @@ import Signup from './components/Signup';
 import Dashboard from './components/Dashboard';
 import Onboarding from './components/Onboarding';
 import AuPairInviteFlow from './components/AuPairInviteFlow';
+import ThemeProvider from './components/ThemeProvider';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -61,65 +62,69 @@ function App() {
 
   if (loading) {
     return (
-      <div className="App flex items-center justify-center" style={{ minHeight: '100vh' }}>
-        <div className="card animate-fade-in" style={{ maxWidth: '400px', width: '100%', margin: '0 20px' }}>
-          <div className="card-body flex flex-col items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-purple-600 flex items-center justify-center">
-              <span className="text-white font-bold text-xl">F</span>
-            </div>
-            <h1 className="text-2xl font-bold text-primary">Loading FamilySync...</h1>
-            <div className="progress w-full">
-              <div className="progress-bar" style={{ width: '70%' }}></div>
+      <ThemeProvider>
+        <div className="App md3-flex md3-flex-center" style={{ minHeight: '100vh' }}>
+          <div className="md3-card md3-elevation-1 animate-fade-in" style={{ maxWidth: '400px', width: '100%', margin: '0 20px' }}>
+            <div className="md3-p-24 md3-flex md3-flex-column md3-flex-center md3-gap-16">
+              <div className="md3-fab" style={{ background: 'linear-gradient(135deg, var(--md-sys-color-primary) 0%, var(--md-sys-color-primary-container) 100%)' }}>
+                <span className="md3-title-large" style={{ color: 'var(--md-sys-color-on-primary)' }}>F</span>
+              </div>
+              <h1 className="md3-headline-small md3-primary-color">Loading FamilySync...</h1>
+              <div className="md3-progress w-full">
+                <div className="md3-progress-bar" style={{ width: '70%' }}></div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </ThemeProvider>
     );
   }
 
   return (
-    <div className="App">
-      {user ? (
-        // Check if user needs onboarding or invite flow
-        userData?.role === 'parent' && !userData?.hasCompletedOnboarding ? (
-          <Onboarding 
-            user={user} 
-            onComplete={handleOnboardingComplete}
-          />
-        ) : userData?.role === 'aupair' && !userData?.familyId ? (
-          <AuPairInviteFlow 
-            user={user} 
-            onComplete={handleAuPairJoinFamily}
-          />
+    <ThemeProvider>
+      <div className="App">
+        {user ? (
+          // Check if user needs onboarding or invite flow
+          userData?.role === 'parent' && !userData?.hasCompletedOnboarding ? (
+            <Onboarding 
+              user={user} 
+              onComplete={handleOnboardingComplete}
+            />
+          ) : userData?.role === 'aupair' && !userData?.familyId ? (
+            <AuPairInviteFlow 
+              user={user} 
+              onComplete={handleAuPairJoinFamily}
+            />
+          ) : (
+            <Dashboard user={user} />
+          )
         ) : (
-          <Dashboard user={user} />
-        )
-      ) : (
-        <div className="flex items-center justify-center" style={{ minHeight: '100vh', padding: '20px' }}>
-          <div className="card animate-fade-in" style={{ maxWidth: '480px', width: '100%' }}>
-            <div className="card-body">
-              <div className="flex flex-col items-center mb-6">
-                <div className="w-16 h-16 rounded-full mb-4" style={{ background: 'linear-gradient(135deg, #6366F1 0%, #4338CA 100%)' }}>
-                  <div className="w-full h-full flex items-center justify-center text-white font-bold text-2xl">
-                    F
+          <div className="md3-flex md3-flex-center" style={{ minHeight: '100vh', padding: '20px' }}>
+            <div className="md3-card md3-elevation-1 animate-fade-in" style={{ maxWidth: '480px', width: '100%' }}>
+              <div className="md3-p-24">
+                <div className="md3-flex md3-flex-column md3-flex-center md3-mb-24">
+                  <div className="md3-fab md3-mb-16" style={{ background: 'linear-gradient(135deg, var(--md-sys-color-primary) 0%, var(--md-sys-color-primary-container) 100%)' }}>
+                    <span className="md3-title-large" style={{ color: 'var(--md-sys-color-on-primary)' }}>
+                      F
+                    </span>
                   </div>
+                  <h1 className="md3-display-small md3-primary-color md3-mb-8">FamilySync</h1>
+                  <p className="md3-body-large md3-on-surface-variant-color text-center">
+                    Your Family Organization Hub
+                  </p>
                 </div>
-                <h1 className="text-3xl font-bold text-primary mb-2">FamilySync</h1>
-                <p className="text-secondary text-center">
-                  Your Family Organization Hub
-                </p>
+                
+                {authMode === 'login' ? (
+                  <Login onSwitchToSignup={() => setAuthMode('signup')} />
+                ) : (
+                  <Signup onSwitchToLogin={() => setAuthMode('login')} />
+                )}
               </div>
-              
-              {authMode === 'login' ? (
-                <Login onSwitchToSignup={() => setAuthMode('signup')} />
-              ) : (
-                <Signup onSwitchToLogin={() => setAuthMode('login')} />
-              )}
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </ThemeProvider>
   );
 }
 

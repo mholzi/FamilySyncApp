@@ -128,9 +128,9 @@ const AddFamilyNote = ({ onSubmit, onCancel, onDelete, initialNote = null, userR
             />
             <div style={styles.characterCount}>
               <span style={{
-                color: content.length > 450 ? '#ef4444' : 
-                       content.length > 400 ? '#f97316' : 
-                       '#6b7280'
+                color: content.length > 450 ? 'var(--md-sys-color-error)' : 
+                       content.length > 400 ? 'var(--md-sys-color-tertiary)' : 
+                       'var(--md-sys-color-on-surface-variant)'
               }}>
                 {content.length}/500
               </span>
@@ -220,125 +220,221 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 99999,
-    padding: 'var(--space-4)'
+    padding: '16px'
   },
   modal: {
     width: '100%',
     maxWidth: '500px',
     maxHeight: '90vh',
     overflow: 'auto',
-    boxShadow: 'var(--shadow-xl)',
+    backgroundColor: 'var(--md-sys-color-surface)',
+    borderRadius: 'var(--md-sys-shape-corner-large)',
+    boxShadow: 'var(--md-sys-elevation-level3)',
     animation: 'scaleIn 0.2s ease-out'
   },
   title: {
-    fontSize: 'var(--font-size-lg)',
-    fontWeight: 'var(--font-weight-semibold)',
-    color: 'var(--text-primary)',
-    margin: 0
+    fontSize: '24px',
+    fontWeight: '400',
+    color: 'var(--md-sys-color-on-surface)',
+    margin: 0,
+    lineHeight: '32px'
   },
   closeButton: {
     background: 'none',
     border: 'none',
     cursor: 'pointer',
-    fontSize: 'var(--font-size-lg)',
-    color: 'var(--text-secondary)',
-    padding: 'var(--space-1)',
-    borderRadius: 'var(--radius-sm)',
-    transition: 'var(--transition-fast)'
+    fontSize: '24px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    padding: '4px',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
   },
   templatesSection: {
-    marginBottom: 'var(--space-6)'
+    marginBottom: '24px'
   },
   templatesTitle: {
-    fontSize: 'var(--font-size-sm)',
-    fontWeight: 'var(--font-weight-medium)',
-    color: 'var(--text-primary)',
-    marginBottom: 'var(--space-3)'
+    fontSize: '14px',
+    fontWeight: '500',
+    color: 'var(--md-sys-color-on-surface)',
+    marginBottom: '12px'
   },
   templateGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: 'var(--space-2)'
+    gap: '8px'
   },
   templateButton: {
-    background: 'var(--gray-50)',
-    border: '1px solid var(--border-light)',
-    borderRadius: 'var(--radius-md)',
-    padding: 'var(--space-2)',
-    fontSize: 'var(--font-size-xs)',
-    color: 'var(--text-secondary)',
+    background: 'var(--md-sys-color-surface-container-low)',
+    border: '1px solid var(--md-sys-color-outline-variant)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    padding: '8px',
+    fontSize: '12px',
+    color: 'var(--md-sys-color-on-surface-variant)',
     cursor: 'pointer',
-    transition: 'var(--transition-fast)',
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
     textAlign: 'left',
-    lineHeight: 'var(--line-height-tight)'
+    lineHeight: '1.4'
   },
   formGroup: {
-    marginBottom: 'var(--space-4)'
+    marginBottom: '16px'
   },
   formRow: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    gap: 'var(--space-4)'
+    gap: '16px'
   },
   label: {
     display: 'block',
-    fontSize: 'var(--font-size-sm)',
-    fontWeight: 'var(--font-weight-medium)',
-    color: 'var(--text-primary)',
-    marginBottom: 'var(--space-2)'
+    fontSize: '14px',
+    fontWeight: '500',
+    color: 'var(--md-sys-color-on-surface)',
+    marginBottom: '8px'
   },
   textarea: {
     minHeight: '80px',
     resize: 'vertical'
   },
   characterCount: {
-    marginTop: 'var(--space-1)',
-    fontSize: 'var(--font-size-xs)',
+    marginTop: '4px',
+    fontSize: '12px',
     textAlign: 'right'
   },
   actions: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 'var(--space-6)'
+    marginTop: '24px'
   },
   rightActions: {
     display: 'flex',
-    gap: 'var(--space-3)'
+    gap: '12px'
   },
   deleteButton: {
     background: 'none',
-    border: '1px solid #ef4444',
-    borderRadius: 'var(--radius-md)',
-    padding: 'var(--space-2) var(--space-4)',
-    fontSize: 'var(--font-size-sm)',
-    fontWeight: 'var(--font-weight-medium)',
-    color: '#ef4444',
+    border: '1px solid var(--md-sys-color-error)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    padding: '8px 16px',
+    fontSize: '14px',
+    fontWeight: '500',
+    color: 'var(--md-sys-color-error)',
     cursor: 'pointer',
-    transition: 'var(--transition-fast)'
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
   }
 };
 
 // Add template button hover effect
 if (typeof document !== 'undefined') {
-  const style = document.createElement('style');
-  style.textContent = `
+  const styleElement = document.createElement('style');
+  styleElement.textContent = `
+    /* Template button hover */
     .template-button:hover {
-      background-color: var(--gray-100);
-      border-color: var(--border-medium);
-      color: var(--text-primary);
+      background-color: var(--md-sys-color-surface-container);
+      border-color: var(--md-sys-color-outline);
+      color: var(--md-sys-color-on-surface);
     }
     
+    /* Close button hover */
     .close-button:hover {
-      background-color: var(--gray-100);
-      color: var(--text-primary);
+      background-color: var(--md-sys-color-surface-container-highest);
+      color: var(--md-sys-color-on-surface);
     }
     
+    /* Delete button hover */
     .delete-button:hover {
-      background-color: #ef4444;
-      color: white;
+      background-color: var(--md-sys-color-error);
+      color: var(--md-sys-color-on-error);
+      border-color: var(--md-sys-color-error);
     }
     
+    /* Form inputs with MD3 styling */
+    .form-input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--md-sys-color-outline);
+      border-radius: var(--md-sys-shape-corner-small);
+      background-color: var(--md-sys-color-surface);
+      color: var(--md-sys-color-on-surface);
+      font-size: 16px;
+      transition: var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard);
+    }
+    
+    .form-input:focus {
+      outline: none;
+      border-color: var(--md-sys-color-primary);
+      box-shadow: 0 0 0 1px var(--md-sys-color-primary);
+    }
+    
+    .form-input:disabled {
+      background-color: var(--md-sys-color-surface-container-highest);
+      color: var(--md-sys-color-on-surface-variant);
+      opacity: 0.6;
+    }
+    
+    /* Buttons with MD3 styling */
+    .btn {
+      padding: 10px 24px;
+      border-radius: var(--md-sys-shape-corner-full);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard);
+      border: none;
+      min-width: 64px;
+      height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .btn-primary {
+      background-color: var(--md-sys-color-primary);
+      color: var(--md-sys-color-on-primary);
+    }
+    
+    .btn-primary:hover:not(:disabled) {
+      box-shadow: var(--md-sys-elevation-level2);
+    }
+    
+    .btn-primary:disabled {
+      background-color: var(--md-sys-color-on-surface);
+      opacity: 0.12;
+      color: var(--md-sys-color-on-surface);
+      cursor: not-allowed;
+    }
+    
+    .btn-secondary {
+      background-color: transparent;
+      color: var(--md-sys-color-primary);
+      border: 1px solid var(--md-sys-color-outline);
+    }
+    
+    .btn-secondary:hover:not(:disabled) {
+      background-color: var(--md-sys-color-primary-container);
+    }
+    
+    .btn-secondary:disabled {
+      color: var(--md-sys-color-on-surface);
+      opacity: 0.38;
+      cursor: not-allowed;
+    }
+    
+    /* Card styling */
+    .card {
+      background-color: var(--md-sys-color-surface);
+      border-radius: var(--md-sys-shape-corner-large);
+      overflow: hidden;
+    }
+    
+    .card-header {
+      padding: 24px 24px 16px 24px;
+      border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    }
+    
+    .card-body {
+      padding: 24px;
+    }
+    
+    /* Animation */
     @keyframes scaleIn {
       from {
         transform: scale(0.95);
@@ -350,7 +446,12 @@ if (typeof document !== 'undefined') {
       }
     }
   `;
-  document.head.appendChild(style);
+  
+  // Only add if not already present
+  if (!document.querySelector('#add-family-note-styles')) {
+    styleElement.id = 'add-family-note-styles';
+    document.head.appendChild(styleElement);
+  }
 }
 
 export default AddFamilyNote;

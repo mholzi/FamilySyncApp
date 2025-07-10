@@ -82,10 +82,11 @@ const CalendarPage = ({ user, recurringActivities = [], children: propsChildren,
 
 const styles = {
   container: {
-    height: '100vh',
+    height: 'calc(100vh - 64px)', // Subtract bottom navigation height
     display: 'flex',
     flexDirection: 'column',
-    backgroundColor: 'var(--bg-primary)'
+    backgroundColor: 'var(--bg-primary)',
+    paddingBottom: '8px' // Small padding for safety
   },
   loadingContainer: {
     height: '100vh',

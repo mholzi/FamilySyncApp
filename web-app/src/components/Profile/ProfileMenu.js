@@ -3,12 +3,38 @@ import React from 'react';
 const ProfileMenu = ({ user, userData, isOpen, onClose, onNavigate, onConfirmLogout }) => {
   if (!isOpen) return null;
 
-  const menuItems = [
+  // Common menu items for all users
+  const commonMenuItems = [
     { icon: '👤', label: 'Edit Profile', action: 'profile' },
     { icon: '🔔', label: 'Notifications', action: 'notifications' },
-    { icon: '⚙️', label: 'Settings', action: 'settings' },
+    { icon: '⚙️', label: 'Settings', action: 'settings' }
+  ];
+
+  // Parent-specific menu items
+  const parentMenuItems = [
     { icon: '👥', label: 'Family Management', action: 'family' },
-    { icon: '📊', label: 'Analytics', action: 'analytics' },
+    { icon: '🏠', label: 'Household Settings', action: 'household' },
+    { icon: '💰', label: 'Payment & Billing', action: 'payment' },
+    { icon: '📋', label: 'Task Assignment', action: 'tasks' },
+    { icon: '🚨', label: 'Emergency Contacts', action: 'emergency' },
+    { icon: '📊', label: 'Analytics', action: 'analytics' }
+  ];
+
+  // Au Pair-specific menu items
+  const auPairMenuItems = [
+    { icon: '👨‍👩‍👧‍👦', label: 'Family Info', action: 'familyInfo' },
+    { icon: '📅', label: 'Schedule', action: 'schedule' },
+    { icon: '💵', label: 'Payment History', action: 'paymentHistory' },
+    { icon: '🎯', label: 'Goal Tracking', action: 'goals' },
+    { icon: '🆘', label: 'Emergency Info', action: 'emergencyInfo' }
+  ];
+
+  // Build menu items based on user role
+  const roleSpecificItems = userData?.role === 'parent' ? parentMenuItems : auPairMenuItems;
+  const menuItems = [
+    ...commonMenuItems,
+    { type: 'divider' },
+    ...roleSpecificItems,
     { type: 'divider' },
     { icon: '🔓', label: 'Sign Out', action: 'logout', variant: 'danger' }
   ];

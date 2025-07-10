@@ -6,7 +6,6 @@ import { completeHouseholdTodo, confirmHouseholdTodo } from '../../utils/househo
 import { useAuPairExperience } from '../../hooks/useAuPairExperience';
 import TaskInstructions from './TaskInstructions/TaskInstructions';
 import ExamplePhotos from './TaskGuidance/ExamplePhotos';
-import DifficultyBadge from './TaskGuidance/DifficultyBadge';
 import FirstTimeHelper from './TaskGuidance/FirstTimeHelper';
 import HelpRequest from './TaskFeedback/HelpRequest';
 import FeedbackModal from './TaskFeedback/FeedbackModal';
@@ -173,36 +172,61 @@ const TaskDetailModal = ({
     <div className="task-detail-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="task-detail-modal">
         <div className="task-detail-header">
-          <div className="task-header-content">
-            <div className="task-title-section">
-              <h2>{task.title}</h2>
-              <div className="task-badges">
-                <DifficultyBadge difficulty={task.difficulty} />
+          <button className="task-detail-close" onClick={onClose}>×</button>
+          
+          <div className="task-detail-main-content">
+            {/* Left section with due date and time */}
+            <div className="task-time-section">
+              {task.dueDate && (
+                <>
+                  <div className="task-due-display">
+                    {task.dueDate.toDate().toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })}
+                  </div>
+                  <div className={`task-day-indicator ${isOverdue ? 'overdue' : ''}`}>
+                    {isOverdue ? 'Overdue' : 'Due'}
+                  </div>
+                  {task.estimatedTime && (
+                    <div className="task-time-estimate">
+                      {task.estimatedTime} min
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            
+            {/* Main content section */}
+            <div className="task-content-section">
+              <div className="task-header-row">
+                <h2 className="task-modal-title">{task.title}</h2>
+              </div>
+              
+              <div className="task-metadata">
                 {task.category && (
                   <span className={`task-category-badge ${task.category}`}>
-                    {task.category}
+                    {task.category.charAt(0).toUpperCase() + task.category.slice(1)}
+                  </span>
+                )}
+                {task.difficulty && (
+                  <span className={`task-difficulty-badge ${task.difficulty}`}>
+                    {task.difficulty === 'easy' ? '🌟 Easy' : 
+                     task.difficulty === 'moderate' ? '⚡ Moderate' : 
+                     '🎯 Complex'}
                   </span>
                 )}
                 {task.isRecurring && (
                   <span className="recurring-badge">
-                    🔄 {task.recurringType}
+                    {task.recurringType === 'daily' ? 'Daily' : 
+                     task.recurringType === 'weekly' ? 'Weekly' : 
+                     task.recurringType === 'monthly' ? 'Monthly' : 
+                     task.recurringType.charAt(0).toUpperCase() + task.recurringType.slice(1)}
                   </span>
                 )}
               </div>
             </div>
-            <button className="task-detail-close" onClick={onClose}>×</button>
           </div>
-          
-          {task.dueDate && (
-            <div className={`task-due-date ${isOverdue ? 'overdue' : ''}`}>
-              📅 Due: {task.dueDate.toDate().toLocaleDateString()}
-              {task.estimatedTime && (
-                <span className="estimated-time">
-                  ⏱️ {task.estimatedTime} min
-                </span>
-              )}
-            </div>
-          )}
         </div>
 
         <div className="task-detail-content">
@@ -290,18 +314,19 @@ const TaskDetailModal = ({
                               rows={3}
                               className="response-textarea"
                             />
-                            <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
                               <button
                                 style={{
-                                  padding: 'var(--space-2) var(--space-3)',
+                                  padding: '8px 12px',
                                   border: 'none',
-                                  borderRadius: 'var(--radius-md)',
-                                  backgroundColor: !responseText.trim() ? 'var(--gray-400)' : 'var(--primary-purple)',
-                                  color: 'var(--white)',
-                                  fontSize: 'var(--font-size-sm)',
-                                  fontWeight: 'var(--font-weight-medium)',
+                                  borderRadius: 'var(--md-sys-shape-corner-small)',
+                                  backgroundColor: !responseText.trim() ? 'var(--md-sys-color-on-surface)' : 'var(--md-sys-color-primary)',
+                                  color: !responseText.trim() ? 'var(--md-sys-color-surface)' : 'var(--md-sys-color-on-primary)',
+                                  fontSize: '14px',
+                                  fontWeight: '500',
                                   cursor: !responseText.trim() ? 'not-allowed' : 'pointer',
-                                  transition: 'var(--transition-fast)'
+                                  transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+                                  opacity: !responseText.trim() ? 0.38 : 1
                                 }}
                                 onClick={handleSubmitResponse}
                                 disabled={!responseText.trim()}
@@ -310,15 +335,15 @@ const TaskDetailModal = ({
                               </button>
                               <button
                                 style={{
-                                  padding: 'var(--space-2) var(--space-3)',
-                                  border: '1px solid var(--border-light)',
-                                  borderRadius: 'var(--radius-md)',
-                                  backgroundColor: 'var(--white)',
-                                  color: 'var(--text-secondary)',
-                                  fontSize: 'var(--font-size-sm)',
-                                  fontWeight: 'var(--font-weight-medium)',
+                                  padding: '8px 12px',
+                                  border: '1px solid var(--md-sys-color-outline)',
+                                  borderRadius: 'var(--md-sys-shape-corner-small)',
+                                  backgroundColor: 'transparent',
+                                  color: 'var(--md-sys-color-primary)',
+                                  fontSize: '14px',
+                                  fontWeight: '500',
                                   cursor: 'pointer',
-                                  transition: 'var(--transition-fast)'
+                                  transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
                                 }}
                                 onClick={handleCancelResponse}
                               >
@@ -329,15 +354,15 @@ const TaskDetailModal = ({
                         ) : (
                           <button
                             style={{
-                              padding: 'var(--space-2) var(--space-3)',
+                              padding: '8px 12px',
                               border: 'none',
-                              borderRadius: 'var(--radius-md)',
-                              backgroundColor: 'var(--primary-purple)',
-                              color: 'var(--white)',
-                              fontSize: 'var(--font-size-sm)',
-                              fontWeight: 'var(--font-weight-medium)',
+                              borderRadius: 'var(--md-sys-shape-corner-small)',
+                              backgroundColor: 'var(--md-sys-color-primary)',
+                              color: 'var(--md-sys-color-on-primary)',
+                              fontSize: '14px',
+                              fontWeight: '500',
                               cursor: 'pointer',
-                              transition: 'var(--transition-fast)'
+                              transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
                             }}
                             onClick={() => handleRespond(request.id, index)}
                           >
@@ -377,8 +402,8 @@ const TaskDetailModal = ({
 
           {/* Completion Section for Au Pair */}
           {canComplete && (
-            <div className="completion-section">
-              <h4>📝 Comments</h4>
+            <>
+              <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '600', color: 'var(--md-sys-color-on-surface)' }}>📝 Comments</h4>
               <div className="completion-form">
                 <div className="form-group">
                   <label>Notes (optional)</label>
@@ -390,16 +415,16 @@ const TaskDetailModal = ({
                   />
                   <button
                     style={{
-                      marginTop: 'var(--space-2)',
-                      padding: 'var(--space-2) var(--space-3)',
-                      border: '1px solid var(--border-light)',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: 'var(--white)',
-                      color: 'var(--text-secondary)',
-                      fontSize: 'var(--font-size-sm)',
-                      fontWeight: 'var(--font-weight-medium)',
+                      marginTop: '8px',
+                      padding: '8px 12px',
+                      border: '1px solid var(--md-sys-color-outline)',
+                      borderRadius: 'var(--md-sys-shape-corner-small)',
+                      backgroundColor: 'transparent',
+                      color: 'var(--md-sys-color-primary)',
+                      fontSize: '14px',
+                      fontWeight: '500',
                       cursor: 'pointer',
-                      transition: 'var(--transition-fast)'
+                      transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
                     }}
                     onClick={async () => {
                       if (completionNotes.trim()) {
@@ -435,7 +460,7 @@ const TaskDetailModal = ({
                   />
                 </div>
               </div>
-            </div>
+            </>
           )}
 
           {/* Completion Info for Completed Tasks */}
@@ -482,15 +507,15 @@ const TaskDetailModal = ({
                 {canRequestHelp && (
                   <button
                     style={{
-                      padding: 'var(--space-2) var(--space-4)',
-                      border: '1px solid var(--primary-purple)',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: 'var(--white)',
-                      color: 'var(--primary-purple)',
-                      fontSize: 'var(--font-size-sm)',
-                      fontWeight: 'var(--font-weight-medium)',
+                      padding: '8px 16px',
+                      border: '1px solid var(--md-sys-color-primary)',
+                      borderRadius: 'var(--md-sys-shape-corner-full)',
+                      backgroundColor: 'transparent',
+                      color: 'var(--md-sys-color-primary)',
+                      fontSize: '14px',
+                      fontWeight: '500',
                       cursor: 'pointer',
-                      transition: 'var(--transition-fast)'
+                      transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
                     }}
                     onClick={() => setShowHelpRequest(true)}
                   >
@@ -500,15 +525,16 @@ const TaskDetailModal = ({
                 {canComplete && (
                   <button
                     style={{
-                      padding: 'var(--space-2) var(--space-4)',
+                      padding: '8px 16px',
                       border: 'none',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: isCompleting ? 'var(--gray-400)' : 'var(--primary-purple)',
-                      color: 'var(--white)',
-                      fontSize: 'var(--font-size-sm)',
-                      fontWeight: 'var(--font-weight-medium)',
+                      borderRadius: 'var(--md-sys-shape-corner-full)',
+                      backgroundColor: isCompleting ? 'var(--md-sys-color-on-surface)' : 'var(--md-sys-color-primary)',
+                      color: isCompleting ? 'var(--md-sys-color-surface)' : 'var(--md-sys-color-on-primary)',
+                      fontSize: '14px',
+                      fontWeight: '500',
                       cursor: isCompleting ? 'not-allowed' : 'pointer',
-                      transition: 'var(--transition-fast)'
+                      transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+                      opacity: isCompleting ? 0.38 : 1
                     }}
                     onClick={handleCompleteTask}
                     disabled={isCompleting}
@@ -525,15 +551,15 @@ const TaskDetailModal = ({
                 {task.status === 'pending' && (
                   <button
                     style={{
-                      padding: 'var(--space-2) var(--space-4)',
-                      border: '1px solid var(--border-light)',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: 'var(--white)',
-                      color: 'var(--text-secondary)',
-                      fontSize: 'var(--font-size-sm)',
-                      fontWeight: 'var(--font-weight-medium)',
+                      padding: '8px 16px',
+                      border: 'none',
+                      borderRadius: 'var(--md-sys-shape-corner-full)',
+                      backgroundColor: 'var(--md-sys-color-primary)',
+                      color: 'var(--md-sys-color-on-primary)',
+                      fontSize: '14px',
+                      fontWeight: '500',
                       cursor: 'pointer',
-                      transition: 'var(--transition-fast)'
+                      transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
                     }}
                     onClick={() => {
                       if (onEdit && typeof onEdit === 'function') {
@@ -543,21 +569,22 @@ const TaskDetailModal = ({
                       }
                     }}
                   >
-                    ✏️ Edit Task
+                    Edit Task
                   </button>
                 )}
                 {canConfirm && (
                   <button
                     style={{
-                      padding: 'var(--space-2) var(--space-4)',
+                      padding: '8px 16px',
                       border: 'none',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: isConfirming ? 'var(--gray-400)' : '#22c55e',
-                      color: 'var(--white)',
-                      fontSize: 'var(--font-size-sm)',
-                      fontWeight: 'var(--font-weight-medium)',
+                      borderRadius: 'var(--md-sys-shape-corner-full)',
+                      backgroundColor: isConfirming ? 'var(--md-sys-color-on-surface)' : 'var(--md-sys-color-secondary)',
+                      color: isConfirming ? 'var(--md-sys-color-surface)' : 'var(--md-sys-color-on-secondary)',
+                      fontSize: '14px',
+                      fontWeight: '500',
                       cursor: isConfirming ? 'not-allowed' : 'pointer',
-                      transition: 'var(--transition-fast)'
+                      transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+                      opacity: isConfirming ? 0.38 : 1
                     }}
                     onClick={handleConfirmTask}
                     disabled={isConfirming}
@@ -568,15 +595,15 @@ const TaskDetailModal = ({
                 {canGiveFeedback && (
                   <button
                     style={{
-                      padding: 'var(--space-2) var(--space-4)',
+                      padding: '8px 16px',
                       border: 'none',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: 'var(--primary-purple)',
-                      color: 'var(--white)',
-                      fontSize: 'var(--font-size-sm)',
-                      fontWeight: 'var(--font-weight-medium)',
+                      borderRadius: 'var(--md-sys-shape-corner-full)',
+                      backgroundColor: 'var(--md-sys-color-primary)',
+                      color: 'var(--md-sys-color-on-primary)',
+                      fontSize: '14px',
+                      fontWeight: '500',
                       cursor: 'pointer',
-                      transition: 'var(--transition-fast)'
+                      transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
                     }}
                     onClick={() => setShowFeedbackModal(true)}
                   >

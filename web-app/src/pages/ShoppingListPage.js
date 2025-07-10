@@ -8,6 +8,7 @@ import ShoppingList from '../components/Shopping/ShoppingList';
 import AddShoppingList from '../components/Shopping/AddShoppingList';
 import PaymentStatusCard from '../components/Shopping/PaymentStatusCard';
 import ShoppingErrorBoundary from '../components/ErrorBoundary/ShoppingErrorBoundary';
+import { Typography } from '../components/MD3';
 import './ShoppingListPage.css';
 
 const ShoppingListPage = () => {
@@ -100,47 +101,35 @@ const ShoppingListPage = () => {
   return (
     <div className="shopping-page">
       <div className="shopping-header">
-        <h1>Shopping Lists</h1>
-        <button 
-          className="add-list-btn"
-          onClick={() => setShowAddList(true)}
-          disabled={!family?.id || !currentUser?.uid}
-        >
-          + New List
-        </button>
+        <Typography variant="headline-small" color="on-surface">Shopping Lists</Typography>
+        {userRole === 'parent' && (
+          <button 
+            className="add-list-btn"
+            onClick={() => setShowAddList(true)}
+            disabled={!family?.id || !currentUser?.uid}
+          >
+            Add New List
+          </button>
+        )}
       </div>
-
-      {pendingApproval.length > 0 && (
-        <ShoppingErrorBoundary>
-          <div className="pending-section">
-            <h2>Pending Approval</h2>
-            {pendingApproval.map(list => (
-              <ShoppingList 
-                key={list.id}
-                list={list}
-                familyId={family?.id}
-                currentUser={currentUser}
-                family={family}
-                mode="approval"
-              />
-            ))}
-          </div>
-        </ShoppingErrorBoundary>
-      )}
 
       <ShoppingErrorBoundary>
         <div className="active-lists">
-          <h2>Active Lists</h2>
+          <Typography variant="headline-small" color="on-surface">Active Lists</Typography>
           {activeLists.length === 0 ? (
             <div className="empty-state">
               <p>No active shopping lists</p>
-              <button 
-                className="create-first-btn"
-                onClick={() => setShowAddList(true)}
-                disabled={!family?.id || !currentUser?.uid}
-              >
-                Create your first shopping list
-              </button>
+              {userRole === 'parent' ? (
+                <button 
+                  className="create-first-btn"
+                  onClick={() => setShowAddList(true)}
+                  disabled={!family?.id || !currentUser?.uid}
+                >
+                  Create your first shopping list
+                </button>
+              ) : (
+                <p>Parents will create shopping lists for you to complete</p>
+              )}
             </div>
           ) : (
             activeLists.map(list => (
@@ -157,10 +146,28 @@ const ShoppingListPage = () => {
         </div>
       </ShoppingErrorBoundary>
 
+      {pendingApproval.length > 0 && (
+        <ShoppingErrorBoundary>
+          <div className="pending-section">
+            <Typography variant="headline-small" color="on-surface">Pending Approval</Typography>
+            {pendingApproval.map(list => (
+              <ShoppingList 
+                key={list.id}
+                list={list}
+                familyId={family?.id}
+                currentUser={currentUser}
+                family={family}
+                mode="approval"
+              />
+            ))}
+          </div>
+        </ShoppingErrorBoundary>
+      )}
+
       {paymentTracking.length > 0 && (
         <ShoppingErrorBoundary>
           <div className="payment-tracking-section">
-            <h2>Payment Tracking</h2>
+            <Typography variant="headline-small" color="on-surface">Payment Tracking</Typography>
             <p className="section-description">Track the approval and payment status of your shopping receipts</p>
             <div className="payment-tracking-grid">
               {paymentTracking.map(list => (
@@ -179,6 +186,7 @@ const ShoppingListPage = () => {
         </ShoppingErrorBoundary>
       )}
 
+
       {showAddList && (
         <AddShoppingList
           onCancel={() => setShowAddList(false)}
@@ -186,6 +194,7 @@ const ShoppingListPage = () => {
           creating={creating}
           familyId={family?.id}
           currentUser={currentUser}
+          userRole={userRole}
         />
       )}
     </div>

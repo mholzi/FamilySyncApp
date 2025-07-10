@@ -44,8 +44,16 @@ const SimpleTodoCard = ({
   };
 
   const isCompleted = todo.status === 'completed';
+  // Check if task is overdue - only if date has passed (not including today)
   const isOverdue = todo.status === 'overdue' || 
-    (todo.dueDate && todo.dueDate.toDate() < new Date() && todo.status === 'pending');
+    (todo.dueDate && todo.status === 'pending' && (() => {
+      const dueDate = todo.dueDate.toDate();
+      const today = new Date();
+      // Set both dates to start of day for comparison
+      dueDate.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
+      return dueDate < today; // Only overdue if due date is before today
+    })());
 
 
   const getPriorityColor = (priority) => {
@@ -102,53 +110,84 @@ const SimpleTodoCard = ({
             </span>
           </div>
         )}
-        {/* Header with title and due date on the right */}
-        <div style={styles.taskHeader}>
-          <div style={styles.titleRow}>
+        
+        {/* Category badge at top right */}
+        {todo.category && (
+          <span style={{
+            ...getCategoryBadgeStyle(todo.category, todo.priority),
+            position: 'absolute',
+            top: '12px',
+            right: '12px'
+          }}>
+            {todo.category.charAt(0).toUpperCase() + todo.category.slice(1)}
+          </span>
+        )}
+        
+        {/* Time section on the left */}
+        <div style={styles.timeSection}>
+          {todo.dueDate && (
+            <>
+              <div style={styles.timeDisplay}>
+                {formatDueDate(todo.dueDate)}
+              </div>
+              {(() => {
+                const dueDate = todo.dueDate.toDate();
+                const today = new Date();
+                // Set both dates to start of day for comparison
+                const dueDateStart = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+                const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                const isDueToday = dueDateStart.getTime() === todayStart.getTime();
+                
+                // Only show indicator if due today or overdue
+                if (isOverdue || isDueToday) {
+                  return (
+                    <div style={{
+                      ...styles.dayIndicator,
+                      ...(isOverdue ? { backgroundColor: '#ffebee', color: 'var(--md-sys-color-error)' } : {})
+                    }}>
+                      {isOverdue ? 'Overdue' : 'Due'}
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+              {todo.estimatedTime && (
+                <div style={styles.timeEstimate}>
+                  {formatEstimatedTime(todo.estimatedTime)}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        
+        {/* Main content section */}
+        <div style={styles.taskContent}>
+          <div style={styles.taskHeader}>
             <div style={{
               ...styles.taskTitle,
               ...(isCompleted ? styles.taskTitleCompleted : {})
             }}>
               {todo.title}
             </div>
-            {todo.dueDate && (
-              <span style={styles.dueDateBadge}>
-                {formatDueDate(todo.dueDate)}
-              </span>
-            )}
           </div>
-          {/* Category below title */}
-          {todo.category && (
-            <span style={{...getCategoryBadgeStyle(todo.category, todo.priority), marginTop: '8px', display: 'inline-block'}}>
-              {todo.category.charAt(0).toUpperCase() + todo.category.slice(1)}
-            </span>
-          )}
+          
+          {/* Description */}
           {todo.description && (
-            <div style={{...styles.taskDescription, marginTop: '10px'}}>
+            <div style={styles.taskDescription}>
               {todo.description}
             </div>
           )}
+          
         </div>
         
-        {/* Spacer area */}
-        <div style={styles.spacerArea}>
-          {todo.estimatedTime && (
-            <span style={styles.timeEstimate}>
-              {formatEstimatedTime(todo.estimatedTime)}
-            </span>
-          )}
-        </div>
-        
-        {/* Bottom row with both buttons */}
-        <div style={styles.bottomRow}>
+        {/* Bottom buttons */}
+        <div style={styles.buttonContainer}>
           <button
             onClick={(e) => {
               e.stopPropagation(); // Prevent card click
               setShowDetailModal(true);
             }}
-            style={{
-              ...styles.taskButton
-            }}
+            style={styles.detailsButton}
           >
             Details
           </button>
@@ -192,20 +231,10 @@ const formatDueDate = (dueDate) => {
   if (!dueDate) return '';
   
   const date = dueDate.toDate();
-  const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  
-  if (date.toDateString() === today.toDateString()) {
-    return 'Today';
-  } else if (date.toDateString() === tomorrow.toDateString()) {
-    return 'Tomorrow';
-  } else {
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric' 
-    });
-  }
+  return date.toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric' 
+  });
 };
 
 const formatEstimatedTime = (minutes) => {
@@ -218,144 +247,154 @@ const formatEstimatedTime = (minutes) => {
 
 const styles = {
   taskCard: {
-    backgroundColor: 'var(--white)',
-    borderRadius: 'var(--radius-lg)',
-    padding: 'var(--space-4)',
-    marginBottom: 'var(--space-3)',
-    boxShadow: 'var(--shadow-sm)',
-    border: '1px solid var(--border-light)',
-    transition: 'var(--transition-normal)',
-    minWidth: '240px',
+    backgroundColor: 'var(--md-sys-color-surface-container-low)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    padding: '16px',
+    paddingBottom: '80px', // Increased by 30px for larger card
+    boxShadow: 'var(--md-sys-elevation-level1)',
+    border: '1px solid var(--md-sys-color-outline-variant)',
+    transition: 'var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard)',
     display: 'flex',
-    flexDirection: 'column',
-    minHeight: '120px'
+    gap: '16px',
+    alignItems: 'flex-start',
+    position: 'relative',
+    width: '100%',
+    boxSizing: 'border-box',
+    minHeight: '140px' // Ensure minimum height
   },
   taskCardCompleted: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)',
     opacity: 0.8
   },
   taskCardOverdue: {
-    borderLeft: '4px solid #ef4444',
-    backgroundColor: '#fef2f2'
+    borderLeft: '4px solid var(--md-sys-color-error)',
+    backgroundColor: '#ffebee33' // Very subtle red background with transparency
+  },
+  timeSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    minWidth: '70px',
+    textAlign: 'left'
+  },
+  timeDisplay: {
+    fontSize: '18px',
+    fontWeight: '700',
+    color: 'var(--md-sys-color-primary)',
+    lineHeight: '1.3'
+  },
+  dayIndicator: {
+    fontSize: '12px',
+    color: 'var(--md-sys-color-on-surface)',
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)',
+    padding: '4px 8px',
+    borderRadius: 'var(--md-sys-shape-corner-extra-small)',
+    marginTop: '4px',
+    fontWeight: '500'
+  },
+  timeEstimate: {
+    fontSize: '12px',
+    color: 'var(--md-sys-color-on-surface)',
+    backgroundColor: 'var(--md-sys-color-tertiary-container)',
+    padding: '4px 8px',
+    borderRadius: 'var(--md-sys-shape-corner-extra-small)',
+    marginTop: '8px',
+    fontWeight: '500'
+  },
+  taskContent: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    minWidth: 0,
+    alignItems: 'flex-start' // Align content to the left
   },
   taskHeader: {
-    marginBottom: 'var(--space-3)'
-  },
-  titleRow: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: 'var(--space-2)',
-    marginBottom: 'var(--space-1)'
+    gap: '8px'
   },
   taskTitle: {
-    fontSize: 'var(--font-size-sm)',
-    fontWeight: 'var(--font-weight-semibold)',
-    color: 'var(--text-primary)',
-    lineHeight: 'var(--line-height-tight)',
+    fontSize: '16px',
+    fontWeight: '600',
+    color: 'var(--md-sys-color-on-surface)',
+    lineHeight: '1.3',
     flex: 1,
-    textAlign: 'left'
+    textAlign: 'left' // Ensure left alignment
   },
   taskTitleCompleted: {
     textDecoration: 'line-through',
-    color: 'var(--text-tertiary)'
+    color: 'var(--md-sys-color-on-surface-variant)'
   },
   taskDescription: {
-    fontSize: 'var(--font-size-xs)',
-    color: 'var(--text-secondary)',
-    lineHeight: 'var(--line-height-normal)',
-    textAlign: 'left'
+    fontSize: '14px',
+    color: 'var(--md-sys-color-on-surface)',
+    lineHeight: '1.4',
+    marginBottom: '4px',
+    textAlign: 'left' // Ensure left alignment
   },
-  spacerArea: {
+  buttonContainer: {
+    position: 'absolute',
+    bottom: '10px',
+    right: '10px',
     display: 'flex',
-    justifyContent: 'flex-end',
-    marginBottom: 'var(--space-3)',
-    minHeight: '20px',
-    flex: 1
+    gap: '8px'
   },
   categoryBadge: {
-    fontSize: 'var(--font-size-xs)',
-    color: 'var(--primary-purple)',
-    backgroundColor: '#f3f4f6',
-    padding: '2px var(--space-2)',
-    borderRadius: 'var(--radius-md)',
-    fontWeight: 'var(--font-weight-medium)',
+    fontSize: '12px',
+    color: 'var(--md-sys-color-primary)',
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)',
+    padding: '2px 8px',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    fontWeight: '500',
     minWidth: '80px',
     textAlign: 'center',
     border: '1px solid transparent',
     cursor: 'default',
-    transition: 'var(--transition-fast)',
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
     height: 'auto',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center'
   },
-  dueDateBadge: {
-    fontSize: 'var(--font-size-xs)',
-    color: 'var(--text-tertiary)',
-    backgroundColor: '#fef3c7',
-    padding: 'var(--space-1) var(--space-2)',
-    borderRadius: 'var(--radius-sm)',
-    fontWeight: 'var(--font-weight-medium)',
-    flexShrink: 0,
-    whiteSpace: 'nowrap'
-  },
-  bottomRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 'var(--space-2)',
-    marginTop: 'auto'
-  },
-  leftBottomSection: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 'var(--space-2)'
-  },
-  taskButton: {
-    border: '1px solid #e2e8f0',
-    borderRadius: 'var(--radius-md)',
-    padding: 'var(--space-2) var(--space-3)',
-    fontSize: 'var(--font-size-xs)',
-    fontWeight: 'var(--font-weight-medium)',
+  detailsButton: {
+    border: '1px solid var(--md-sys-color-outline-variant)',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    padding: '8px 12px',
+    fontSize: '12px',
+    fontWeight: '500',
     cursor: 'pointer',
-    transition: 'var(--transition-fast)',
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
     minWidth: '80px',
-    backgroundColor: '#f8fafc',
-    color: '#475569'
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)',
+    color: 'var(--md-sys-color-on-surface)'
   },
   doneButton: {
     border: 'none',
-    borderRadius: 'var(--radius-md)',
-    padding: 'var(--space-2) var(--space-3)',
-    fontSize: 'var(--font-size-xs)',
-    fontWeight: 'var(--font-weight-medium)',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    padding: '8px 12px',
+    fontSize: '12px',
+    fontWeight: '500',
     cursor: 'pointer',
-    transition: 'var(--transition-fast)',
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
     minWidth: '80px'
   },
   doneButtonPending: {
-    backgroundColor: 'var(--primary-purple)',
-    color: 'var(--white)'
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)'
   },
   doneButtonCompleted: {
-    backgroundColor: 'var(--secondary-green)',
-    color: 'var(--white)'
-  },
-  timeEstimate: {
-    fontSize: 'var(--font-size-xs)',
-    color: 'var(--text-tertiary)',
-    backgroundColor: '#f3f4f6',
-    padding: 'var(--space-1) var(--space-2)',
-    borderRadius: 'var(--radius-sm)'
+    backgroundColor: 'var(--md-sys-color-tertiary)',
+    color: 'var(--md-sys-color-on-tertiary)'
   },
   helpRequestBadge: {
     position: 'absolute',
     top: '-8px',
     right: '-8px',
-    backgroundColor: '#ef4444',
-    color: 'white',
-    borderRadius: '50%',
+    backgroundColor: 'var(--md-sys-color-error)',
+    color: 'var(--md-sys-color-on-error)',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
     width: '20px',
     height: '20px',
     display: 'flex',
@@ -363,7 +402,7 @@ const styles = {
     justifyContent: 'center',
     fontSize: '10px',
     fontWeight: 'bold',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+    boxShadow: 'var(--md-sys-elevation-level2)',
     zIndex: 1
   },
   helpRequestCount: {
