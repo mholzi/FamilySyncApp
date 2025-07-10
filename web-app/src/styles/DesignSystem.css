@@ -675,7 +675,9 @@ body {
 /* Material Design 3 Spacing Utilities */
 .md3-p-4 { padding: 4px; }
 .md3-p-8 { padding: 8px; }
+.md3-p-9 { padding: 9px; }
 .md3-p-12 { padding: 12px; }
+.md3-p-11 { padding: 11px; }
 .md3-p-16 { padding: 16px; }
 .md3-p-24 { padding: 24px; }
 

@@ -1,8 +1,42 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import CalendarEventCard from './CalendarEventCard';
 import CalendarQuickAdd from './CalendarQuickAdd';
 import CalendarChildSelector from './CalendarChildSelector';
 import EditEventModal from '../Dashboard/EditEventModal';
+import { getAllEventsForDate } from '../../utils/calendarEventHelpers';
+
+// Import child color utilities
+const CHILD_COLORS = [
+  { primary: '#7C3AED', light: '#EDE9FE' }, // Purple
+  { primary: '#EC4899', light: '#FCE7F3' }, // Pink
+  { primary: '#F59E0B', light: '#FEF3C7' }, // Amber
+  { primary: '#10B981', light: '#D1FAE5' }, // Emerald
+  { primary: '#3B82F6', light: '#DBEAFE' }, // Blue
+  { primary: '#06B6D4', light: '#E0F2FE' }, // Cyan
+  { primary: '#8B5CF6', light: '#F3E8FF' }, // Violet
+  { primary: '#F97316', light: '#FED7AA' }, // Orange
+];
+
+const getChildColorFromId = (childId, index = 0) => {
+  if (!childId) return CHILD_COLORS[index % CHILD_COLORS.length];
+  
+  let hash = 0;
+  for (let i = 0; i < childId.length; i++) {
+    hash = ((hash << 5) - hash) + childId.charCodeAt(i);
+    hash = hash & hash;
+  }
+  
+  const colorIndex = Math.abs(hash) % CHILD_COLORS.length;
+  return CHILD_COLORS[colorIndex];
+};
+
+const getUserInitials = (name) => {
+  if (!name) return '';
+  const parts = name.trim().split(' ');
+  if (parts.length === 1) {
+    return parts[0].charAt(0).toUpperCase();
+  }
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+};
 
 // Helper functions for getting different types of events
 const getRoutineEvents = (child, date) => {
@@ -131,9 +165,7 @@ const getSchoolEvents = (child, date) => {
   const events = [];
   
   schedule.forEach((block, index) => {
-    console.log(`School block for ${child.name}:`, block);
     const duration = getTimeDifference(block.startTime, block.endTime);
-    console.log(`Calculated duration: ${duration} minutes`);
     
     events.push(createEvent({
       id: `school-${index}-${child.id}`,
@@ -161,11 +193,8 @@ const getRecurringActivityEvents = (child, date, recurringActivities) => {
       // Check if activity occurs on this date using the recurrence pattern
       const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
       
-      console.log(`Checking activity ${activity.name} for ${child.name} on ${dayName}:`, activity);
-      
       // Check if this activity should occur on this date
       if (shouldActivityOccurOnDate(activity, date)) {
-        console.log(`Activity ${activity.name} occurs on ${dayName}`);
         
         events.push(createEvent({
           id: `activity-${activity.id}-${child.id}`,
@@ -239,7 +268,6 @@ const shouldActivityOccurOnDate = (activity, date) => {
 const createEvent = (eventData) => {
   const startMinutes = timeToMinutes(eventData.startTime);
   const endMinutes = startMinutes + eventData.duration;
-  console.log(`Creating event ${eventData.title}: start=${eventData.startTime} (${startMinutes}min), duration=${eventData.duration}min, end=${endMinutes}min`);
   return {
     ...eventData,
     startMinutes,
@@ -256,9 +284,7 @@ const timeToMinutes = (timeStr) => {
 const getTimeDifference = (startTime, endTime) => {
   const start = timeToMinutes(startTime);
   const end = timeToMinutes(endTime);
-  const duration = end - start;
-  console.log(`getTimeDifference: ${startTime} to ${endTime} = ${duration} minutes`);
-  return duration;
+  return end - start;
 };
 
 const CalendarDayView = ({ 
@@ -267,13 +293,16 @@ const CalendarDayView = ({
   userData, 
   userRole,
   recurringActivities = [],
-  selectedDate = new Date()
+  selectedDate = new Date(),
+  showQuickAdd = false,
+  setShowQuickAdd,
+  calendarEvents = []
 }) => {
   const [selectedChildren, setSelectedChildren] = useState('all');
-  const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [timeRange, setTimeRange] = useState({ start: 7, end: 21 }); // Default 7 AM - 9 PM
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
+  const [quickAddTime, setQuickAddTime] = useState(null);
 
   // Get all events for the selected date and children
   const dayEvents = useMemo(() => {
@@ -284,54 +313,35 @@ const CalendarDayView = ({
       ? children 
       : children.filter(child => selectedChildren.includes(child.id));
 
-    console.log('CalendarDayView - children:', children);
-    console.log('CalendarDayView - childrenToShow:', childrenToShow);
-    console.log('CalendarDayView - recurringActivities:', recurringActivities);
 
     childrenToShow.forEach(child => {
-      console.log(`Processing child ${child.name}:`, child);
-      
       // Add routine events
       const routines = getRoutineEvents(child, selectedDate);
-      console.log(`Routines for ${child.name}:`, routines);
       allEvents.push(...routines);
 
       // Add school events  
       const schoolEvents = getSchoolEvents(child, selectedDate);
-      console.log(`School events for ${child.name}:`, schoolEvents);
       allEvents.push(...schoolEvents);
 
       // Add recurring activities
       const activityEvents = getRecurringActivityEvents(child, selectedDate, recurringActivities);
-      console.log(`Activity events for ${child.name}:`, activityEvents);
       allEvents.push(...activityEvents);
-
-      // Add one-time events (would come from database)
-      // const oneTimeEvents = getOneTimeEvents(child, selectedDate);
-      // allEvents.push(...oneTimeEvents);
     });
 
-    console.log('All events for the day:', allEvents);
+    // Add calendar events using the helper function
+    const calendarDayEvents = getAllEventsForDate(childrenToShow, selectedDate, recurringActivities, calendarEvents);
+    
+    // Extract only calendar events to avoid duplicates
+    const onlyCalendarEvents = calendarDayEvents.filter(event => event.type === 'calendar_event');
+    allEvents.push(...onlyCalendarEvents);
     // Sort events by time
     return allEvents.sort((a, b) => a.startMinutes - b.startMinutes);
-  }, [children, selectedChildren, selectedDate, recurringActivities]);
+  }, [children, selectedChildren, selectedDate, recurringActivities, calendarEvents]);
 
-  // Calculate adaptive time range based on events
+  // Fixed time range from 6 to 24h
   useEffect(() => {
-    if (dayEvents.length === 0) {
-      setTimeRange({ start: 7, end: 21 });
-      return;
-    }
-
-    const earliestEvent = Math.min(...dayEvents.map(e => Math.floor(e.startMinutes / 60)));
-    const latestEvent = Math.max(...dayEvents.map(e => Math.ceil((e.startMinutes + e.duration) / 60)));
-    
-    // Add buffer hour before and after
-    const start = Math.max(6, earliestEvent - 1);
-    const end = Math.min(24, latestEvent + 1);
-    
-    setTimeRange({ start, end });
-  }, [dayEvents]);
+    setTimeRange({ start: 6, end: 24 });
+  }, []);
 
   const formatHour = (hour) => {
     return `${hour.toString().padStart(2, '0')}:00`;
@@ -353,7 +363,7 @@ const CalendarDayView = ({
   const handleQuickAdd = (eventData) => {
     // This would save to database
     console.log('Adding event:', eventData);
-    setShowQuickAdd(false);
+    setShowQuickAdd && setShowQuickAdd(false);
     // Refresh events after adding
   };
 
@@ -408,8 +418,6 @@ const CalendarDayView = ({
       const startHour = (event.startMinutes / 60) - timeRange.start;
       const duration = event.duration / 60; // Convert to hours
       
-      console.log(`Layout for ${event.title}: startMinutes=${event.startMinutes}, duration=${event.duration}min (${duration}h), startHour=${startHour}`);
-      
       // Find overlapping events
       const overlappingEvents = sortedEvents.filter(otherEvent => 
         otherEvent.startMinutes < event.startMinutes + event.duration &&
@@ -430,7 +438,6 @@ const CalendarDayView = ({
         zIndex: 10 + columnIndex
       };
       
-      console.log(`Layout result for ${event.title}:`, layout);
       eventLayouts.push(layout);
     });
     
@@ -449,38 +456,33 @@ const CalendarDayView = ({
   };
 
   const hasConflicts = (event) => {
-    return dayEvents.some(otherEvent => 
-      otherEvent.id !== event.id &&
-      otherEvent.childId === event.childId &&
-      ((event.startMinutes < otherEvent.startMinutes + otherEvent.duration) &&
-       (event.startMinutes + event.duration > otherEvent.startMinutes))
-    );
+    // Only check conflicts for events that Aupair needs to manage
+    if (event.responsibility !== 'au_pair' && event.responsibility !== 'aupair' && 
+        event.dropOffResponsibility !== 'au_pair' && event.dropOffResponsibility !== 'aupair' &&
+        event.pickUpResponsibility !== 'au_pair' && event.pickUpResponsibility !== 'aupair') {
+      return false;
+    }
+    
+    // Check for time overlaps with other Aupair-managed events
+    return dayEvents.some(otherEvent => {
+      if (otherEvent.id === event.id) return false;
+      
+      // Check if other event is also Aupair-managed
+      const otherIsAupairManaged = 
+        otherEvent.responsibility === 'au_pair' || otherEvent.responsibility === 'aupair' ||
+        otherEvent.dropOffResponsibility === 'au_pair' || otherEvent.dropOffResponsibility === 'aupair' ||
+        otherEvent.pickUpResponsibility === 'au_pair' || otherEvent.pickUpResponsibility === 'aupair';
+      
+      if (!otherIsAupairManaged) return false;
+      
+      // Check for time overlap
+      return ((event.startMinutes < otherEvent.startMinutes + otherEvent.duration) &&
+              (event.startMinutes + event.duration > otherEvent.startMinutes));
+    });
   };
 
   return (
     <div style={styles.container}>
-      {/* Header */}
-      <div style={styles.header}>
-        <div style={styles.dateSection}>
-          <h2 style={styles.dateTitle}>
-            {selectedDate.toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              month: 'long', 
-              day: 'numeric' 
-            })}
-          </h2>
-          <button style={styles.viewToggle}>
-            Day
-          </button>
-        </div>
-        <button 
-          style={styles.addButton}
-          onClick={() => setShowQuickAdd(true)}
-        >
-          + Event
-        </button>
-      </div>
-
       {/* Child Selector */}
       <CalendarChildSelector
         children={children}
@@ -489,69 +491,144 @@ const CalendarDayView = ({
         userRole={userRole}
       />
 
-      {/* Timeline View */}
-      <div style={styles.timelineContainer}>
-        {/* Hour markers */}
-        <div style={styles.hourColumn}>
-          {hourMarkers.map(marker => (
-            <div key={marker.hour} style={styles.hourMarker}>
-              <span style={styles.hourLabel}>{marker.label}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Events column */}
-        <div style={styles.eventsColumn}>
-          <div style={{
-            ...styles.eventsArea,
-            height: (timeRange.end - timeRange.start) * 80 // 80px per hour
-          }}>
-            {/* Hour grid lines */}
+      {/* Timeline Card */}
+      <div style={styles.timelineCard}>
+        <div style={styles.timelineContainer}>
+          {/* Hour markers */}
+          <div style={styles.hourColumn}>
             {hourMarkers.map(marker => (
-              <div 
-                key={`line-${marker.hour}`} 
-                style={{
-                  ...styles.hourLine,
-                  top: (marker.hour - timeRange.start) * 80
-                }}
-              />
-            ))}
-
-            {/* Events */}
-            {dayEvents.map(event => {
-              const position = getEventPosition(event);
-              return (
-                <div
-                  key={event.id}
-                  style={{
-                    ...styles.eventContainer,
-                    ...position
-                  }}
-                >
-                  <CalendarEventCard
-                    event={event}
-                    hasConflict={hasConflicts(event)}
-                    onEdit={() => handleEditEvent(event)}
-                    onDelete={() => handleDeleteEvent(event)}
-                    userRole={userRole}
-                  />
-                </div>
-              );
-            })}
-
-            {/* Empty state */}
-            {dayEvents.length === 0 && (
-              <div style={styles.emptyState}>
-                <div style={styles.emptyIcon}>📅</div>
-                <p style={styles.emptyText}>No events scheduled</p>
-                <button 
-                  style={styles.emptyButton}
-                  onClick={() => setShowQuickAdd(true)}
-                >
-                  Add first event
-                </button>
+              <div key={marker.hour} style={styles.hourMarker}>
+                <span style={styles.hourLabel}>{marker.label}</span>
               </div>
-            )}
+            ))}
+          </div>
+
+          {/* Events column */}
+          <div style={styles.eventsColumn}>
+            <div 
+              style={{
+                ...styles.eventsArea,
+                height: (timeRange.end - timeRange.start) * 80, // 80px per hour
+              }}
+              onClick={(e) => {
+                // Calculate clicked time based on position
+                const rect = e.currentTarget.getBoundingClientRect();
+                const relativeY = e.clientY - rect.top;
+                const minutesFromStart = (relativeY / 80) * 60;
+                const clickedHour = timeRange.start + Math.floor(minutesFromStart / 60);
+                const clickedMinutes = Math.floor(minutesFromStart % 60);
+                const roundedMinutes = Math.round(clickedMinutes / 15) * 15; // Round to 15-min intervals
+                
+                const clickedTime = `${clickedHour.toString().padStart(2, '0')}:${roundedMinutes.toString().padStart(2, '0')}`;
+                
+                // Visual feedback for tap with Material Design ripple effect
+                e.currentTarget.style.backgroundColor = 'var(--md-sys-color-primary-container)';
+                setTimeout(() => {
+                  if (e.currentTarget) {
+                    e.currentTarget.style.backgroundColor = 'var(--md-sys-color-surface)';
+                  }
+                }, 150);
+                
+                // Open quick add with pre-filled time
+                setQuickAddTime(clickedTime);
+                setShowQuickAdd && setShowQuickAdd(true);
+              }}
+            >
+              {/* Hour grid lines */}
+              {hourMarkers.map(marker => (
+                <div 
+                  key={`line-${marker.hour}`} 
+                  style={{
+                    ...styles.hourLine,
+                    top: (marker.hour - timeRange.start) * 80,
+                    pointerEvents: 'none' // Don't interfere with parent click
+                  }}
+                />
+              ))}
+
+              {/* Events */}
+              {dayEvents.map(event => {
+                const position = getEventPosition(event);
+                const hasConflict = hasConflicts(event);
+                const childColor = getChildColorFromId(event.childId);
+                
+                return (
+                  <div
+                    key={event.id}
+                    style={{
+                      ...styles.eventContainer,
+                      ...position
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditEvent(event);
+                    }}
+                  >
+                    <div style={{
+                      ...styles.eventCard,
+                      backgroundColor: childColor.light,
+                      border: `1px solid ${childColor.primary}`,
+                      ...(hasConflict ? styles.conflictCard : {})
+                    }}>
+                      <div style={styles.eventContentRow}>
+                        <div style={{
+                          ...styles.eventTime,
+                          color: childColor.primary
+                        }}>
+                          {event.time || `${Math.floor(event.startMinutes / 60).toString().padStart(2, '0')}:${(event.startMinutes % 60).toString().padStart(2, '0')}`}
+                        </div>
+                        <div style={{
+                          ...styles.eventTitle,
+                          color: '#000000'
+                        }}>{event.title}</div>
+                      </div>
+                      
+                      {/* End time */}
+                      <div style={{
+                        ...styles.endTime,
+                        color: childColor.primary
+                      }}>
+                        {`${Math.floor(event.endMinutes / 60).toString().padStart(2, '0')}:${(event.endMinutes % 60).toString().padStart(2, '0')}`}
+                      </div>
+                      
+                      {/* Child indicator */}
+                      {event.childName && (
+                        <div style={styles.childIndicator}>
+                          <div style={{
+                            ...styles.childCircle,
+                            backgroundColor: childColor.primary
+                          }}>
+                            {getUserInitials(event.childName)}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Conflict warning */}
+                      {hasConflict && (
+                        <div style={styles.conflictBadge}>
+                          ⚠️ Aupair Conflict
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Empty state */}
+              {dayEvents.length === 0 && (
+                <div style={styles.emptyState}>
+                  <div style={styles.emptyIcon}>📅</div>
+                  <h3 style={styles.emptyText}>No events scheduled</h3>
+                  <p style={styles.emptySubtext}>Tap anywhere on the timeline to add an event</p>
+                  <button 
+                    style={styles.emptyButton}
+                    onClick={() => setShowQuickAdd && setShowQuickAdd(true)}
+                  >
+                    Add Event
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -562,8 +639,12 @@ const CalendarDayView = ({
           children={children}
           selectedDate={selectedDate}
           onSave={handleQuickAdd}
-          onCancel={() => setShowQuickAdd(false)}
+          onCancel={() => {
+            setShowQuickAdd && setShowQuickAdd(false);
+            setQuickAddTime(null);
+          }}
           userRole={userRole}
+          prefilledTime={quickAddTime}
         />
       )}
 
@@ -582,97 +663,67 @@ const CalendarDayView = ({
 
 const styles = {
   container: {
-    height: '100vh',
+    height: '100%',
     display: 'flex',
     flexDirection: 'column',
-    backgroundColor: 'var(--bg-primary)',
-    fontFamily: 'var(--font-family-sans)'
+    backgroundColor: 'var(--md-sys-color-background)',
+    padding: '16px',
+    gap: '16px',
+    marginBottom: '100px'
   },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 'var(--space-5)',
-    backgroundColor: 'var(--white)',
-    borderBottom: '1px solid var(--border-light)',
-    boxShadow: 'var(--shadow-sm)'
-  },
-  dateSection: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 'var(--space-4)'
-  },
-  dateTitle: {
-    fontSize: 'var(--font-size-xl)',
-    fontWeight: 'var(--font-weight-semibold)',
-    color: 'var(--text-primary)',
-    margin: 0
-  },
-  viewToggle: {
-    padding: 'var(--space-2) var(--space-4)',
-    backgroundColor: 'var(--gray-100)',
-    border: 'none',
-    borderRadius: 'var(--radius-md)',
-    fontSize: 'var(--font-size-sm)',
-    fontWeight: 'var(--font-weight-medium)',
-    color: 'var(--text-primary)',
-    cursor: 'pointer'
-  },
-  addButton: {
-    padding: 'var(--space-3) var(--space-5)',
-    backgroundColor: 'var(--primary-purple)',
-    color: 'var(--white)',
-    border: 'none',
-    borderRadius: 'var(--radius-md)',
-    fontSize: 'var(--font-size-sm)',
-    fontWeight: 'var(--font-weight-medium)',
-    cursor: 'pointer',
-    boxShadow: 'var(--shadow-sm)',
-    transition: 'var(--transition-fast)'
+  timelineCard: {
+    backgroundColor: 'var(--md-sys-color-surface-container-lowest)',
+    borderRadius: 'var(--md-sys-shape-corner-large)',
+    overflow: 'hidden',
+    boxShadow: 'var(--md-sys-elevation-level1)',
+    flex: 1
   },
   timelineContainer: {
-    flex: 1,
     display: 'flex',
-    overflow: 'auto',
-    backgroundColor: 'var(--white)'
+    height: '100%',
+    minHeight: '500px'
   },
   hourColumn: {
-    width: '80px',
-    borderRight: '1px solid var(--border-light)',
-    backgroundColor: 'var(--gray-50)'
+    width: '72px',
+    borderRight: '1px solid var(--md-sys-color-outline-variant)',
+    backgroundColor: 'var(--md-sys-color-surface-container-high)'
   },
   hourMarker: {
     height: '80px',
     display: 'flex',
     alignItems: 'flex-start',
-    padding: 'var(--space-2)',
-    borderBottom: '1px solid var(--border-light)'
+    justifyContent: 'center',
+    padding: '8px 4px',
+    borderBottom: '1px solid var(--md-sys-color-outline-variant)'
   },
   hourLabel: {
-    fontSize: 'var(--font-size-sm)',
-    color: 'var(--text-secondary)',
-    fontWeight: 'var(--font-weight-medium)'
+    font: 'var(--md-sys-typescale-label-small-font)',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    textAlign: 'center'
   },
   eventsColumn: {
     flex: 1,
-    position: 'relative'
+    position: 'relative',
+    backgroundColor: 'var(--md-sys-color-surface)'
   },
   eventsArea: {
     position: 'relative',
-    minHeight: '100%'
+    minHeight: '100%',
+    cursor: 'pointer'
   },
   hourLine: {
     position: 'absolute',
     left: 0,
     right: 0,
     height: '1px',
-    backgroundColor: 'var(--border-light)',
-    zIndex: 1
+    backgroundColor: 'var(--md-sys-color-outline-variant)',
+    zIndex: 1,
+    opacity: 0.5
   },
   eventContainer: {
     position: 'absolute',
-    paddingLeft: 'var(--space-2)',
-    paddingRight: 'var(--space-2)',
+    paddingLeft: '8px',
+    paddingRight: '8px',
     zIndex: 2
   },
   emptyState: {
@@ -680,27 +731,113 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    height: '300px',
-    textAlign: 'center'
+    height: '400px',
+    textAlign: 'center',
+    padding: '32px'
   },
   emptyIcon: {
-    fontSize: 'var(--font-size-4xl)',
-    marginBottom: 'var(--space-3)'
+    fontSize: '64px',
+    marginBottom: '16px',
+    opacity: 0.6
   },
   emptyText: {
-    fontSize: 'var(--font-size-lg)',
-    color: 'var(--text-secondary)',
-    marginBottom: 'var(--space-4)'
+    font: 'var(--md-sys-typescale-title-medium-font)',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    marginBottom: '8px'
+  },
+  emptySubtext: {
+    font: 'var(--md-sys-typescale-body-medium-font)',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    marginBottom: '24px',
+    opacity: 0.8
   },
   emptyButton: {
-    padding: 'var(--space-3) var(--space-5)',
-    backgroundColor: 'var(--primary-purple)',
-    color: 'var(--white)',
+    padding: '12px 24px',
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)',
     border: 'none',
-    borderRadius: 'var(--radius-md)',
-    fontSize: 'var(--font-size-sm)',
-    fontWeight: 'var(--font-weight-medium)',
-    cursor: 'pointer'
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    font: 'var(--md-sys-typescale-label-large-font)',
+    cursor: 'pointer',
+    boxShadow: 'var(--md-sys-elevation-level1)'
+  },
+  eventCard: {
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    padding: '4px 8px',
+    paddingRight: '32px', // Space for the child circle
+    height: '100%',
+    cursor: 'pointer',
+    position: 'relative',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+    boxShadow: 'var(--md-sys-elevation-level1)'
+  },
+  conflictCard: {
+    borderColor: 'var(--md-sys-color-error) !important',
+    backgroundColor: 'var(--md-sys-color-error-container) !important'
+  },
+  eventContentRow: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '4px',
+    width: '100%',
+    marginTop: '2px'
+  },
+  eventTime: {
+    fontSize: '11px',
+    fontWeight: '600',
+    fontFamily: 'var(--md-sys-typescale-label-small-font-family-name)',
+    flexShrink: 0,
+    minWidth: '35px'
+  },
+  eventTitle: {
+    fontSize: '12px',
+    fontWeight: '500',
+    fontFamily: 'var(--md-sys-typescale-body-small-font-family-name)',
+    flex: 1,
+    textAlign: 'center',
+    wordWrap: 'break-word',
+    whiteSpace: 'normal',
+    lineHeight: '1.2',
+    overflow: 'hidden'
+  },
+  endTime: {
+    fontSize: '10px',
+    fontWeight: '500',
+    fontFamily: 'var(--md-sys-typescale-label-small-font-family-name)',
+    marginLeft: '35px',
+    marginTop: '2px'
+  },
+  childIndicator: {
+    position: 'absolute',
+    top: '4px',
+    right: '4px'
+  },
+  childCircle: {
+    width: '24px',
+    height: '24px',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '10px',
+    fontWeight: '700',
+    color: 'white',
+    boxShadow: 'var(--md-sys-elevation-level1)',
+    border: '2px solid white'
+  },
+  conflictBadge: {
+    position: 'absolute',
+    bottom: '2px',
+    left: '4px',
+    fontSize: '9px',
+    color: 'var(--md-sys-color-error)',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    padding: '2px 4px',
+    borderRadius: '4px',
+    fontWeight: '600',
+    border: '1px solid var(--md-sys-color-error)'
   }
 };
 

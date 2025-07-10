@@ -6,7 +6,6 @@ const AddShoppingList = ({ onCancel, onCreate, creating, familyId, currentUser, 
   const [name, setName] = useState('');
   const [selectedSupermarket, setSelectedSupermarket] = useState(null);
   const [scheduledDate, setScheduledDate] = useState('');
-  const [scheduledTime, setScheduledTime] = useState('10:00');
 
   // Set default date to today
   useEffect(() => {
@@ -14,16 +13,18 @@ const AddShoppingList = ({ onCancel, onCreate, creating, familyId, currentUser, 
     setScheduledDate(today.toISOString().split('T')[0]);
   }, []);
 
-  const validateDateTime = (date, time) => {
-    const selectedDateTime = new Date(`${date}T${time}`);
-    const now = new Date();
+  const validateDate = (date) => {
+    const selectedDate = new Date(date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    selectedDate.setHours(0, 0, 0, 0);
     
-    return selectedDateTime > now;
+    return selectedDate >= today;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('Form submitted with name:', name, 'supermarket:', selectedSupermarket, 'scheduledDate:', scheduledDate, 'scheduledTime:', scheduledTime);
+    console.log('Form submitted with name:', name, 'supermarket:', selectedSupermarket, 'scheduledDate:', scheduledDate);
     
     // Role validation - only parents can create shopping lists
     if (userRole !== 'parent') {
@@ -37,55 +38,73 @@ const AddShoppingList = ({ onCancel, onCreate, creating, familyId, currentUser, 
       return;
     }
 
-    // Validate date/time is not in the past
-    if (!validateDateTime(scheduledDate, scheduledTime)) {
-      alert('Please select a future date and time for shopping');
+    // Validate date is not in the past
+    if (!validateDate(scheduledDate)) {
+      alert('Please select today or a future date for shopping');
       return;
     }
 
-    const scheduledDateTime = new Date(`${scheduledDate}T${scheduledTime}`);
+    const scheduledDateTime = new Date(scheduledDate);
+    scheduledDateTime.setHours(10, 0, 0, 0); // Set default time to 10:00 AM
     const listData = {
       name: name.trim(),
       scheduledFor: scheduledDateTime,
-      scheduledTime: scheduledTime,
       priority: 'normal',
       supermarket: selectedSupermarket
     };
 
-    console.log('Calling onCreate with:', listData);
+    console.log('AddShoppingList - Creating list with data:', {
+      name: listData.name,
+      scheduledFor: listData.scheduledFor,
+      scheduledForType: typeof listData.scheduledFor,
+      scheduledForValue: listData.scheduledFor?.toString(),
+      priority: listData.priority,
+      supermarket: listData.supermarket,
+      familyId: familyId,
+      currentUser: currentUser?.uid,
+      userRole: userRole
+    });
+    
     onCreate(listData);
   };
 
   return (
     <div className="add-list-overlay">
       <div className="add-list-modal">
-        <h3>Create Shopping List</h3>
+        <div className="modal-header">
+          <h2>Create Shopping List</h2>
+          <button className="btn-close" onClick={onCancel}>×</button>
+        </div>
         
         <form onSubmit={handleSubmit}>
           <div className="form-field">
+            <label htmlFor="listName">List Name</label>
             <input
+              id="listName"
               type="text"
-              placeholder="List name (e.g., Weekly Groceries)"
+              placeholder="e.g., Weekly Groceries"
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoFocus
               disabled={creating}
+              required
             />
           </div>
           
           <div className="form-field">
+            <label>Store</label>
             <SupermarketSelector
               selectedSupermarket={selectedSupermarket}
               onSelect={setSelectedSupermarket}
               familyId={familyId}
               currentUser={currentUser}
-              showTitle={true}
+              showTitle={false}
               disabled={creating}
             />
           </div>
           
           <div className="form-field">
-            <label htmlFor="scheduledDate">Scheduled Date:</label>
+            <label htmlFor="scheduledDate">Scheduled Date</label>
             <input
               type="date"
               id="scheduledDate"
@@ -97,22 +116,10 @@ const AddShoppingList = ({ onCancel, onCreate, creating, familyId, currentUser, 
             />
           </div>
           
-          <div className="form-field">
-            <label htmlFor="scheduledTime">Scheduled Time:</label>
-            <input
-              type="time"
-              id="scheduledTime"
-              value={scheduledTime}
-              onChange={(e) => setScheduledTime(e.target.value)}
-              disabled={creating}
-              required
-            />
-          </div>
-          
           <div className="form-actions">
             <button 
               type="button" 
-              className="cancel-btn"
+              className="btn-cancel"
               onClick={onCancel}
               disabled={creating}
             >
@@ -120,8 +127,8 @@ const AddShoppingList = ({ onCancel, onCreate, creating, familyId, currentUser, 
             </button>
             <button 
               type="submit" 
-              className="create-btn"
-              disabled={!name.trim() || !scheduledDate || !scheduledTime || creating}
+              className="btn-submit"
+              disabled={!name.trim() || !scheduledDate || creating}
             >
               {creating ? 'Creating...' : 'Create List'}
             </button>

@@ -1,131 +1,240 @@
+/* Add Shopping List Modal - Material Design 3 Styles */
+
+/* Overlay */
 .add-list-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
-  align-items: center;
   justify-content: center;
-  z-index: 1000;
+  align-items: center;
+  z-index: 1500;
+  padding: 20px;
+  animation: fadeIn var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard);
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Modal Container */
 .add-list-modal {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  width: 90%;
-  max-width: 600px;
+  background: var(--md-sys-color-surface);
+  border-radius: var(--md-sys-shape-corner-large);
+  width: 100%;
+  max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--md-sys-elevation-level3);
+  animation: slideUp var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
 }
 
-.add-list-modal h3 {
-  margin: 0 0 20px 0;
-  color: #333;
-  font-size: 20px;
-  font-weight: 600;
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
-.form-field {
-  margin-bottom: 16px;
-}
-
-.form-field input {
-  width: 100%;
-  padding: 12px 16px;
-  border: 1px solid #DEE2E6;
-  border-radius: 8px;
-  font-size: 16px;
-  box-sizing: border-box;
-  transition: border-color 0.2s;
-}
-
-.form-field input:focus {
-  outline: none;
-  border-color: #007AFF;
-}
-
-.form-field input:disabled {
-  background: #F8F9FA;
-  color: #6C757D;
-}
-
-.form-field label {
-  display: block;
-  margin-bottom: 6px;
-  font-weight: 500;
-  color: #374151;
-  font-size: 14px;
-}
-
-.form-field select {
-  width: 100%;
-  padding: 12px 16px;
-  border: 1px solid #DEE2E6;
-  border-radius: 8px;
-  font-size: 16px;
-  box-sizing: border-box;
-  transition: border-color 0.2s;
-  background: white;
-  cursor: pointer;
-}
-
-.form-field select:focus {
-  outline: none;
-  border-color: #007AFF;
-}
-
-.form-field select:disabled {
-  background: #F8F9FA;
-  color: #6C757D;
-  cursor: not-allowed;
-}
-
-.form-actions {
+/* Modal Header */
+.add-list-modal .modal-header {
   display: flex;
-  gap: 12px;
-  margin-top: 24px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 24px 16px 24px;
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
 }
 
-.cancel-btn {
-  flex: 1;
-  padding: 12px;
-  border: 1px solid #DEE2E6;
-  background: white;
-  color: #6C757D;
-  border-radius: 8px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: all 0.2s;
+.add-list-modal .modal-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 400;
+  color: var(--md-sys-color-on-surface);
+  line-height: 32px;
 }
 
-.cancel-btn:hover:not(:disabled) {
-  background: #F8F9FA;
-  border-color: #ADB5BD;
-}
-
-.create-btn {
-  flex: 1;
-  padding: 12px;
+.add-list-modal .btn-close {
+  background: none;
   border: none;
-  background: #007AFF;
-  color: white;
-  border-radius: 8px;
+  font-size: 24px;
+  color: var(--md-sys-color-on-surface);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--md-sys-shape-corner-small);
+  transition: all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard);
+}
+
+.add-list-modal .btn-close:hover {
+  background: var(--md-sys-color-surface-container-highest);
+}
+
+/* Form Container */
+.add-list-modal form {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Form Fields */
+.add-list-modal .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.add-list-modal .form-field label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
+  margin-bottom: 4px;
+}
+
+/* Input Fields */
+.add-list-modal .form-field input {
+  padding: 12px 16px;
+  border: 1px solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-small);
   font-size: 16px;
+  font-family: inherit;
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-sys-color-surface);
+  transition: border-color var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard), 
+              box-shadow var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard);
+  width: 100%;
+  box-sizing: border-box;
+  height: 48px;
+}
+
+.add-list-modal .form-field input:focus {
+  outline: none;
+  border-color: var(--md-sys-color-primary);
+  box-shadow: 0 0 0 2px var(--md-sys-color-primary-container);
+}
+
+.add-list-modal .form-field input:disabled {
+  background: var(--md-sys-color-surface-container);
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+/* Placeholder Styling */
+.add-list-modal .form-field input::placeholder {
+  color: var(--md-sys-color-on-surface);
+  opacity: 0.5;
+}
+
+/* Date Input Calendar Icon Styling */
+.add-list-modal .form-field input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.5);
+  cursor: pointer;
+}
+
+/* Dark mode support for calendar icon */
+@media (prefers-color-scheme: dark) {
+  .add-list-modal .form-field input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.8);
+  }
+}
+
+/* Form Actions */
+.add-list-modal .form-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  justify-content: flex-end;
+  align-items: center;
+  padding-top: 16px;
+  border-top: 1px solid var(--md-sys-color-outline-variant);
+  margin-top: 8px;
+}
+
+.add-list-modal .btn-cancel {
+  background: var(--md-sys-color-surface-container-highest);
+  color: var(--md-sys-color-on-surface);
+  border: none;
+  padding: 12px 24px;
+  border-radius: var(--md-sys-shape-corner-full);
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard);
 }
 
-.create-btn:hover:not(:disabled) {
-  background: #0056CC;
+.add-list-modal .btn-cancel:hover {
+  background: var(--md-sys-color-surface-container);
+  box-shadow: var(--md-sys-elevation-level1);
 }
 
-.create-btn:disabled {
-  background: #DEE2E6;
-  color: #6C757D;
+.add-list-modal .btn-cancel:disabled {
+  opacity: 0.38;
   cursor: not-allowed;
+}
+
+.add-list-modal .btn-submit {
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  border: none;
+  padding: 12px 24px;
+  border-radius: var(--md-sys-shape-corner-full);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard);
+}
+
+.add-list-modal .btn-submit:hover:not(:disabled) {
+  background: var(--md-sys-color-primary);
+  box-shadow: var(--md-sys-elevation-level1);
+}
+
+.add-list-modal .btn-submit:disabled {
+  background: var(--md-sys-color-on-surface);
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .add-list-overlay {
+    padding: 16px;
+  }
+  
+  .add-list-modal {
+    max-height: 95vh;
+    border-radius: var(--md-sys-shape-corner-medium);
+  }
+  
+  .add-list-modal .modal-header {
+    padding: 20px 20px 12px 20px;
+  }
+  
+  .add-list-modal .modal-header h2 {
+    font-size: 20px;
+  }
+  
+  .add-list-modal form {
+    padding: 20px;
+    gap: 16px;
+  }
+  
+  .add-list-modal .form-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+  
+  .add-list-modal .btn-cancel,
+  .add-list-modal .btn-submit {
+    width: 100%;
+  }
 }

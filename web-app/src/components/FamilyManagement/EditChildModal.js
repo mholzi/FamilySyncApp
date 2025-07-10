@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { formatDate } from '../../utils/validation';
+import { createPortal } from 'react-dom';
 
 const EditChildModal = ({ child, onSave, onCancel, errors = {} }) => {
   const [formData, setFormData] = useState({
@@ -59,13 +59,25 @@ const EditChildModal = ({ child, onSave, onCancel, errors = {} }) => {
   minDate.setFullYear(minDate.getFullYear() - 18);
   const minDateStr = minDate.toISOString().split('T')[0];
 
-  return (
-    <>
-      {/* Backdrop */}
-      <div style={styles.backdrop} onClick={onCancel} />
-      
-      {/* Modal */}
-      <div style={styles.modal}>
+
+  // Create or get modal root
+  let modalRoot = document.getElementById('modal-root');
+  if (!modalRoot) {
+    modalRoot = document.createElement('div');
+    modalRoot.id = 'modal-root';
+    modalRoot.style.position = 'fixed';
+    modalRoot.style.top = '0';
+    modalRoot.style.left = '0';
+    modalRoot.style.right = '0';
+    modalRoot.style.bottom = '0';
+    modalRoot.style.zIndex = '10000';
+    modalRoot.style.pointerEvents = 'none';
+    document.body.appendChild(modalRoot);
+  }
+
+  return createPortal(
+    <div style={{...styles.backdrop, pointerEvents: 'auto'}} onClick={onCancel}>
+      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div style={styles.modalHeader}>
           <h2 style={styles.modalTitle}>
             {formData.id ? 'Edit Child' : 'Add Child'}
@@ -196,7 +208,8 @@ const EditChildModal = ({ child, onSave, onCancel, errors = {} }) => {
           </div>
         </form>
       </div>
-    </>
+    </div>,
+    modalRoot
   );
 };
 
@@ -205,53 +218,59 @@ const styles = {
     position: 'fixed',
     top: 0,
     left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    zIndex: 1000
+    width: '100vw',
+    height: '100vh',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backdropFilter: 'blur(8px)',
+    WebkitBackdropFilter: 'blur(8px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10000,
+    padding: '20px'
   },
   modal: {
-    position: 'fixed',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
+    backgroundColor: 'var(--md-sys-color-surface)',
+    borderRadius: 'var(--md-sys-shape-corner-large)',
+    boxShadow: 'var(--md-sys-elevation-level3)',
     width: '90%',
     maxWidth: '500px',
     maxHeight: '90vh',
     overflow: 'auto',
-    zIndex: 1001
+    position: 'relative',
+    margin: 'auto'
   },
   modalHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '20px',
-    borderBottom: '1px solid #E5E5EA'
+    padding: '24px',
+    borderBottom: '1px solid var(--md-sys-color-outline-variant)'
   },
   modalTitle: {
-    fontSize: '20px',
-    fontWeight: '600',
-    color: '#000',
-    margin: 0
+    fontSize: '22px',
+    fontWeight: '400',
+    color: 'var(--md-sys-color-on-surface)',
+    margin: 0,
+    fontFamily: 'var(--md-sys-typescale-headline-small-font-family-name)'
   },
   closeButton: {
     backgroundColor: 'transparent',
     border: 'none',
-    fontSize: '28px',
-    color: '#8E8E93',
+    fontSize: '24px',
+    color: 'var(--md-sys-color-on-surface-variant)',
     cursor: 'pointer',
-    padding: '0',
-    width: '32px',
-    height: '32px',
+    padding: '8px',
+    width: '40px',
+    height: '40px',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
   },
   form: {
-    padding: '20px'
+    padding: '24px'
   },
   formGroup: {
     marginBottom: '20px',
@@ -259,78 +278,91 @@ const styles = {
   },
   label: {
     display: 'block',
-    fontSize: '14px',
+    fontSize: '12px',
     fontWeight: '500',
-    color: '#333',
-    marginBottom: '6px'
+    color: 'var(--md-sys-color-on-surface-variant)',
+    marginBottom: '8px',
+    fontFamily: 'var(--md-sys-typescale-label-small-font-family-name)'
   },
   required: {
     color: '#FF3B30'
   },
   input: {
     width: '100%',
-    padding: '12px',
+    padding: '12px 16px',
     fontSize: '16px',
-    border: '1px solid #E5E5EA',
-    borderRadius: '8px',
-    backgroundColor: 'white',
+    border: '1px solid var(--md-sys-color-outline)',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    backgroundColor: 'var(--md-sys-color-surface)',
     boxSizing: 'border-box',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
+    color: 'var(--md-sys-color-on-surface)',
+    fontFamily: 'var(--md-sys-typescale-body-large-font-family-name)',
+    transition: 'border-color var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    outline: 'none'
   },
   inputError: {
-    borderColor: '#FF3B30'
+    borderColor: 'var(--md-sys-color-error)'
   },
   textarea: {
     width: '100%',
-    padding: '12px',
+    padding: '12px 16px',
     fontSize: '16px',
-    border: '1px solid #E5E5EA',
-    borderRadius: '8px',
-    backgroundColor: 'white',
+    border: '1px solid var(--md-sys-color-outline)',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    backgroundColor: 'var(--md-sys-color-surface)',
     boxSizing: 'border-box',
+    color: 'var(--md-sys-color-on-surface)',
     resize: 'vertical',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
+    fontFamily: 'var(--md-sys-typescale-body-large-font-family-name)',
+    transition: 'border-color var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    outline: 'none'
   },
   errorText: {
     display: 'block',
-    color: '#FF3B30',
+    color: 'var(--md-sys-color-error)',
     fontSize: '12px',
-    marginTop: '4px'
+    marginTop: '4px',
+    fontFamily: 'var(--md-sys-typescale-body-small-font-family-name)'
   },
   charCount: {
     position: 'absolute',
     right: '0',
     bottom: '-18px',
     fontSize: '12px',
-    color: '#8E8E93'
+    color: 'var(--md-sys-color-on-surface-variant)',
+    fontFamily: 'var(--md-sys-typescale-body-small-font-family-name)'
   },
   actions: {
     display: 'flex',
     gap: '12px',
     justifyContent: 'flex-end',
-    marginTop: '30px',
+    marginTop: '24px',
     paddingTop: '20px',
-    borderTop: '1px solid #E5E5EA'
+    borderTop: '1px solid var(--md-sys-color-outline-variant)'
   },
   cancelButton: {
-    backgroundColor: '#F2F2F7',
-    color: '#000',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '12px 24px',
-    fontSize: '16px',
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)',
+    color: 'var(--md-sys-color-on-surface)',
+    border: '1px solid var(--md-sys-color-outline)',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    padding: '10px 24px',
+    fontSize: '14px',
     fontWeight: '500',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    fontFamily: 'var(--md-sys-typescale-label-large-font-family-name)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
   },
   saveButton: {
-    backgroundColor: '#007AFF',
-    color: 'white',
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)',
     border: 'none',
-    borderRadius: '8px',
-    padding: '12px 24px',
-    fontSize: '16px',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    padding: '10px 24px',
+    fontSize: '14px',
     fontWeight: '500',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    fontFamily: 'var(--md-sys-typescale-label-large-font-family-name)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
   }
 };
 

@@ -1199,7 +1199,7 @@ const UpcomingEventsForMe = ({
             }}
             onClick={() => setEventFilter('my')}
           >
-            {userRole === 'aupair' ? 'My Events' : 'Au Pair Events'}
+            Aupair
           </button>
           <button
             style={{
@@ -1208,7 +1208,7 @@ const UpcomingEventsForMe = ({
             }}
             onClick={() => setEventFilter('all')}
           >
-            All Family Events
+            Family
           </button>
         </div>
       </div>

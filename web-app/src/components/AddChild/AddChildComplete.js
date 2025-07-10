@@ -54,7 +54,7 @@ function AddChildComplete({ childData, onComplete }) {
           <div style={styles.childCard}>
             <div style={styles.childHeader}>
               <div style={styles.childAvatar}>
-                {childData.profilePictureUrl && !childData.profilePictureUrl.startsWith('blob:') ? (
+                {childData.profilePictureUrl ? (
                   <img 
                     src={childData.profilePictureUrl} 
                     alt={`${childData.name} profile`}

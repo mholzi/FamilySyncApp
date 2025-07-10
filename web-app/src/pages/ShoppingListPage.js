@@ -67,19 +67,43 @@ const ShoppingListPage = () => {
   
   // For parents: show pending approval lists
   const pendingApproval = useMemo(() => {
-    return userRole === 'parent' 
+    const parentLists = userRole === 'parent' 
       ? shoppingLists.filter(list => list.status === 'needs-approval' || list.paymentStatus === 'approved')
       : [];
+    
+    // Sort to show needs-approval first, then approved
+    return parentLists.sort((a, b) => {
+      if (a.status === 'needs-approval' && b.status !== 'needs-approval') return -1;
+      if (a.status !== 'needs-approval' && b.status === 'needs-approval') return 1;
+      return 0;
+    });
   }, [shoppingLists, userRole]);
 
   // For au pairs: show payment tracking for receipts they uploaded
   const paymentTracking = useMemo(() => {
-    return userRole === 'aupair' 
+    const auPairLists = userRole === 'aupair' 
       ? shoppingLists.filter(list => 
           list.receiptUploadedBy === currentUser?.uid && 
           (list.status === 'needs-approval' || list.paymentStatus === 'pending' || list.paymentStatus === 'approved' || list.paymentStatus === 'paid-out' || list.paymentStatus === 'confirmed')
         )
       : [];
+    
+    // Sort to show pending items first, then confirmed items
+    return auPairLists.sort((a, b) => {
+      // Confirmed items go to the end
+      if (a.paymentStatus === 'confirmed' && b.paymentStatus !== 'confirmed') return 1;
+      if (a.paymentStatus !== 'confirmed' && b.paymentStatus === 'confirmed') return -1;
+      
+      // For non-confirmed items, sort by status priority
+      const statusPriority = {
+        'needs-approval': 1,
+        'pending': 2,
+        'approved': 3,
+        'paid-out': 4
+      };
+      
+      return (statusPriority[a.paymentStatus] || 5) - (statusPriority[b.paymentStatus] || 5);
+    });
   }, [shoppingLists, userRole, currentUser?.uid]);
 
   if (loading) {
@@ -139,6 +163,7 @@ const ShoppingListPage = () => {
                 familyId={family?.id}
                 currentUser={currentUser}
                 family={family}
+                userData={userData}
                 mode="active"
               />
             ))
@@ -150,16 +175,43 @@ const ShoppingListPage = () => {
         <ShoppingErrorBoundary>
           <div className="pending-section">
             <Typography variant="headline-small" color="on-surface">Pending Approval</Typography>
-            {pendingApproval.map(list => (
-              <ShoppingList 
-                key={list.id}
-                list={list}
-                familyId={family?.id}
-                currentUser={currentUser}
-                family={family}
-                mode="approval"
-              />
-            ))}
+            <div 
+              className="pending-cards-container"
+              style={{
+                display: 'flex',
+                gap: '12px',
+                overflowX: 'auto',
+                paddingBottom: '8px',
+                marginLeft: '-16px',
+                marginRight: '-16px',
+                paddingLeft: '16px',
+                paddingRight: '16px',
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'var(--md-sys-color-outline-variant) transparent',
+                WebkitOverflowScrolling: 'touch',
+                scrollSnapType: 'x mandatory'
+              }}
+            >
+              {pendingApproval.map(list => (
+                <div 
+                  key={list.id} 
+                  style={{ 
+                    flex: '0 0 calc(70vw - 24px)', 
+                    maxWidth: '320px',
+                    scrollSnapAlign: 'start'
+                  }}
+                >
+                  <ShoppingList 
+                    list={list}
+                    familyId={family?.id}
+                    currentUser={currentUser}
+                    family={family}
+                    userData={userData}
+                    mode="approval"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </ShoppingErrorBoundary>
       )}
@@ -169,17 +221,41 @@ const ShoppingListPage = () => {
           <div className="payment-tracking-section">
             <Typography variant="headline-small" color="on-surface">Payment Tracking</Typography>
             <p className="section-description">Track the approval and payment status of your shopping receipts</p>
-            <div className="payment-tracking-grid">
+            <div 
+              className="payment-tracking-container"
+              style={{
+                display: 'flex',
+                gap: '12px',
+                overflowX: 'auto',
+                paddingBottom: '8px',
+                marginLeft: '-16px',
+                marginRight: '-16px',
+                paddingLeft: '16px',
+                paddingRight: '16px',
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'var(--md-sys-color-outline-variant) transparent',
+                WebkitOverflowScrolling: 'touch',
+                scrollSnapType: 'x mandatory'
+              }}
+            >
               {paymentTracking.map(list => (
-                <PaymentStatusCard 
-                  key={list.id}
-                  list={list}
-                  familyId={family?.id}
-                  currentUser={currentUser}
-                  onUpdate={() => {
-                    // Optional: trigger a refresh of the shopping lists
+                <div 
+                  key={list.id} 
+                  style={{ 
+                    flex: '0 0 calc(70vw - 24px)', 
+                    maxWidth: '320px',
+                    scrollSnapAlign: 'start'
                   }}
-                />
+                >
+                  <ShoppingList 
+                    list={list}
+                    familyId={family?.id}
+                    currentUser={currentUser}
+                    family={family}
+                    userData={userData}
+                    mode="approval"
+                  />
+                </div>
               ))}
             </div>
           </div>

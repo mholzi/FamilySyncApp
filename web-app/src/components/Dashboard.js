@@ -20,12 +20,15 @@ import CalendarPage from '../pages/CalendarPage';
 import ShoppingListPage from '../pages/ShoppingListPage';
 import ProfileIcon from './Profile/ProfileIcon';
 import ProfilePage from './Profile/ProfilePage';
+import SettingsPage from './Profile/SettingsPage';
 import BottomNavigation from './BottomNavigation';
 import FamilyNotesList from './Notes/FamilyNotesList';
 import EnhancedChildCard from './Children/EnhancedChildCard';
 import UpcomingEventsForMe from './Dashboard/UpcomingEventsForMe';
 import ShoppingListTaskCard from './Shopping/ShoppingListTaskCard';
 import { FamilyManagement } from './FamilyManagement';
+import MessagesPage from './Messages/MessagesPage';
+import NotificationBell from './NotificationBell/NotificationBell';
 
 function Dashboard({ user }) {
   const [currentView, setCurrentView] = useState('dashboard');
@@ -69,8 +72,18 @@ function Dashboard({ user }) {
   const [householdTodos, setHouseholdTodos] = useState([]);
   const [todosLoading, setTodosLoading] = useState(true);
   const [recurringActivities, setRecurringActivities] = useState([]);
+  const [unansweredQuestionsCount, setUnansweredQuestionsCount] = useState(0);
 
-  const loading = familyLoading || tasksLoading || eventsLoading || shoppingLoading || todosLoading;
+  // Only show loading on initial load, not when switching views
+  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
+  const loading = !hasInitiallyLoaded && (familyLoading || tasksLoading || eventsLoading || shoppingLoading || todosLoading);
+  
+  // Mark as initially loaded once all data is fetched
+  useEffect(() => {
+    if (!familyLoading && !tasksLoading && !eventsLoading && !shoppingLoading && !todosLoading) {
+      setHasInitiallyLoaded(true);
+    }
+  }, [familyLoading, tasksLoading, eventsLoading, shoppingLoading, todosLoading]);
 
   // Fetch household todos for today
   useEffect(() => {
@@ -160,6 +173,35 @@ function Dashboard({ user }) {
     userRole
   );
 
+  // Calculate unanswered questions count from task help requests
+  useEffect(() => {
+    if (!userData?.familyId) return;
+
+    const unsubscribe = onSnapshot(
+      collection(db, 'families', userData.familyId, 'householdTodos'),
+      (snapshot) => {
+        let count = 0;
+        
+        snapshot.docs.forEach(doc => {
+          const taskData = doc.data();
+          
+          // Count unanswered questions from help requests
+          if (taskData.helpRequests?.length > 0) {
+            taskData.helpRequests.forEach((request) => {
+              if (request.message?.trim().endsWith('?') && !request.response) {
+                count++;
+              }
+            });
+          }
+        });
+        
+        setUnansweredQuestionsCount(count);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [userData?.familyId]);
+
   // Handle navigation
   const handleProfileNavigation = (view) => {
     setCurrentView(view);
@@ -234,6 +276,7 @@ function Dashboard({ user }) {
         <BottomNavigation 
           currentView={currentView}
           onNavigate={setCurrentView}
+          unansweredQuestionsCount={unansweredQuestionsCount}
         />
       </div>
     );
@@ -249,6 +292,7 @@ function Dashboard({ user }) {
         <BottomNavigation 
           currentView={currentView}
           onNavigate={setCurrentView}
+          unansweredQuestionsCount={unansweredQuestionsCount}
         />
       </div>
     );
@@ -260,11 +304,15 @@ function Dashboard({ user }) {
         <CalendarPage 
           user={user}
           userData={userData}
+          familyData={familyData}
+          children={children}
+          recurringActivities={recurringActivities}
           onNavigate={setCurrentView}
         />
         <BottomNavigation 
           currentView={currentView}
           onNavigate={setCurrentView}
+          unansweredQuestionsCount={unansweredQuestionsCount}
         />
       </div>
     );
@@ -281,32 +329,42 @@ function Dashboard({ user }) {
         <BottomNavigation 
           currentView={currentView}
           onNavigate={setCurrentView}
+          unansweredQuestionsCount={unansweredQuestionsCount}
         />
       </div>
     );
   }
 
-  if (currentView === 'notes') {
+  if (currentView === 'settings') {
+    return (
+      <div className="md3-container md3-flex md3-flex-column" style={{ minHeight: '100vh' }}>
+        <SettingsPage 
+          user={user}
+          onBack={() => setCurrentView('dashboard')}
+        />
+        <BottomNavigation 
+          currentView={currentView}
+          onNavigate={setCurrentView}
+          unansweredQuestionsCount={unansweredQuestionsCount}
+        />
+      </div>
+    );
+  }
+
+  if (currentView === 'messages') {
     return (
       <div className="md3-container md3-flex md3-flex-column" style={{ minHeight: '100vh' }}>
         <div style={{ 
           flex: 1, 
-          padding: '20px', 
-          paddingBottom: '80px', // Space for bottom navigation
           overflowY: 'auto'
         }}>
-          <FamilyNotesList 
-            familyId={userData?.familyId}
-            userId={user.uid}
-            userRole={userRole}
-            userData={userData}
-            familyData={familyData}
-            maxDisplayed={null}
+          <MessagesPage 
           />
         </div>
         <BottomNavigation 
           currentView={currentView}
           onNavigate={setCurrentView}
+          unansweredQuestionsCount={unansweredQuestionsCount}
         />
       </div>
     );
@@ -339,10 +397,10 @@ function Dashboard({ user }) {
         }
       `}</style>
       {/* Header */}
-      <header className="md3-surface-container md3-elevation-2 md3-p-16">
+      <header className="md3-surface-container md3-elevation-2 md3-p-9">
         <div className="md3-flex md3-flex-between md3-flex-center">
           <div className="md3-flex md3-flex-center md3-gap-12">
-            <Button variant="text" onClick={() => setCurrentView('dashboard')}>
+            <Button variant="text" onClick={() => window.history.length > 1 ? window.history.back() : setCurrentView('dashboard')}>
               ←
             </Button>
             <Typography variant="headline-small" color="on-surface">
@@ -351,6 +409,7 @@ function Dashboard({ user }) {
           </div>
           
           <div className="md3-flex md3-flex-center md3-gap-8">
+            <NotificationBell />
             <ThemeToggle />
             <ProfileIcon 
               user={user}
@@ -413,8 +472,8 @@ function Dashboard({ user }) {
             {/* Household Todo Cards */}
             {householdTodos.length === 0 && todayShoppingLists.length === 0 ? (
               <Card variant="outlined" className="md3-p-24" style={{ 
-                flex: '0 0 calc(100vw - 32px)',
-                maxWidth: '400px'
+                flex: '1 1 100%',
+                width: '100%'
               }}>
                 <div className="md3-flex md3-flex-column md3-flex-center md3-gap-16">
                   <Typography variant="title-medium" color="on-surface-variant">
@@ -475,6 +534,7 @@ function Dashboard({ user }) {
                   onEditChild={setEditingChild}
                   userRole={userRole}
                   recurringActivities={recurringActivities}
+                  calendarEvents={events}
                 />
               ))}
             </div>

@@ -1,22 +1,32 @@
 import React, { useState, useEffect } from 'react';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '../../firebase';
+import { useFamily } from '../../hooks/useFamily';
+import { notifyParentsOfEventChange, NOTIFICATION_TYPES } from '../../utils/notificationUtils';
 
 const CalendarQuickAdd = ({ 
   children, 
   selectedDate, 
   onSave, 
   onCancel, 
-  userRole 
+  userRole,
+  prefilledTime 
 }) => {
+  const [user] = useAuthState(auth);
+  const { familyData } = useFamily();
   const [currentStep, setCurrentStep] = useState('category'); // 'category' -> 'details'
   const [selectedCategory, setSelectedCategory] = useState('');
   const [eventData, setEventData] = useState({
     title: '',
     childId: children.length > 0 ? children[0].id : '',
-    startTime: '09:00',
+    startTime: prefilledTime || '09:00',
     duration: 60,
     location: '',
     notes: '',
     responsibility: userRole === 'parent' ? 'au_pair' : 'au_pair',
+    dropOffResponsibility: '',
+    pickUpResponsibility: '',
+    travelTime: 0,
     requiredItems: [],
     isRecurring: false
   });
@@ -152,7 +162,7 @@ const CalendarQuickAdd = ({
     setSuggestions([]);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Basic validation
     if (!eventData.title.trim()) {
       alert('Please enter an event title');
@@ -168,7 +178,26 @@ const CalendarQuickAdd = ({
       endMinutes: timeToMinutes(eventData.startTime) + eventData.duration
     };
 
+    // Save the event
     onSave(newEvent);
+
+    // Send notification to parents if au pair created the event
+    if (userRole === 'aupair' && familyData && user) {
+      try {
+        await notifyParentsOfEventChange(
+          familyData.id,
+          {
+            ...newEvent,
+            childName: children.find(c => c.id === newEvent.childId)?.name || ''
+          },
+          NOTIFICATION_TYPES.EVENT_CREATED,
+          user
+        );
+      } catch (error) {
+        console.error('Error sending notification:', error);
+        // Don't block the save operation if notification fails
+      }
+    }
   };
 
   const timeToMinutes = (timeStr) => {
@@ -334,6 +363,67 @@ const CalendarQuickAdd = ({
                 <option value="child_alone">Child Alone</option>
               </select>
             </div>
+
+            {/* Transportation Fields - only show if location is set */}
+            {eventData.location && (
+              <>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Drop-off by</label>
+                    <select
+                      style={styles.select}
+                      value={eventData.dropOffResponsibility}
+                      onChange={(e) => handleInputChange('dropOffResponsibility', e.target.value)}
+                    >
+                      <option value="">Not needed</option>
+                      <option value="Au pair">Au pair</option>
+                      <option value="Parent">Parent</option>
+                      <option value="Kid alone">Kid alone</option>
+                    </select>
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Pick-up by</label>
+                    <select
+                      style={styles.select}
+                      value={eventData.pickUpResponsibility}
+                      onChange={(e) => handleInputChange('pickUpResponsibility', e.target.value)}
+                    >
+                      <option value="">Not needed</option>
+                      <option value="Au pair">Au pair</option>
+                      <option value="Parent">Parent</option>
+                      <option value="Kid alone">Kid alone</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Travel Time - only show if drop-off is set */}
+                {eventData.dropOffResponsibility && (
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Travel time (minutes)</label>
+                    <input
+                      type="number"
+                      style={styles.input}
+                      value={eventData.travelTime}
+                      onChange={(e) => handleInputChange('travelTime', parseInt(e.target.value) || 0)}
+                      placeholder="15"
+                      min="0"
+                      max="120"
+                    />
+                    {eventData.travelTime > 0 && (
+                      <div style={styles.leaveByNote}>
+                        Leave by: {(() => {
+                          const [hours, minutes] = eventData.startTime.split(':');
+                          const startDate = new Date();
+                          startDate.setHours(parseInt(hours), parseInt(minutes));
+                          startDate.setMinutes(startDate.getMinutes() - eventData.travelTime);
+                          return startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
 
             {/* Notes */}
             <div style={styles.formGroup}>
@@ -540,6 +630,12 @@ const styles = {
     backgroundColor: 'var(--gray-50)',
     borderRadius: 'var(--radius-md)',
     marginBottom: 'var(--space-4)'
+  },
+  leaveByNote: {
+    fontSize: 'var(--font-size-xs)',
+    color: 'var(--primary-purple)',
+    marginTop: 'var(--space-2)',
+    fontStyle: 'italic'
   },
   actions: {
     display: 'flex',

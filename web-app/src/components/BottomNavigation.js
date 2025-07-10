@@ -1,6 +1,6 @@
 import React from 'react';
 
-const BottomNavigation = ({ currentView, onNavigate, pendingApprovalCount = 0 }) => {
+const BottomNavigation = ({ currentView, onNavigate, pendingApprovalCount = 0, unansweredQuestionsCount = 0 }) => {
   const getNavItemStyle = (viewName) => ({
     cursor: 'pointer',
     color: currentView === viewName ? 'var(--md-sys-color-primary)' : 'var(--md-sys-color-on-surface-variant)',
@@ -72,11 +72,30 @@ const BottomNavigation = ({ currentView, onNavigate, pendingApprovalCount = 0 })
         </div>
         <div 
           className={`md3-flex-1 md3-flex md3-flex-column md3-flex-center md3-p-12 md3-touch-target`}
-          style={getNavItemStyle('notes')}
-          onClick={() => onNavigate('notes')}
+          style={getNavItemStyle('messages')}
+          onClick={() => onNavigate('messages')}
         >
-          <span className="md3-title-medium" style={getIconStyle('notes')}>📧</span>
-          <span className="md3-label-small">Notes</span>
+          <span className="md3-title-medium" style={getIconStyle('messages')}>💬</span>
+          <span className="md3-label-small">Messages</span>
+          {unansweredQuestionsCount > 0 && (
+            <div style={{ 
+              position: 'absolute',
+              top: '-2px',
+              right: '8px',
+              width: '20px',
+              height: '20px',
+              borderRadius: 'var(--md-sys-shape-corner-full)',
+              backgroundColor: 'var(--md-sys-color-error)',
+              color: 'var(--md-sys-color-on-error)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '10px',
+              fontWeight: 'bold'
+            }}>
+              {unansweredQuestionsCount}
+            </div>
+          )}
         </div>
       </div>
     </nav>

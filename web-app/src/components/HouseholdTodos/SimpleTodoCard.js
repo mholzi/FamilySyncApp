@@ -174,7 +174,10 @@ const SimpleTodoCard = ({
           {/* Description */}
           {todo.description && (
             <div style={styles.taskDescription}>
-              {todo.description}
+              {todo.description.length > 300 
+                ? `${todo.description.substring(0, 300)}...` 
+                : todo.description
+              }
             </div>
           )}
           
@@ -260,7 +263,8 @@ const styles = {
     position: 'relative',
     width: '100%',
     boxSizing: 'border-box',
-    minHeight: '140px' // Ensure minimum height
+    minHeight: '180px', // Fixed height for consistency
+    height: '180px' // Fixed height
   },
   taskCardCompleted: {
     backgroundColor: 'var(--md-sys-color-surface-container-highest)',
@@ -332,7 +336,12 @@ const styles = {
     color: 'var(--md-sys-color-on-surface)',
     lineHeight: '1.4',
     marginBottom: '4px',
-    textAlign: 'left' // Ensure left alignment
+    textAlign: 'left', // Ensure left alignment
+    overflow: 'hidden',
+    display: '-webkit-box',
+    WebkitLineClamp: 3, // Limit to 3 lines
+    WebkitBoxOrient: 'vertical',
+    maxHeight: '63px' // 3 lines * 1.4 line-height * 14px font-size
   },
   buttonContainer: {
     position: 'absolute',

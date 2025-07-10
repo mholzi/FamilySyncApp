@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { createEventOverride } from '../../utils/eventOverridesUtils';
 import { PICKUP_PERSON_OPTIONS, pickupPersonToResponsibility, responsibilityToPickupPerson } from '../../utils/schoolPickupUtils';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '../../firebase';
+import { useFamily } from '../../hooks/useFamily';
+import { notifyParentsOfEventChange, NOTIFICATION_TYPES } from '../../utils/notificationUtils';
 
 const EditEventModal = ({ event, familyId, onClose, onSave }) => {
+  const [user] = useAuthState(auth);
+  const { userData } = useFamily();
   const [formData, setFormData] = useState({
     title: event.title || '',
     description: event.description || '',
@@ -62,6 +68,27 @@ const EditEventModal = ({ event, familyId, onClose, onSave }) => {
       console.log('Creating event override with data:', overrideData);
       const overrideId = await createEventOverride(familyId, overrideData);
       console.log('Event override created with ID:', overrideId);
+      
+      // Send notification to parents if au pair made changes
+      if (userData?.role === 'aupair' && user) {
+        try {
+          await notifyParentsOfEventChange(
+            familyId,
+            {
+              ...event,
+              id: event.id || `${event.type}-${event.time}`,
+              date: date,
+              time: formData.time,
+              childName: event.children?.[0]?.child.name || ''
+            },
+            NOTIFICATION_TYPES.EVENT_UPDATED,
+            user
+          );
+        } catch (error) {
+          console.error('Error sending notification:', error);
+        }
+      }
+      
       onSave();
       onClose();
     } catch (error) {
@@ -97,6 +124,27 @@ const EditEventModal = ({ event, familyId, onClose, onSave }) => {
       };
 
       await createEventOverride(familyId, overrideData);
+      
+      // Send notification to parents if au pair cancelled the event
+      if (userData?.role === 'aupair' && user) {
+        try {
+          await notifyParentsOfEventChange(
+            familyId,
+            {
+              ...event,
+              id: event.id || `${event.type}-${event.time}`,
+              date: date,
+              time: event.time,
+              childName: event.children?.[0]?.child.name || ''
+            },
+            NOTIFICATION_TYPES.EVENT_CANCELLED,
+            user
+          );
+        } catch (error) {
+          console.error('Error sending notification:', error);
+        }
+      }
+      
       onSave();
       onClose();
     } catch (error) {

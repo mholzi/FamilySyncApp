@@ -13,19 +13,12 @@ const ProfileMenu = ({ user, userData, isOpen, onClose, onNavigate, onConfirmLog
   // Parent-specific menu items
   const parentMenuItems = [
     { icon: '👥', label: 'Family Management', action: 'family' },
-    { icon: '🏠', label: 'Household Settings', action: 'household' },
-    { icon: '💰', label: 'Payment & Billing', action: 'payment' },
-    { icon: '📋', label: 'Task Assignment', action: 'tasks' },
-    { icon: '🚨', label: 'Emergency Contacts', action: 'emergency' },
-    { icon: '📊', label: 'Analytics', action: 'analytics' }
+    { icon: '🚨', label: 'Emergency Contacts', action: 'emergency' }
   ];
 
   // Au Pair-specific menu items
   const auPairMenuItems = [
     { icon: '👨‍👩‍👧‍👦', label: 'Family Info', action: 'familyInfo' },
-    { icon: '📅', label: 'Schedule', action: 'schedule' },
-    { icon: '💵', label: 'Payment History', action: 'paymentHistory' },
-    { icon: '🎯', label: 'Goal Tracking', action: 'goals' },
     { icon: '🆘', label: 'Emergency Info', action: 'emergencyInfo' }
   ];
 
@@ -89,11 +82,20 @@ const ProfileMenu = ({ user, userData, isOpen, onClose, onNavigate, onConfirmLog
             ) : (
               <button
                 key={index}
+                data-profile-menu-item
                 style={{
                   ...styles.menuItem,
                   ...(item.variant === 'danger' ? styles.menuItemDanger : {})
                 }}
                 onClick={() => handleMenuAction(item.action)}
+                onMouseEnter={(e) => {
+                  if (item.variant !== 'danger') {
+                    e.currentTarget.style.backgroundColor = 'var(--md-sys-color-surface-container-highest)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
               >
                 <span style={styles.icon}>{item.icon}</span>
                 <span style={styles.label}>{item.label}</span>
@@ -121,109 +123,128 @@ const styles = {
     top: '100%',
     right: 0,
     marginTop: '8px',
-    background: 'white',
-    borderRadius: '12px',
-    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-    border: '1px solid rgba(0, 0, 0, 0.1)',
-    minWidth: '240px',
+    backgroundColor: 'var(--md-sys-color-surface)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    boxShadow: 'var(--md-sys-elevation-level2)',
+    border: '1px solid var(--md-sys-color-outline-variant)',
+    minWidth: '280px',
     zIndex: 1000,
-    animation: 'slideDown 0.2s ease',
+    animation: 'slideDown var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard)',
     overflow: 'hidden'
   },
   userInfo: {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
-    padding: '16px',
-    borderBottom: '1px solid #F2F2F7',
-    backgroundColor: '#FAFAFA'
+    gap: '16px',
+    padding: '20px',
+    borderBottom: '1px solid var(--md-sys-color-outline-variant)',
+    backgroundColor: 'var(--md-sys-color-surface-container-low)'
   },
   avatar: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '20px',
-    backgroundColor: '#007AFF',
-    color: 'white',
+    width: '48px',
+    height: '48px',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '16px',
+    fontSize: '18px',
     fontWeight: '600',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    fontFamily: 'var(--md-sys-typescale-title-medium-font-family-name)'
   },
   avatarImage: {
     width: '100%',
     height: '100%',
     objectFit: 'cover',
-    borderRadius: '20px'
+    borderRadius: 'var(--md-sys-shape-corner-full)'
   },
   userDetails: {
     flex: 1
   },
   userName: {
     fontSize: '16px',
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: '2px'
+    fontWeight: '500',
+    color: 'var(--md-sys-color-on-surface)',
+    marginBottom: '4px',
+    fontFamily: 'var(--md-sys-typescale-title-medium-font-family-name)',
+    lineHeight: 'var(--md-sys-typescale-title-medium-line-height)'
   },
   userRole: {
-    fontSize: '13px',
-    color: '#8E8E93'
+    fontSize: '14px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    fontFamily: 'var(--md-sys-typescale-body-small-font-family-name)',
+    lineHeight: 'var(--md-sys-typescale-body-small-line-height)'
   },
   menuItems: {
-    padding: '8px 0'
+    padding: '8px'
   },
   menuItem: {
     width: '100%',
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
+    gap: '16px',
     padding: '12px 16px',
     backgroundColor: 'transparent',
     border: 'none',
-    fontSize: '15px',
-    color: '#000',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    fontSize: '16px',
+    color: 'var(--md-sys-color-on-surface)',
     cursor: 'pointer',
-    transition: 'background-color 0.2s ease',
-    textAlign: 'left'
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    textAlign: 'left',
+    fontFamily: 'var(--md-sys-typescale-label-large-font-family-name)',
+    fontWeight: 'var(--md-sys-typescale-label-large-font-weight)',
+    lineHeight: 'var(--md-sys-typescale-label-large-line-height)',
+    letterSpacing: 'var(--md-sys-typescale-label-large-letter-spacing)'
   },
   menuItemDanger: {
-    color: '#FF3B30'
+    color: 'var(--md-sys-color-error)'
   },
   icon: {
-    fontSize: '16px',
-    width: '20px',
-    textAlign: 'center'
+    fontSize: '20px',
+    width: '24px',
+    textAlign: 'center',
+    flexShrink: 0
   },
   label: {
-    flex: 1,
-    fontWeight: '400'
+    flex: 1
   },
   divider: {
     height: '1px',
-    backgroundColor: '#F2F2F7',
-    margin: '8px 16px'
+    backgroundColor: 'var(--md-sys-color-outline-variant)',
+    margin: '8px 16px',
+    opacity: 0.5
   }
 };
 
-// Add CSS animation keyframes
-const styleSheet = document.createElement('style');
-styleSheet.textContent = `
-  @keyframes slideDown {
-    from {
-      opacity: 0;
-      transform: translateY(-8px);
+// Add CSS animation keyframes and hover styles
+if (typeof document !== 'undefined' && !document.getElementById('profile-menu-styles')) {
+  const styleSheet = document.createElement('style');
+  styleSheet.id = 'profile-menu-styles';
+  styleSheet.textContent = `
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
     }
-    to {
-      opacity: 1;
-      transform: translateY(0);
+    
+    /* Profile menu hover states */
+    [data-profile-menu-item]:hover {
+      background-color: var(--md-sys-color-surface-container-highest) !important;
     }
-  }
-  
-  .profile-menu-item:hover {
-    background-color: #F2F2F7 !important;
-  }
-`;
-document.head.appendChild(styleSheet);
+    
+    [data-profile-menu-item]:active {
+      background-color: var(--md-sys-color-surface-container) !important;
+    }
+  `;
+  document.head.appendChild(styleSheet);
+}
 
 export default ProfileMenu;

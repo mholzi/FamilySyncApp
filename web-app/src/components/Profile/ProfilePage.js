@@ -3,7 +3,6 @@ import { useFamily } from '../../hooks/useFamily';
 import { 
   updateUserProfile, 
   uploadProfilePicture, 
-  updateUserPreferences,
   validateEmail,
   validatePhoneNumber,
   formatUserRole,
@@ -13,7 +12,7 @@ import {
 
 const ProfilePage = ({ user, onBack }) => {
   const { userData, familyData, loading } = useFamily(user.uid);
-  const [isEditing, setIsEditing] = useState(false);
+  const [editingSection, setEditingSection] = useState(null); // 'personal'
   const [isSaving, setSaving] = useState(false);
   const [formData, setFormData] = useState({});
   const [errors, setErrors] = useState({});
@@ -24,13 +23,9 @@ const ProfilePage = ({ user, onBack }) => {
         name: userData.name || '',
         email: userData.email || user.email || '',
         phone: userData.phone || '',
-        language: userData.preferences?.language || 'en',
-        theme: userData.preferences?.theme || 'system',
-        notifications: userData.preferences?.notifications !== false,
-        defaultView: userData.preferences?.defaultView || 'dashboard'
       });
     }
-  }, [userData, user.email]);
+  }, [userData, user.email, familyData]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -50,18 +45,20 @@ const ProfilePage = ({ user, onBack }) => {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
-    }
+    if (editingSection === 'personal') {
+      if (!formData.name.trim()) {
+        newErrors.name = 'Name is required';
+      }
 
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!validateEmail(formData.email)) {
-      newErrors.email = 'Please enter a valid email';
-    }
+      if (!formData.email.trim()) {
+        newErrors.email = 'Email is required';
+      } else if (!validateEmail(formData.email)) {
+        newErrors.email = 'Please enter a valid email';
+      }
 
-    if (formData.phone && !validatePhoneNumber(formData.phone)) {
-      newErrors.phone = 'Please enter a valid phone number';
+      if (formData.phone && !validatePhoneNumber(formData.phone)) {
+        newErrors.phone = 'Please enter a valid phone number';
+      }
     }
 
     setErrors(newErrors);
@@ -73,32 +70,21 @@ const ProfilePage = ({ user, onBack }) => {
 
     setSaving(true);
     try {
-      // Update profile data
-      const profileUpdates = {
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        phone: formData.phone.trim()
-      };
+      // Update based on which section is being edited
+      if (editingSection === 'personal') {
+        const profileUpdates = {
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.trim()
+        };
 
-      const profileResult = await updateUserProfile(user.uid, profileUpdates);
-      if (!profileResult.success) {
-        throw new Error(profileResult.error);
+        const profileResult = await updateUserProfile(user.uid, profileUpdates);
+        if (!profileResult.success) {
+          throw new Error(profileResult.error);
+        }
       }
 
-      // Update preferences
-      const preferences = {
-        language: formData.language,
-        theme: formData.theme,
-        notifications: formData.notifications,
-        defaultView: formData.defaultView
-      };
-
-      const preferencesResult = await updateUserPreferences(user.uid, preferences);
-      if (!preferencesResult.success) {
-        throw new Error(preferencesResult.error);
-      }
-
-      setIsEditing(false);
+      setEditingSection(null);
       alert('Profile updated successfully!');
     } catch (error) {
       console.error('Error saving profile:', error);
@@ -115,13 +101,9 @@ const ProfilePage = ({ user, onBack }) => {
         name: userData.name || '',
         email: userData.email || user.email || '',
         phone: userData.phone || '',
-        language: userData.preferences?.language || 'en',
-        theme: userData.preferences?.theme || 'system',
-        notifications: userData.preferences?.notifications !== false,
-        defaultView: userData.preferences?.defaultView || 'dashboard'
       });
     }
-    setIsEditing(false);
+    setEditingSection(null);
     setErrors({});
   };
 
@@ -156,23 +138,11 @@ const ProfilePage = ({ user, onBack }) => {
     <div style={styles.container}>
       {/* Header */}
       <header style={styles.header}>
-        <button style={styles.backButton} onClick={onBack || (() => window.history.back())}>
+        <button style={styles.backButton} onClick={onBack || (() => window.history.length > 1 ? window.history.back() : window.location.href = '/')}>
           ←
         </button>
         <h1 style={styles.title}>Profile</h1>
-        {isEditing ? (
-          <button 
-            style={styles.saveButton} 
-            onClick={handleSave}
-            disabled={isSaving}
-          >
-            {isSaving ? 'Saving...' : 'Save'}
-          </button>
-        ) : (
-          <button style={styles.editButton} onClick={() => setIsEditing(true)}>
-            Edit
-          </button>
-        )}
+        <div style={{ width: '40px' }} /> {/* Spacer for layout balance */}
       </header>
 
       {/* Content */}
@@ -192,7 +162,7 @@ const ProfilePage = ({ user, onBack }) => {
               </div>
             )}
           </div>
-          {isEditing && (
+          {!editingSection && (
             <div style={styles.uploadContainer}>
               <input
                 type="file"
@@ -201,20 +171,52 @@ const ProfilePage = ({ user, onBack }) => {
                 onChange={handleProfilePictureUpload}
                 style={styles.hiddenInput}
               />
-              <label htmlFor="profile-upload" style={styles.uploadButton}>
-                Upload Photo
+              <label 
+                htmlFor="profile-upload" 
+                style={styles.uploadButton}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--md-sys-color-primary-container)';
+                  e.currentTarget.style.borderColor = 'var(--md-sys-color-primary)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--md-sys-color-surface-container-highest)';
+                  e.currentTarget.style.borderColor = 'var(--md-sys-color-outline)';
+                }}
+              >
+                📷 Upload Photo
               </label>
             </div>
           )}
         </div>
 
         {/* Personal Information */}
-        <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>Personal Information</h2>
-          
-          <div style={styles.field}>
+        {(!editingSection || editingSection === 'personal') && (
+          <section style={styles.section}>
+            <div style={styles.sectionHeader}>
+              <h2 style={styles.sectionTitle}>Personal Information</h2>
+              {!editingSection && (
+                <button
+                  style={styles.sectionEditButton}
+                  onClick={() => setEditingSection('personal')}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--md-sys-color-primary)';
+                    e.currentTarget.style.color = 'var(--md-sys-color-on-primary)';
+                    e.currentTarget.style.boxShadow = 'var(--md-sys-elevation-level2)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--md-sys-color-primary-container)';
+                    e.currentTarget.style.color = 'var(--md-sys-color-on-primary-container)';
+                    e.currentTarget.style.boxShadow = 'var(--md-sys-elevation-level1)';
+                  }}
+                >
+                  Edit
+                </button>
+              )}
+            </div>
+            
+            <div style={styles.field}>
             <label style={styles.label}>Name</label>
-            {isEditing ? (
+            {editingSection === 'personal' ? (
               <input
                 type="text"
                 style={{...styles.input, ...(errors.name ? styles.inputError : {})}}
@@ -230,13 +232,21 @@ const ProfilePage = ({ user, onBack }) => {
 
           <div style={styles.field}>
             <label style={styles.label}>Email</label>
-            {isEditing ? (
+            {editingSection === 'personal' ? (
               <input
                 type="email"
                 style={{...styles.input, ...(errors.email ? styles.inputError : {})}}
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
                 placeholder="Enter your email"
+                onFocus={(e) => {
+                  e.target.style.borderColor = 'var(--md-sys-color-primary)';
+                }}
+                onBlur={(e) => {
+                  if (!errors.email) {
+                    e.target.style.borderColor = 'var(--md-sys-color-outline)';
+                  }
+                }}
               />
             ) : (
               <div style={styles.value}>{userData?.email || user.email || 'Not set'}</div>
@@ -246,117 +256,89 @@ const ProfilePage = ({ user, onBack }) => {
 
           <div style={styles.field}>
             <label style={styles.label}>Phone</label>
-            {isEditing ? (
+            {editingSection === 'personal' ? (
               <input
                 type="tel"
                 style={{...styles.input, ...(errors.phone ? styles.inputError : {})}}
                 value={formData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
                 placeholder="Enter your phone number"
+                onFocus={(e) => {
+                  e.target.style.borderColor = 'var(--md-sys-color-primary)';
+                }}
+                onBlur={(e) => {
+                  if (!errors.phone) {
+                    e.target.style.borderColor = 'var(--md-sys-color-outline)';
+                  }
+                }}
               />
             ) : (
               <div style={styles.value}>{userData?.phone || 'Not set'}</div>
             )}
             {errors.phone && <div style={styles.error}>{errors.phone}</div>}
           </div>
-        </section>
+          </section>
+        )}
 
-        {/* Family Role */}
-        <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>Family Role</h2>
-          
-          <div style={styles.field}>
-            <label style={styles.label}>Role</label>
-            <div style={styles.value}>{formatUserRole(userData?.role)}</div>
-          </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Family</label>
-            <div style={styles.value}>{familyData?.name || 'Not assigned'}</div>
-          </div>
-
-          <div style={styles.field}>
-            <label style={styles.label}>Member Since</label>
-            <div style={styles.value}>
-              {formatDate(userData?.createdAt)}
+        {/* Role Information - Always shown when not editing */}
+        {!editingSection && (
+          <section style={styles.section}>
+            <h2 style={styles.sectionTitle}>Role Information</h2>
+            
+            <div style={styles.field}>
+              <label style={styles.label}>Role</label>
+              <div style={styles.value}>{formatUserRole(userData?.role)}</div>
             </div>
-          </div>
-        </section>
 
-        {/* Preferences */}
-        <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>Preferences</h2>
-          
-          <div style={styles.field}>
-            <label style={styles.label}>Language</label>
-            {isEditing ? (
-              <select
-                style={styles.select}
-                value={formData.language}
-                onChange={(e) => handleInputChange('language', e.target.value)}
-              >
-                <option value="en">🇺🇸 English</option>
-                <option value="de">🇩🇪 German</option>
-              </select>
-            ) : (
-              <div style={styles.value}>
-                {formData.language === 'de' ? '🇩🇪 German' : '🇺🇸 English'}
+            {userData?.role === 'aupair' && (
+              <div style={styles.field}>
+                <label style={styles.label}>Host Family</label>
+                <div style={styles.value}>{familyData?.name || 'Not assigned'}</div>
               </div>
             )}
-          </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Theme</label>
-            {isEditing ? (
-              <select
-                style={styles.select}
-                value={formData.theme}
-                onChange={(e) => handleInputChange('theme', e.target.value)}
-              >
-                <option value="system">System</option>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-              </select>
-            ) : (
+            <div style={styles.field}>
+              <label style={styles.label}>Member Since</label>
               <div style={styles.value}>
-                {formData.theme.charAt(0).toUpperCase() + formData.theme.slice(1)}
+                {formatDate(userData?.createdAt)}
               </div>
-            )}
-          </div>
+            </div>
+          </section>
+        )}
 
-          <div style={styles.field}>
-            <label style={styles.label}>Notifications</label>
-            {isEditing ? (
-              <label style={styles.switchContainer}>
-                <input
-                  type="checkbox"
-                  checked={formData.notifications}
-                  onChange={(e) => handleInputChange('notifications', e.target.checked)}
-                  style={styles.hiddenInput}
-                />
-                <span style={{
-                  ...styles.switch,
-                  ...(formData.notifications ? styles.switchOn : {})
-                }}>
-                  <span style={{
-                    ...styles.switchHandle,
-                    ...(formData.notifications ? styles.switchHandleOn : {})
-                  }} />
-                </span>
-              </label>
-            ) : (
-              <div style={styles.value}>
-                {formData.notifications ? 'Enabled' : 'Disabled'}
-              </div>
-            )}
-          </div>
-        </section>
 
-        {/* Cancel button for editing mode */}
-        {isEditing && (
+        {/* Action buttons for editing mode */}
+        {editingSection && (
           <div style={styles.actions}>
-            <button style={styles.cancelButton} onClick={handleCancel}>
+            <button 
+              style={styles.cancelButton} 
+              onClick={handleCancel}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--md-sys-color-surface-container)';
+                e.currentTarget.style.boxShadow = 'var(--md-sys-elevation-level1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--md-sys-color-surface-container-highest)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
               Cancel
+            </button>
+            <button 
+              style={styles.saveButton} 
+              onClick={handleSave}
+              disabled={isSaving}
+              onMouseEnter={(e) => {
+                if (!isSaving) {
+                  e.currentTarget.style.boxShadow = 'var(--md-sys-elevation-level1)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              {isSaving ? 'Saving...' : 'Save'}
             </button>
           </div>
         )}
@@ -368,206 +350,299 @@ const ProfilePage = ({ user, onBack }) => {
 const styles = {
   container: {
     minHeight: 'calc(100vh - 64px)', // Account for bottom navigation
-    backgroundColor: '#F2F2F7',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-    paddingBottom: '20px' // Extra padding for bottom navigation
+    backgroundColor: 'var(--md-sys-color-surface)',
+    fontFamily: 'var(--md-sys-typescale-body-large-font-family-name)',
+    paddingBottom: '80px' // Extra padding for bottom navigation
   },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '15px 20px',
-    backgroundColor: 'white',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+    padding: '16px 24px',
+    backgroundColor: 'var(--md-sys-color-surface-container)',
+    boxShadow: 'var(--md-sys-elevation-level1)',
+    borderBottom: '1px solid var(--md-sys-color-outline-variant)'
   },
   backButton: {
     backgroundColor: 'transparent',
     border: 'none',
-    fontSize: '20px',
+    fontSize: '24px',
     cursor: 'pointer',
-    color: '#007AFF'
+    color: 'var(--md-sys-color-on-surface)',
+    padding: '8px',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '40px',
+    height: '40px',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
   },
   title: {
-    fontSize: '18px',
-    fontWeight: '600',
-    color: '#000',
-    margin: 0
+    fontSize: '22px',
+    fontWeight: '400',
+    color: 'var(--md-sys-color-on-surface)',
+    margin: 0,
+    fontFamily: 'var(--md-sys-typescale-headline-small-font-family-name)',
+    lineHeight: 'var(--md-sys-typescale-headline-small-line-height)'
   },
   editButton: {
     backgroundColor: 'transparent',
-    border: 'none',
-    color: '#007AFF',
-    fontSize: '16px',
+    border: '1px solid var(--md-sys-color-outline)',
+    color: 'var(--md-sys-color-primary)',
+    fontSize: '14px',
     cursor: 'pointer',
-    fontWeight: '500'
+    fontWeight: '500',
+    padding: '8px 16px',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    fontFamily: 'var(--md-sys-typescale-label-large-font-family-name)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
   },
   saveButton: {
-    backgroundColor: '#007AFF',
-    color: 'white',
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)',
     border: 'none',
-    borderRadius: '8px',
-    padding: '8px 16px',
-    fontSize: '16px',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    padding: '8px 24px',
+    fontSize: '14px',
     fontWeight: '500',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    fontFamily: 'var(--md-sys-typescale-label-large-font-family-name)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    opacity: 1
   },
   content: {
-    padding: '20px'
+    padding: '24px',
+    maxWidth: '720px',
+    margin: '0 auto'
   },
   avatarSection: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    marginBottom: '30px',
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    padding: '24px',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+    marginBottom: '24px',
+    backgroundColor: 'var(--md-sys-color-surface-container-low)',
+    borderRadius: 'var(--md-sys-shape-corner-large)',
+    padding: '32px',
+    boxShadow: 'var(--md-sys-elevation-level1)',
+    border: '1px solid var(--md-sys-color-outline-variant)'
   },
   avatarContainer: {
     marginBottom: '16px'
   },
   avatarImage: {
-    width: '80px',
-    height: '80px',
-    borderRadius: '40px',
-    objectFit: 'cover'
+    width: '96px',
+    height: '96px',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    objectFit: 'cover',
+    border: '3px solid var(--md-sys-color-surface)'
   },
   avatarPlaceholder: {
-    width: '80px',
-    height: '80px',
-    borderRadius: '40px',
-    backgroundColor: '#007AFF',
-    color: 'white',
+    width: '96px',
+    height: '96px',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '32px',
-    fontWeight: '600'
+    fontSize: '36px',
+    fontWeight: '600',
+    fontFamily: 'var(--md-sys-typescale-display-small-font-family-name)',
+    border: '3px solid var(--md-sys-color-surface)'
   },
   uploadContainer: {
     textAlign: 'center'
   },
   uploadButton: {
-    backgroundColor: '#007AFF',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '8px 16px',
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)',
+    color: 'var(--md-sys-color-on-surface)',
+    border: '1px solid var(--md-sys-color-outline)',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    padding: '8px 20px',
     fontSize: '14px',
     fontWeight: '500',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    fontFamily: 'var(--md-sys-typescale-label-large-font-family-name)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    display: 'inline-block'
   },
   hiddenInput: {
     display: 'none'
   },
   section: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    padding: '20px',
+    backgroundColor: 'var(--md-sys-color-surface-container-low)',
+    borderRadius: 'var(--md-sys-shape-corner-large)',
+    padding: '24px',
+    marginBottom: '16px',
+    border: '1px solid var(--md-sys-color-outline-variant)'
+  },
+  sectionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: '20px',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+    borderBottom: '1px solid var(--md-sys-color-outline-variant)',
+    paddingBottom: '12px'
   },
   sectionTitle: {
-    fontSize: '18px',
+    fontSize: '16px',
+    fontWeight: '500',
+    color: 'var(--md-sys-color-on-surface)',
+    margin: 0,
+    fontFamily: 'var(--md-sys-typescale-title-medium-font-family-name)',
+    lineHeight: 'var(--md-sys-typescale-title-medium-line-height)',
+    letterSpacing: 'var(--md-sys-typescale-title-medium-letter-spacing)'
+  },
+  sectionEditButton: {
+    backgroundColor: 'var(--md-sys-color-primary-container)',
+    border: '1px solid var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary-container)',
+    fontSize: '14px',
     fontWeight: '600',
-    color: '#000',
-    marginBottom: '16px',
-    borderBottom: '1px solid #F2F2F7',
-    paddingBottom: '8px'
+    cursor: 'pointer',
+    padding: '8px 16px',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    fontFamily: 'var(--md-sys-typescale-label-large-font-family-name)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    boxShadow: 'var(--md-sys-elevation-level1)'
   },
   field: {
-    marginBottom: '16px'
+    marginBottom: '20px'
   },
   label: {
     display: 'block',
-    fontSize: '14px',
+    fontSize: '12px',
     fontWeight: '500',
-    color: '#666',
-    marginBottom: '4px'
+    color: 'var(--md-sys-color-on-surface-variant)',
+    marginBottom: '8px',
+    fontFamily: 'var(--md-sys-typescale-label-small-font-family-name)',
+    lineHeight: 'var(--md-sys-typescale-label-small-line-height)',
+    letterSpacing: 'var(--md-sys-typescale-label-small-letter-spacing)'
   },
   value: {
     fontSize: '16px',
-    color: '#000',
-    padding: '8px 0'
+    color: 'var(--md-sys-color-on-surface)',
+    padding: '8px 0',
+    fontFamily: 'var(--md-sys-typescale-body-large-font-family-name)',
+    lineHeight: 'var(--md-sys-typescale-body-large-line-height)'
   },
   input: {
     width: '100%',
-    padding: '12px',
+    padding: '12px 16px',
     fontSize: '16px',
-    border: '1px solid #E5E5EA',
-    borderRadius: '8px',
-    backgroundColor: 'white',
-    boxSizing: 'border-box'
+    border: '1px solid var(--md-sys-color-outline)',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    backgroundColor: 'var(--md-sys-color-surface)',
+    boxSizing: 'border-box',
+    color: 'var(--md-sys-color-on-surface)',
+    fontFamily: 'var(--md-sys-typescale-body-large-font-family-name)',
+    transition: 'border-color var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    outline: 'none'
   },
   inputError: {
-    borderColor: '#FF3B30'
+    borderColor: 'var(--md-sys-color-error)'
+  },
+  inputDisabled: {
+    backgroundColor: 'var(--md-sys-color-surface-container)',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    cursor: 'not-allowed',
+    opacity: 0.6
   },
   select: {
     width: '100%',
-    padding: '12px',
+    padding: '12px 16px',
     fontSize: '16px',
-    border: '1px solid #E5E5EA',
-    borderRadius: '8px',
-    backgroundColor: 'white',
-    boxSizing: 'border-box'
+    border: '1px solid var(--md-sys-color-outline)',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    backgroundColor: 'var(--md-sys-color-surface)',
+    boxSizing: 'border-box',
+    color: 'var(--md-sys-color-on-surface)',
+    fontFamily: 'var(--md-sys-typescale-body-large-font-family-name)',
+    cursor: 'pointer',
+    transition: 'border-color var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    outline: 'none'
   },
   switchContainer: {
     display: 'flex',
     alignItems: 'center',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    gap: '12px'
   },
   switch: {
-    width: '48px',
-    height: '28px',
-    backgroundColor: '#E5E5EA',
-    borderRadius: '14px',
+    width: '52px',
+    height: '32px',
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)',
+    borderRadius: '16px',
     position: 'relative',
-    transition: 'background-color 0.2s ease'
+    transition: 'background-color var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    border: '2px solid var(--md-sys-color-outline)'
   },
   switchOn: {
-    backgroundColor: '#007AFF'
+    backgroundColor: 'var(--md-sys-color-primary)',
+    borderColor: 'var(--md-sys-color-primary)'
   },
   switchHandle: {
-    width: '24px',
-    height: '24px',
-    backgroundColor: 'white',
-    borderRadius: '12px',
+    width: '28px',
+    height: '28px',
+    backgroundColor: 'var(--md-sys-color-on-primary)',
+    borderRadius: '14px',
     position: 'absolute',
     top: '2px',
     left: '2px',
-    transition: 'transform 0.2s ease',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3)'
+    transition: 'transform var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    boxShadow: 'var(--md-sys-elevation-level1)'
   },
   switchHandleOn: {
-    transform: 'translateX(20px)'
+    transform: 'translateX(20px)',
+    backgroundColor: 'var(--md-sys-color-on-primary)'
+  },
+  switchLabel: {
+    fontSize: '16px',
+    color: 'var(--md-sys-color-on-surface)',
+    fontFamily: 'var(--md-sys-typescale-body-large-font-family-name)',
+    userSelect: 'none'
+  },
+  fieldHelp: {
+    fontSize: '14px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    marginTop: '8px',
+    lineHeight: '1.4',
+    fontFamily: 'var(--md-sys-typescale-body-small-font-family-name)'
   },
   error: {
-    color: '#FF3B30',
+    color: 'var(--md-sys-color-error)',
     fontSize: '12px',
-    marginTop: '4px'
+    marginTop: '4px',
+    fontFamily: 'var(--md-sys-typescale-body-small-font-family-name)'
   },
   actions: {
-    marginTop: '20px'
+    marginTop: '24px',
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'flex-end'
   },
   cancelButton: {
-    backgroundColor: '#F2F2F7',
-    color: '#000',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '12px 24px',
-    fontSize: '16px',
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)',
+    color: 'var(--md-sys-color-on-surface)',
+    border: '1px solid var(--md-sys-color-outline)',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    padding: '10px 24px',
+    fontSize: '14px',
     fontWeight: '500',
     cursor: 'pointer',
-    width: '100%'
+    fontFamily: 'var(--md-sys-typescale-label-large-font-family-name)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    minWidth: '100px'
   },
   loading: {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: '50vh',
-    fontSize: '18px',
-    color: '#666'
+    fontSize: '16px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    fontFamily: 'var(--md-sys-typescale-body-large-font-family-name)'
   }
 };
 

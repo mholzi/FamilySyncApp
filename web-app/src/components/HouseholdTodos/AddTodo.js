@@ -230,7 +230,6 @@ const AddTodo = ({
                 value={formData.dueDate}
                 onChange={(e) => handleInputChange('dueDate', e.target.value)}
                 className={errors.dueDate ? 'error' : ''}
-                style={{ width: 'auto', minWidth: '140px' }}
               />
               <div className="quick-date-buttons">
                 <button

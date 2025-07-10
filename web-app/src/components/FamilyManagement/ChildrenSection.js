@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, doc, updateDoc, addDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, addDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
-import EnhancedChildCard from '../Children/EnhancedChildCard';
 import EditChildModal from './EditChildModal';
 import { validateChildProfile } from '../../utils/validation';
 
@@ -34,11 +33,11 @@ const ChildrenSection = ({ familyData, familyId }) => {
         });
       });
 
-      // Sort by age (youngest first)
+      // Sort by age (oldest first)
       childrenData.sort((a, b) => {
         const dateA = a.dateOfBirth?.toDate ? a.dateOfBirth.toDate() : new Date(a.dateOfBirth);
         const dateB = b.dateOfBirth?.toDate ? b.dateOfBirth.toDate() : new Date(b.dateOfBirth);
-        return dateB - dateA; // Younger children first
+        return dateA - dateB; // Older children first
       });
 
       setChildren(childrenData);
@@ -119,23 +118,6 @@ const ChildrenSection = ({ familyData, familyId }) => {
     }
   };
 
-  const handleDeleteChild = async (childId) => {
-    if (!window.confirm('Are you sure you want to remove this child? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      // Soft delete - set isActive to false
-      const childRef = doc(db, 'children', childId);
-      await updateDoc(childRef, {
-        isActive: false,
-        updatedAt: new Date()
-      });
-    } catch (error) {
-      console.error('Error deleting child:', error);
-      alert('Failed to remove child. Please try again.');
-    }
-  };
 
   if (loading) {
     return (
@@ -157,35 +139,137 @@ const ChildrenSection = ({ familyData, familyId }) => {
         </div>
         
         {children.length > 0 ? (
-          <div style={styles.childrenGrid}>
+          <div style={styles.childrenContainer}>
             {children.map((child, index) => (
-              <div key={child.id} style={styles.childCardWrapper}>
-                <EnhancedChildCard 
-                  child={child}
-                  childIndex={index}
-                  onEditChild={() => handleEditChild(child)}
-                  userRole="parent"
-                />
-                <div style={styles.cardActions}>
-                  <button 
+              <div key={child.id} style={styles.childCard}>
+                <div style={styles.childCardHeader}>
+                  <div style={styles.childInfo}>
+                    {child.profilePicture ? (
+                      <img 
+                        src={child.profilePicture} 
+                        alt={child.name}
+                        style={styles.childImage}
+                      />
+                    ) : (
+                      <div style={styles.childInitials}>
+                        {child.name ? child.name.charAt(0).toUpperCase() : '?'}
+                      </div>
+                    )}
+                    <div style={styles.childDetails}>
+                      <h4 style={styles.childName}>{child.name || 'Unnamed'}</h4>
+                      <p style={styles.childAge}>
+                        {child.dateOfBirth ? (() => {
+                          const birthDate = child.dateOfBirth?.toDate ? child.dateOfBirth.toDate() : new Date(child.dateOfBirth);
+                          const today = new Date();
+                          const ageInYears = Math.floor((today - birthDate) / (365.25 * 24 * 60 * 60 * 1000));
+                          const ageInMonths = Math.floor((today - birthDate) / (30.44 * 24 * 60 * 60 * 1000));
+                          
+                          if (ageInYears >= 1) {
+                            return `${ageInYears} year${ageInYears === 1 ? '' : 's'} old`;
+                          } else {
+                            return `${ageInMonths} month${ageInMonths === 1 ? '' : 's'} old`;
+                          }
+                        })() : 'Age not set'}
+                      </p>
+                      {child.emergencyContact && (
+                        <p style={styles.childContact}>{child.emergencyContact}</p>
+                      )}
+                    </div>
+                  </div>
+                  <button
                     style={styles.editButton}
                     onClick={() => handleEditChild(child)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'var(--md-sys-color-primary)';
+                      e.currentTarget.style.color = 'var(--md-sys-color-on-primary)';
+                      e.currentTarget.style.boxShadow = 'var(--md-sys-elevation-level2)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'var(--md-sys-color-primary-container)';
+                      e.currentTarget.style.color = 'var(--md-sys-color-on-primary-container)';
+                      e.currentTarget.style.boxShadow = 'var(--md-sys-elevation-level1)';
+                    }}
                   >
                     Edit
                   </button>
-                  <button 
-                    style={styles.deleteButton}
-                    onClick={() => handleDeleteChild(child.id)}
-                  >
-                    Remove
-                  </button>
+                </div>
+                {/* Health Information */}
+                <div style={styles.healthInfo}>
+                  {(() => {
+                    const allergiesText = typeof child.allergies === 'string' 
+                      ? child.allergies.trim()
+                      : Array.isArray(child.allergies) 
+                        ? child.allergies.map(a => a.name || a).join(', ').trim()
+                        : '';
+                    
+                    return allergiesText && (
+                      <div style={styles.allergyAlert}>
+                        <span style={styles.alertIcon}>⚠️</span>
+                        <span style={styles.alertText}>
+                          Allergies: {allergiesText}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                  {child.medicalInfo && child.medicalInfo.trim() && (
+                    <div style={styles.medicinePill}>
+                      <span style={styles.pillIcon}>💊</span>
+                      <span style={styles.pillText}>{child.medicalInfo.trim()}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
+            {/* Add Child Card */}
+            <div style={styles.addChildCard}>
+              <div style={styles.addChildContent}>
+                <div style={styles.addChildIcon}>➕</div>
+                <h4 style={styles.addChildTitle}>Add Child</h4>
+                <p style={styles.addChildText}>Add another child to your family</p>
+              </div>
+              <button
+                style={styles.addChildButton}
+                onClick={handleAddChild}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--md-sys-color-primary)';
+                  e.currentTarget.style.color = 'var(--md-sys-color-on-primary)';
+                  e.currentTarget.style.boxShadow = 'var(--md-sys-elevation-level2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--md-sys-color-primary-container)';
+                  e.currentTarget.style.color = 'var(--md-sys-color-on-primary-container)';
+                  e.currentTarget.style.boxShadow = 'var(--md-sys-elevation-level1)';
+                }}
+              >
+                Add Child
+              </button>
+            </div>
           </div>
         ) : (
-          <div style={styles.emptyState}>
-            <p>No children added yet. Click "Add Child" to get started!</p>
+          <div style={styles.childrenContainer}>
+            <div style={styles.addChildCard}>
+              <div style={styles.addChildContent}>
+                <div style={styles.addChildIcon}>👶</div>
+                <h4 style={styles.addChildTitle}>No Children Yet</h4>
+                <p style={styles.addChildText}>Add your children to manage their schedules</p>
+              </div>
+              <button
+                style={styles.addChildButton}
+                onClick={handleAddChild}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--md-sys-color-primary)';
+                  e.currentTarget.style.color = 'var(--md-sys-color-on-primary)';
+                  e.currentTarget.style.boxShadow = 'var(--md-sys-elevation-level2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--md-sys-color-primary-container)';
+                  e.currentTarget.style.color = 'var(--md-sys-color-on-primary-container)';
+                  e.currentTarget.style.boxShadow = 'var(--md-sys-elevation-level1)';
+                }}
+              >
+                Add First Child
+              </button>
+            </div>
           </div>
         )}
       </section>
@@ -209,98 +293,269 @@ const ChildrenSection = ({ familyData, familyId }) => {
 
 const styles = {
   section: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    padding: '20px',
-    marginBottom: '20px',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+    backgroundColor: 'var(--md-sys-color-surface-container-low)',
+    borderRadius: 'var(--md-sys-shape-corner-large)',
+    padding: '24px',
+    marginBottom: '16px',
+    border: '1px solid var(--md-sys-color-outline-variant)',
+    position: 'relative'
   },
   sectionHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '20px',
-    borderBottom: '1px solid #F2F2F7',
+    borderBottom: '1px solid var(--md-sys-color-outline-variant)',
     paddingBottom: '12px'
   },
   sectionTitle: {
-    fontSize: '20px',
-    fontWeight: '600',
-    color: '#000',
-    margin: 0
+    fontSize: '16px',
+    fontWeight: '500',
+    color: 'var(--md-sys-color-on-surface)',
+    margin: 0,
+    fontFamily: 'var(--md-sys-typescale-title-medium-font-family-name)',
+    lineHeight: 'var(--md-sys-typescale-title-medium-line-height)',
+    letterSpacing: 'var(--md-sys-typescale-title-medium-letter-spacing)'
   },
   addButton: {
-    backgroundColor: '#007AFF',
-    color: 'white',
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)',
     border: 'none',
-    borderRadius: '8px',
-    padding: '8px 16px',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    padding: '10px 24px',
     fontSize: '14px',
     fontWeight: '500',
     cursor: 'pointer',
-    transition: 'background-color 0.2s ease'
+    fontFamily: 'var(--md-sys-typescale-label-large-font-family-name)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
   },
   loadingText: {
-    color: '#8E8E93',
+    color: 'var(--md-sys-color-on-surface-variant)',
     textAlign: 'center',
-    padding: '20px'
+    padding: '20px',
+    fontFamily: 'var(--md-sys-typescale-body-large-font-family-name)'
   },
-  childrenGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-    gap: '16px'
-  },
-  childCardWrapper: {
-    position: 'relative'
-  },
-  cardActions: {
+  childrenContainer: {
     display: 'flex',
-    gap: '8px',
+    gap: '12px',
+    overflowX: 'auto',
+    paddingBottom: '8px',
+    marginLeft: '-14px',
+    marginRight: '-24px',
+    paddingLeft: '24px',
+    paddingRight: '24px',
+    scrollbarWidth: 'thin',
+    scrollbarColor: 'var(--md-sys-color-outline-variant) transparent',
+    WebkitOverflowScrolling: 'touch',
+    scrollSnapType: 'x mandatory'
+  },
+  childCard: {
+    backgroundColor: 'var(--md-sys-color-surface)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    padding: '16px',
+    border: '1px solid var(--md-sys-color-outline)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    flex: '0 0 calc(70vw - 24px)',
+    maxWidth: '320px',
+    minHeight: '150px',
+    scrollSnapAlign: 'start',
+    position: 'relative',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between'
+  },
+  childCardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: '12px'
+  },
+  childInfo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    flex: 1,
+    minWidth: 0
+  },
+  childImage: {
+    width: '48px',
+    height: '48px',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    objectFit: 'cover',
+    flexShrink: 0
+  },
+  childInitials: {
+    width: '48px',
+    height: '48px',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    backgroundColor: 'var(--md-sys-color-tertiary)',
+    color: 'var(--md-sys-color-on-tertiary)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '20px',
+    fontWeight: '600',
+    fontFamily: 'var(--md-sys-typescale-title-medium-font-family-name)',
+    flexShrink: 0
+  },
+  childDetails: {
+    flex: 1,
+    minWidth: 0
+  },
+  childName: {
+    fontSize: '16px',
+    fontWeight: '500',
+    color: 'var(--md-sys-color-on-surface)',
+    margin: '0 0 4px 0',
+    fontFamily: 'var(--md-sys-typescale-body-large-font-family-name)',
+    lineHeight: 'var(--md-sys-typescale-body-large-line-height)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
+  },
+  childAge: {
+    fontSize: '14px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    margin: '0',
+    fontFamily: 'var(--md-sys-typescale-body-small-font-family-name)'
+  },
+  childContact: {
+    fontSize: '13px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    margin: '2px 0 0 0',
+    fontFamily: 'var(--md-sys-typescale-body-small-font-family-name)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
+  },
+  healthInfo: {
     marginTop: '8px',
-    justifyContent: 'flex-end'
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px'
+  },
+  allergyAlert: {
+    padding: '6px 8px',
+    backgroundColor: 'var(--md-sys-color-error-container)',
+    borderRadius: 'var(--md-sys-shape-corner-extra-small)',
+    fontSize: '11px',
+    color: 'var(--md-sys-color-on-error-container)',
+    fontFamily: 'var(--md-sys-typescale-body-small-font-family-name)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    lineHeight: '1.3',
+    border: '1px solid var(--md-sys-color-error)'
+  },
+  medicinePill: {
+    padding: '4px 8px',
+    backgroundColor: 'var(--md-sys-color-tertiary-container)',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    fontSize: '11px',
+    color: 'var(--md-sys-color-on-tertiary-container)',
+    fontFamily: 'var(--md-sys-typescale-body-small-font-family-name)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    lineHeight: '1.3',
+    border: '1px solid var(--md-sys-color-tertiary)',
+    alignSelf: 'flex-start'
+  },
+  alertIcon: {
+    fontSize: '12px',
+    flexShrink: 0
+  },
+  alertText: {
+    lineHeight: '1.3',
+    wordBreak: 'break-word'
+  },
+  pillIcon: {
+    fontSize: '12px',
+    flexShrink: 0
+  },
+  pillText: {
+    lineHeight: '1.3',
+    wordBreak: 'break-word'
+  },
+  noteIcon: {
+    fontSize: '14px'
   },
   editButton: {
-    backgroundColor: '#F2F2F7',
-    color: '#007AFF',
-    border: 'none',
-    borderRadius: '6px',
-    padding: '6px 12px',
-    fontSize: '13px',
-    fontWeight: '500',
-    cursor: 'pointer'
+    backgroundColor: 'var(--md-sys-color-primary-container)',
+    border: '1px solid var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary-container)',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    padding: '8px 16px',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    fontFamily: 'var(--md-sys-typescale-label-large-font-family-name)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    boxShadow: 'var(--md-sys-elevation-level1)',
+    flexShrink: 0
   },
-  deleteButton: {
-    backgroundColor: '#FFF2F2',
-    color: '#FF3B30',
-    border: 'none',
-    borderRadius: '6px',
-    padding: '6px 12px',
-    fontSize: '13px',
+  addChildCard: {
+    backgroundColor: 'var(--md-sys-color-surface-container)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    padding: '16px',
+    border: '2px dashed var(--md-sys-color-outline)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    flex: '0 0 calc(70vw - 24px)',
+    maxWidth: '320px',
+    minHeight: '150px',
+    scrollSnapAlign: 'start',
+    position: 'relative',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between'
+  },
+  addChildContent: {
+    textAlign: 'center',
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  addChildIcon: {
+    fontSize: '32px',
+    marginBottom: '8px'
+  },
+  addChildTitle: {
+    fontSize: '16px',
     fontWeight: '500',
-    cursor: 'pointer'
+    color: 'var(--md-sys-color-on-surface)',
+    margin: '0 0 4px 0',
+    fontFamily: 'var(--md-sys-typescale-body-large-font-family-name)'
+  },
+  addChildText: {
+    fontSize: '14px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    margin: '0',
+    fontFamily: 'var(--md-sys-typescale-body-small-font-family-name)'
+  },
+  addChildButton: {
+    backgroundColor: 'var(--md-sys-color-primary-container)',
+    border: '1px solid var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary-container)',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    padding: '8px 16px',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    fontFamily: 'var(--md-sys-typescale-label-large-font-family-name)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    boxShadow: 'var(--md-sys-elevation-level1)',
+    width: '100%',
+    marginTop: '12px'
   },
   emptyState: {
     textAlign: 'center',
     padding: '40px 20px',
-    color: '#8E8E93'
+    color: 'var(--md-sys-color-on-surface-variant)',
+    fontFamily: 'var(--md-sys-typescale-body-large-font-family-name)'
   }
 };
-
-// Add hover effects
-const styleSheet = document.createElement('style');
-styleSheet.textContent = `
-  .add-child-button:hover {
-    background-color: #0056D6 !important;
-  }
-  
-  .edit-child-button:hover {
-    background-color: #E5E5EA !important;
-  }
-  
-  .delete-child-button:hover {
-    background-color: #FFE5E5 !important;
-  }
-`;
-document.head.appendChild(styleSheet);
 
 export default ChildrenSection;

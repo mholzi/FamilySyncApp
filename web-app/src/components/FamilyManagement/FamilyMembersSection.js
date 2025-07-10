@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 
 const FamilyMembersSection = ({ familyData, currentUserId }) => {
@@ -48,21 +48,28 @@ const FamilyMembersSection = ({ familyData, currentUserId }) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  const formatRole = (role) => {
-    if (role === 'parent') return 'Host Parent';
-    if (role === 'au_pair') return 'Au Pair';
-    return role;
+  const handleDeleteMember = async (member) => {
+    const memberType = member.role === 'parent' ? 'parent' : 'au pair';
+    const confirmMessage = member.id === currentUserId 
+      ? `Are you sure you want to remove yourself as a ${memberType}? This will remove you from the family.`
+      : `Are you sure you want to remove ${member.name || member.email} from the family?`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      const memberRef = doc(db, 'users', member.id);
+      await updateDoc(memberRef, {
+        familyId: null,
+        updatedAt: new Date()
+      });
+    } catch (error) {
+      console.error('Error removing family member:', error);
+      alert('Failed to remove family member. Please try again.');
+    }
   };
 
-  const formatDate = (date) => {
-    if (!date) return 'Unknown';
-    const dateObj = date.toDate ? date.toDate() : new Date(date);
-    return dateObj.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric' 
-    });
-  };
 
   if (loading) {
     return (
@@ -74,194 +81,454 @@ const FamilyMembersSection = ({ familyData, currentUserId }) => {
   }
 
   const parents = familyMembers.filter(m => m.role === 'parent');
-  const auPairs = familyMembers.filter(m => m.role === 'au_pair');
+  const auPairs = familyMembers.filter(m => m.role === 'au_pair' || m.role === 'aupair');
 
   return (
-    <section style={styles.section}>
-      <h2 style={styles.sectionTitle}>Current Family Members</h2>
-      
-      {/* Parents */}
-      {parents.length > 0 && (
-        <div style={styles.roleGroup}>
-          <h3 style={styles.roleTitle}>Parents</h3>
-          <div style={styles.memberGrid}>
-            {parents.map((member) => (
-              <div key={member.id} style={styles.memberCard}>
-                <div style={styles.memberHeader}>
-                  {member.profilePictureUrl ? (
-                    <img 
-                      src={member.profilePictureUrl} 
-                      alt={member.name}
-                      style={styles.profileImage}
-                    />
-                  ) : (
-                    <div style={styles.profileInitials}>
-                      {getUserInitials(member.name)}
-                    </div>
-                  )}
-                  {member.id === currentUserId && (
-                    <span style={styles.youBadge}>You</span>
-                  )}
-                </div>
-                <h4 style={styles.memberName}>{member.name || 'Unnamed'}</h4>
-                <p style={styles.memberEmail}>{member.email}</p>
-                <p style={styles.memberSince}>
-                  Member since {formatDate(member.createdAt)}
-                </p>
-              </div>
-            ))}
-          </div>
+    <>
+      {/* Parents Section */}
+      <section style={styles.section}>
+        <div style={styles.sectionHeader}>
+          <h2 style={styles.sectionTitle}>Parents</h2>
         </div>
-      )}
+        <div style={styles.membersContainer}>
+          {parents.length > 0 ? (
+            <>
+              {parents.map((member) => (
+              <div key={member.id} style={styles.memberCard}>
+                <div style={styles.cardContent}>
+                  <div style={styles.cardLeft}>
+                    {member.profilePictureUrl ? (
+                      <img 
+                        src={member.profilePictureUrl} 
+                        alt={member.name}
+                        style={styles.profileImage}
+                      />
+                    ) : (
+                      <div style={styles.profileInitials}>
+                        {getUserInitials(member.name)}
+                      </div>
+                    )}
+                    <div style={styles.memberInfo}>
+                      <h4 style={styles.memberName}>{member.name || 'Unnamed'}</h4>
+                      <p style={styles.memberEmail}>{member.email}</p>
+                      {member.phone && (
+                        <p style={styles.memberPhone}>{member.phone}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {member.id !== currentUserId && (
+                  <div style={styles.cardActions}>
+                    <button
+                      style={styles.deleteButton}
+                      onClick={() => handleDeleteMember(member)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--md-sys-color-error)';
+                        e.currentTarget.style.color = 'var(--md-sys-color-on-error)';
+                        e.currentTarget.style.boxShadow = 'var(--md-sys-elevation-level2)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--md-sys-color-error-container)';
+                        e.currentTarget.style.color = 'var(--md-sys-color-on-error-container)';
+                        e.currentTarget.style.boxShadow = 'var(--md-sys-elevation-level1)';
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+                {member.id === currentUserId && (
+                  <span style={styles.youBadge}>You</span>
+                )}
+              </div>
+              ))}
+              {/* Add Parent Invite Card */}
+              <div style={styles.inviteCard}>
+                <div style={styles.inviteContent}>
+                  <div style={styles.inviteIcon}>➕</div>
+                  <h4 style={styles.inviteTitle}>Invite Parent</h4>
+                  <p style={styles.inviteText}>Add another parent to manage the family</p>
+                </div>
+                <button
+                  style={styles.inviteButton}
+                  onClick={() => console.log('Invite parent')}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--md-sys-color-primary)';
+                    e.currentTarget.style.color = 'var(--md-sys-color-on-primary)';
+                    e.currentTarget.style.boxShadow = 'var(--md-sys-elevation-level2)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--md-sys-color-primary-container)';
+                    e.currentTarget.style.color = 'var(--md-sys-color-on-primary-container)';
+                    e.currentTarget.style.boxShadow = 'var(--md-sys-elevation-level1)';
+                  }}
+                >
+                  Send Invite
+                </button>
+              </div>
+            </>
+          ) : (
+            <div style={styles.inviteCard}>
+              <div style={styles.inviteContent}>
+                <div style={styles.inviteIcon}>👨‍👩‍👧</div>
+                <h4 style={styles.inviteTitle}>No Parents Yet</h4>
+                <p style={styles.inviteText}>Start by adding yourself as a parent</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
 
-      {/* Au Pairs */}
-      {auPairs.length > 0 && (
-        <div style={styles.roleGroup}>
-          <h3 style={styles.roleTitle}>Au Pairs</h3>
-          <div style={styles.memberGrid}>
-            {auPairs.map((member) => (
-              <div key={member.id} style={styles.memberCard}>
-                <div style={styles.memberHeader}>
-                  {member.profilePictureUrl ? (
-                    <img 
-                      src={member.profilePictureUrl} 
-                      alt={member.name}
-                      style={styles.profileImage}
-                    />
-                  ) : (
-                    <div style={styles.profileInitials}>
-                      {getUserInitials(member.name)}
-                    </div>
-                  )}
-                </div>
-                <h4 style={styles.memberName}>{member.name || 'Unnamed'}</h4>
-                <p style={styles.memberEmail}>{member.email}</p>
-                <p style={styles.memberSince}>
-                  Started {formatDate(member.startDate || member.createdAt)}
-                </p>
-              </div>
-            ))}
-          </div>
+      {/* Au Pairs Section */}
+      <section style={styles.section}>
+        <div style={styles.sectionHeader}>
+          <h2 style={styles.sectionTitle}>Au Pairs</h2>
         </div>
-      )}
+        <div style={styles.membersContainer}>
+          {auPairs.length > 0 ? (
+            <>
+              {auPairs.map((member) => (
+              <div key={member.id} style={styles.memberCard}>
+                <div style={styles.cardContent}>
+                  <div style={styles.cardLeft}>
+                    {member.profilePictureUrl ? (
+                      <img 
+                        src={member.profilePictureUrl} 
+                        alt={member.name}
+                        style={styles.profileImage}
+                      />
+                    ) : (
+                      <div style={styles.profileInitials}>
+                        {getUserInitials(member.name)}
+                      </div>
+                    )}
+                    <div style={styles.memberInfo}>
+                      <h4 style={styles.memberName}>{member.name || 'Unnamed'}</h4>
+                      <p style={styles.memberEmail}>{member.email}</p>
+                      {member.phone && (
+                        <p style={styles.memberPhone}>{member.phone}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {member.id !== currentUserId && (
+                  <div style={styles.cardActions}>
+                    <button
+                      style={styles.deleteButton}
+                      onClick={() => handleDeleteMember(member)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--md-sys-color-error)';
+                        e.currentTarget.style.color = 'var(--md-sys-color-on-error)';
+                        e.currentTarget.style.boxShadow = 'var(--md-sys-elevation-level2)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--md-sys-color-error-container)';
+                        e.currentTarget.style.color = 'var(--md-sys-color-on-error-container)';
+                        e.currentTarget.style.boxShadow = 'var(--md-sys-elevation-level1)';
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+              ))}
+              {/* Add Au Pair Invite Card */}
+              <div style={styles.inviteCard}>
+                <div style={styles.inviteContent}>
+                  <div style={styles.inviteIcon}>➕</div>
+                  <h4 style={styles.inviteTitle}>Invite Au Pair</h4>
+                  <p style={styles.inviteText}>Connect with your au pair</p>
+                </div>
+                <button
+                  style={styles.inviteButton}
+                  onClick={() => console.log('Invite au pair')}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--md-sys-color-primary)';
+                    e.currentTarget.style.color = 'var(--md-sys-color-on-primary)';
+                    e.currentTarget.style.boxShadow = 'var(--md-sys-elevation-level2)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--md-sys-color-primary-container)';
+                    e.currentTarget.style.color = 'var(--md-sys-color-on-primary-container)';
+                    e.currentTarget.style.boxShadow = 'var(--md-sys-elevation-level1)';
+                  }}
+                >
+                  Send Invite
+                </button>
+              </div>
+            </>
+          ) : (
+            <div style={styles.inviteCard}>
+              <div style={styles.inviteContent}>
+                <div style={styles.inviteIcon}>👤</div>
+                <h4 style={styles.inviteTitle}>No Au Pair Yet</h4>
+                <p style={styles.inviteText}>Invite your au pair to join the family</p>
+              </div>
+              <button
+                style={styles.inviteButton}
+                onClick={() => console.log('Invite au pair')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--md-sys-color-primary)';
+                  e.currentTarget.style.color = 'var(--md-sys-color-on-primary)';
+                  e.currentTarget.style.boxShadow = 'var(--md-sys-elevation-level2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--md-sys-color-primary-container)';
+                  e.currentTarget.style.color = 'var(--md-sys-color-on-primary-container)';
+                  e.currentTarget.style.boxShadow = 'var(--md-sys-elevation-level1)';
+                }}
+              >
+                Send Invite
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
 
       {familyMembers.length === 0 && (
-        <div style={styles.emptyState}>
-          <p>No family members found. Start by inviting family members!</p>
-        </div>
+        <section style={styles.section}>
+          <div style={styles.emptyState}>
+            <p>No family members found. Start by inviting family members!</p>
+          </div>
+        </section>
       )}
-    </section>
+    </>
   );
 };
 
 const styles = {
   section: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    padding: '20px',
-    marginBottom: '20px',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-  },
-  sectionTitle: {
-    fontSize: '20px',
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: '20px',
-    borderBottom: '1px solid #F2F2F7',
-    paddingBottom: '12px'
-  },
-  loadingText: {
-    color: '#8E8E93',
-    textAlign: 'center',
-    padding: '20px'
-  },
-  roleGroup: {
-    marginBottom: '24px'
-  },
-  roleTitle: {
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#666',
-    marginBottom: '12px'
-  },
-  memberGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-    gap: '16px'
-  },
-  memberCard: {
-    backgroundColor: '#F9F9F9',
-    borderRadius: '10px',
-    padding: '16px',
-    border: '1px solid #E5E5EA',
-    transition: 'all 0.2s ease'
-  },
-  memberHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    marginBottom: '12px',
+    backgroundColor: 'var(--md-sys-color-surface-container-low)',
+    borderRadius: 'var(--md-sys-shape-corner-large)',
+    padding: '24px',
+    marginBottom: '16px',
+    border: '1px solid var(--md-sys-color-outline-variant)',
     position: 'relative'
   },
+  sectionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '20px',
+    borderBottom: '1px solid var(--md-sys-color-outline-variant)',
+    paddingBottom: '12px'
+  },
+  sectionTitle: {
+    fontSize: '16px',
+    fontWeight: '500',
+    color: 'var(--md-sys-color-on-surface)',
+    margin: 0,
+    fontFamily: 'var(--md-sys-typescale-title-medium-font-family-name)',
+    lineHeight: 'var(--md-sys-typescale-title-medium-line-height)',
+    letterSpacing: 'var(--md-sys-typescale-title-medium-letter-spacing)'
+  },
+  loadingText: {
+    color: 'var(--md-sys-color-on-surface-variant)',
+    textAlign: 'center',
+    padding: '20px',
+    fontFamily: 'var(--md-sys-typescale-body-large-font-family-name)'
+  },
+  membersContainer: {
+    display: 'flex',
+    gap: '12px',
+    overflowX: 'auto',
+    paddingBottom: '8px',
+    marginLeft: '-14px',
+    marginRight: '-24px',
+    paddingLeft: '24px',
+    paddingRight: '24px',
+    scrollbarWidth: 'thin',
+    scrollbarColor: 'var(--md-sys-color-outline-variant) transparent',
+    WebkitOverflowScrolling: 'touch',
+    scrollSnapType: 'x mandatory'
+  },
+  memberCard: {
+    backgroundColor: 'var(--md-sys-color-surface)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    padding: '16px',
+    border: '1px solid var(--md-sys-color-outline)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    flex: '0 0 calc(70vw - 24px)',
+    maxWidth: '320px',
+    minHeight: '150px',
+    scrollSnapAlign: 'start',
+    position: 'relative',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between'
+  },
+  cardContent: {
+    flex: 1
+  },
+  cardActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    marginTop: '12px'
+  },
+  cardLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    flex: 1,
+    minWidth: 0
+  },
+  memberInfo: {
+    flex: 1,
+    minWidth: 0
+  },
   profileImage: {
-    width: '60px',
-    height: '60px',
-    borderRadius: '30px',
-    objectFit: 'cover'
+    width: '48px',
+    height: '48px',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    objectFit: 'cover',
+    flexShrink: 0
   },
   profileInitials: {
-    width: '60px',
-    height: '60px',
-    borderRadius: '30px',
-    backgroundColor: '#007AFF',
-    color: 'white',
+    width: '48px',
+    height: '48px',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '20px',
-    fontWeight: '600'
+    fontSize: '18px',
+    fontWeight: '600',
+    fontFamily: 'var(--md-sys-typescale-title-medium-font-family-name)',
+    flexShrink: 0
   },
   youBadge: {
     position: 'absolute',
-    top: '0',
-    right: '0',
-    backgroundColor: '#34C759',
-    color: 'white',
+    top: '8px',
+    right: '8px',
+    backgroundColor: 'var(--md-sys-color-tertiary-container)',
+    color: 'var(--md-sys-color-on-tertiary-container)',
     fontSize: '11px',
     fontWeight: '600',
     padding: '2px 8px',
-    borderRadius: '10px'
+    borderRadius: 'var(--md-sys-shape-corner-extra-small)',
+    fontFamily: 'var(--md-sys-typescale-label-small-font-family-name)'
   },
   memberName: {
-    fontSize: '18px',
-    fontWeight: '600',
-    color: '#000',
-    margin: '0 0 4px 0'
+    fontSize: '16px',
+    fontWeight: '500',
+    color: 'var(--md-sys-color-on-surface)',
+    margin: '0 0 4px 0',
+    fontFamily: 'var(--md-sys-typescale-body-large-font-family-name)',
+    lineHeight: 'var(--md-sys-typescale-body-large-line-height)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
   },
   memberEmail: {
     fontSize: '14px',
-    color: '#666',
-    margin: '0 0 8px 0'
+    color: 'var(--md-sys-color-on-surface-variant)',
+    margin: '0',
+    fontFamily: 'var(--md-sys-typescale-body-small-font-family-name)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
   },
-  memberSince: {
+  memberPhone: {
     fontSize: '13px',
-    color: '#8E8E93',
-    margin: '0'
+    color: 'var(--md-sys-color-on-surface-variant)',
+    margin: '2px 0 0 0',
+    fontFamily: 'var(--md-sys-typescale-body-small-font-family-name)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
+  },
+  deleteButton: {
+    backgroundColor: 'var(--md-sys-color-error-container)',
+    border: '1px solid var(--md-sys-color-error)',
+    color: 'var(--md-sys-color-on-error-container)',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    padding: '8px 16px',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    fontFamily: 'var(--md-sys-typescale-label-large-font-family-name)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    boxShadow: 'var(--md-sys-elevation-level1)',
+    width: '100%'
+  },
+  editButton: {
+    backgroundColor: 'var(--md-sys-color-primary-container)',
+    border: '1px solid var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary-container)',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    padding: '8px 16px',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    fontFamily: 'var(--md-sys-typescale-label-large-font-family-name)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    boxShadow: 'var(--md-sys-elevation-level1)',
+    flexShrink: 0
   },
   emptyState: {
     textAlign: 'center',
     padding: '40px 20px',
-    color: '#8E8E93'
+    color: 'var(--md-sys-color-on-surface-variant)',
+    fontFamily: 'var(--md-sys-typescale-body-large-font-family-name)'
+  },
+  inviteCard: {
+    backgroundColor: 'var(--md-sys-color-surface-container)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    padding: '16px',
+    border: '2px dashed var(--md-sys-color-outline)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    flex: '0 0 calc(70vw - 24px)',
+    maxWidth: '320px',
+    minHeight: '150px',
+    scrollSnapAlign: 'start',
+    position: 'relative',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between'
+  },
+  inviteContent: {
+    textAlign: 'center',
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  inviteIcon: {
+    fontSize: '32px',
+    marginBottom: '8px'
+  },
+  inviteTitle: {
+    fontSize: '16px',
+    fontWeight: '500',
+    color: 'var(--md-sys-color-on-surface)',
+    margin: '0 0 4px 0',
+    fontFamily: 'var(--md-sys-typescale-body-large-font-family-name)'
+  },
+  inviteText: {
+    fontSize: '14px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    margin: '0',
+    fontFamily: 'var(--md-sys-typescale-body-small-font-family-name)'
+  },
+  inviteButton: {
+    backgroundColor: 'var(--md-sys-color-primary-container)',
+    border: '1px solid var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary-container)',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    padding: '8px 16px',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    fontFamily: 'var(--md-sys-typescale-label-large-font-family-name)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    boxShadow: 'var(--md-sys-elevation-level1)',
+    width: '100%',
+    marginTop: '12px'
   }
 };
-
-// Add hover effect
-const styleSheet = document.createElement('style');
-styleSheet.textContent = `
-  .member-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
-  }
-`;
-document.head.appendChild(styleSheet);
 
 export default FamilyMembersSection;

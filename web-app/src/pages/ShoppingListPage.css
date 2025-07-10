@@ -43,6 +43,33 @@
   margin-bottom: 16px;
 }
 
+/* Scrollbar styles for pending cards container */
+.pending-cards-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.pending-cards-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pending-cards-container::-webkit-scrollbar-thumb {
+  background: var(--md-sys-color-outline-variant);
+  border-radius: 3px;
+}
+
+.pending-cards-container::-webkit-scrollbar-thumb:hover {
+  background: var(--md-sys-color-outline);
+}
+
+@media (max-width: 768px) {
+  .pending-cards-container {
+    scroll-padding-left: 16px;
+  }
+  .pending-cards-container::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 .payment-tracking-section {
   margin-bottom: 24px;
 }
@@ -58,28 +85,30 @@
   margin-top: 0;
 }
 
-.payment-tracking-grid {
-  display: grid !important;
-  grid-template-columns: repeat(2, 1fr) !important;
-  gap: 16px;
-  width: 100%;
+/* Payment tracking container - now uses horizontal scrolling */
+.payment-tracking-container::-webkit-scrollbar {
+  height: 6px;
 }
 
-.payment-tracking-grid > * {
-  grid-column: span 1;
-  min-width: 0;
+.payment-tracking-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.payment-tracking-container::-webkit-scrollbar-thumb {
+  background: var(--md-sys-color-outline-variant);
+  border-radius: 3px;
+}
+
+.payment-tracking-container::-webkit-scrollbar-thumb:hover {
+  background: var(--md-sys-color-outline);
 }
 
 @media (max-width: 768px) {
-  .payment-tracking-grid {
-    gap: 12px; /* Smaller gap on mobile for better fit */
+  .payment-tracking-container {
+    scroll-padding-left: 16px;
   }
-}
-
-@media (max-width: 480px) {
-  .payment-tracking-grid {
-    grid-template-columns: 1fr !important;
-    gap: 8px;
+  .payment-tracking-container::-webkit-scrollbar {
+    display: none;
   }
 }
 

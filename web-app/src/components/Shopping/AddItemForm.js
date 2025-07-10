@@ -1,10 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { searchFamilyItems } from '../../utils/familyItemsUtils';
+import { searchFamilyItems, createOrUpdateFamilyItem } from '../../utils/familyItemsUtils';
+import { uploadProductPhoto, validateImageFile } from '../../utils/shoppingPhotoUpload';
+import { blurOverlayStyle } from '../../styles/modalStyles';
 
-const AddItemForm = ({ familyItems, onAddItem, onCancel, onShowDetails }) => {
+const AddItemForm = ({ familyItems, onAddItem, onCancel, onShowDetails, familyId, currentUser, userRole }) => {
   const [itemName, setItemName] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [photoFile, setPhotoFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
 
   useEffect(() => {
     if (itemName.trim().length > 1) {
@@ -22,9 +29,65 @@ const AddItemForm = ({ familyItems, onAddItem, onCancel, onShowDetails }) => {
     }
   }, [itemName, familyItems]);
 
-  const handleSubmit = (e) => {
+  // Load existing item details when cog is clicked
+  useEffect(() => {
+    if (showDetails && itemName.trim()) {
+      const key = itemName.toLowerCase().replace(/\s+/g, '_');
+      const existingItem = familyItems[key];
+      if (existingItem) {
+        setNotes(existingItem.guidanceNotes || '');
+      }
+    }
+  }, [showDetails, itemName, familyItems]);
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      try {
+        validateImageFile(file);
+        setPhotoFile(file);
+        setUploadProgress('');
+      } catch (error) {
+        alert(error.message);
+        e.target.value = '';
+      }
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!itemName.trim()) return;
+    
+    // If details are shown and there are details to save, save them first
+    if (showDetails && (photoFile || notes.trim()) && familyId && userRole === 'parent') {
+      setUploading(true);
+      try {
+        let finalPhotoUrl = null;
+
+        // Upload new photo if one was selected
+        if (photoFile) {
+          setUploadProgress('Uploading photo...');
+          const itemKey = itemName.toLowerCase().replace(/\s+/g, '_');
+          const photoData = await uploadProductPhoto(photoFile, familyId, itemKey);
+          finalPhotoUrl = photoData.url;
+        }
+
+        const itemData = {
+          name: itemName.trim(),
+          referencePhotoUrl: finalPhotoUrl,
+          guidanceNotes: notes.trim()
+        };
+        
+        setUploadProgress('Saving details...');
+        await createOrUpdateFamilyItem(familyId, itemName.trim(), itemData, currentUser.uid);
+        setUploadProgress('Complete!');
+      } catch (error) {
+        console.error('Error saving item details:', error);
+        alert(`Failed to save details: ${error.message}`);
+        setUploading(false);
+        return;
+      }
+    }
     
     onAddItem(itemName.trim());
   };
@@ -62,26 +125,16 @@ const AddItemForm = ({ familyItems, onAddItem, onCancel, onShowDetails }) => {
                 autoFocus
               />
               
-              {existingItem && (
-                <button
-                  type="button"
-                  style={styles.settingsBtn}
-                  onClick={() => onShowDetails(itemName)}
-                  title="Edit item details"
-                >
-                  ⚙️
-                </button>
-              )}
-              
-              {!existingItem && itemName.trim() && (
+              {itemName.trim() && userRole === 'parent' && (
                 <button
                   type="button"
                   style={{
                     ...styles.settingsBtn,
-                    ...styles.settingsBtnGray
+                    ...(existingItem ? {} : styles.settingsBtnGray),
+                    ...(showDetails ? styles.settingsBtnActive : {})
                   }}
-                  onClick={() => onShowDetails(itemName)}
-                  title="Add item details"
+                  onClick={() => setShowDetails(!showDetails)}
+                  title={existingItem ? "Edit item details" : "Add item details"}
                 >
                   ⚙️
                 </button>
@@ -98,10 +151,76 @@ const AddItemForm = ({ familyItems, onAddItem, onCancel, onShowDetails }) => {
                     onClick={() => handleSuggestionClick([key, item])}
                   >
                     {item.name}
-                    {item.referencePhotoUrl && ' 📸'}
-                    {item.guidanceNotes && ' 💡'}
+                    {item.referencePhotoUrl && ' (has photo)'}
+                    {item.guidanceNotes && ' (has notes)'}
                   </button>
                 ))}
+              </div>
+            )}
+
+            {showDetails && userRole === 'parent' && (
+              <div style={styles.detailsSection}>
+                <div style={styles.detailsHeader}>
+                  <h4 style={styles.detailsTitle}>Item Details</h4>
+                </div>
+                
+                <div style={styles.formField}>
+                  <label style={styles.label}>Product Photo</label>
+                  
+                  <div style={styles.photoOptions}>
+                    <label htmlFor="photo-upload" style={styles.photoUploadBtn}>
+                      📸 Upload Photo
+                    </label>
+                    <input
+                      id="photo-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoChange}
+                      style={{ display: 'none' }}
+                      disabled={uploading}
+                    />
+                  </div>
+                  
+                  {photoFile && (
+                    <div style={styles.photoInfo}>
+                      New photo selected: {photoFile.name}
+                      <div style={styles.photoSize}>
+                        {(photoFile.size / 1024 / 1024).toFixed(2)} MB
+                      </div>
+                    </div>
+                  )}
+                  
+                  {uploadProgress && (
+                    <div style={styles.uploadProgress}>
+                      {uploadProgress}
+                    </div>
+                  )}
+                  
+                  {photoFile && (
+                    <div style={styles.photoPreview}>
+                      <img 
+                        src={URL.createObjectURL(photoFile)} 
+                        alt={itemName} 
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }} 
+                        style={styles.previewImage}
+                      />
+                    </div>
+                  )}
+                </div>
+                
+                <div style={styles.formField}>
+                  <label style={styles.label}>Notes & Instructions</label>
+                  <textarea
+                    placeholder="Look for ORGANIC label. If not available: regular is fine. Ask store staff for help."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    rows={3}
+                    style={styles.textarea}
+                    disabled={uploading}
+                  />
+                </div>
               </div>
             )}
           </form>
@@ -135,17 +254,7 @@ const AddItemForm = ({ familyItems, onAddItem, onCancel, onShowDetails }) => {
 // Material Design 3 styles matching EditEventModal template
 const styles = {
   overlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    backdropFilter: 'blur(8px)',
-    WebkitBackdropFilter: 'blur(8px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    ...blurOverlayStyle,
     zIndex: 10000,
     padding: '16px'
   },
@@ -221,6 +330,96 @@ const styles = {
   },
   settingsBtnGray: {
     opacity: 0.5
+  },
+  settingsBtnActive: {
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)',
+    borderColor: 'var(--md-sys-color-primary)'
+  },
+  detailsSection: {
+    marginTop: '16px',
+    padding: '16px',
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    border: '1px solid var(--md-sys-color-outline-variant)'
+  },
+  detailsHeader: {
+    marginBottom: '16px'
+  },
+  detailsTitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: 'var(--md-sys-color-on-surface)',
+    margin: 0
+  },
+  formField: {
+    marginBottom: '16px'
+  },
+  label: {
+    display: 'block',
+    fontSize: '14px',
+    fontWeight: '500',
+    color: 'var(--md-sys-color-on-surface)',
+    marginBottom: '8px'
+  },
+  photoOptions: {
+    marginBottom: '12px'
+  },
+  photoUploadBtn: {
+    padding: '12px 20px',
+    backgroundColor: 'var(--md-sys-color-surface-container)',
+    border: '1px solid var(--md-sys-color-outline)',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    color: 'var(--md-sys-color-on-surface)',
+    display: 'inline-block',
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
+  },
+  photoInfo: {
+    padding: '8px 12px',
+    backgroundColor: 'var(--md-sys-color-tertiary-container)',
+    color: 'var(--md-sys-color-on-tertiary-container)',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    fontSize: '14px',
+    marginBottom: '8px'
+  },
+  photoSize: {
+    fontSize: '12px',
+    opacity: 0.8,
+    marginTop: '4px'
+  },
+  uploadProgress: {
+    padding: '8px 12px',
+    backgroundColor: 'var(--md-sys-color-primary-container)',
+    color: 'var(--md-sys-color-on-primary-container)',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    fontSize: '14px',
+    marginBottom: '8px',
+    textAlign: 'center'
+  },
+  photoPreview: {
+    marginTop: '12px',
+    textAlign: 'center'
+  },
+  previewImage: {
+    maxWidth: '200px',
+    maxHeight: '200px',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    boxShadow: 'var(--md-sys-elevation-level2)'
+  },
+  textarea: {
+    width: '100%',
+    padding: '12px',
+    border: '1px solid var(--md-sys-color-outline-variant)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    fontSize: '14px',
+    resize: 'vertical',
+    minHeight: '80px',
+    backgroundColor: 'var(--md-sys-color-surface)',
+    color: 'var(--md-sys-color-on-surface)',
+    fontFamily: 'inherit'
   },
   suggestions: {
     marginBottom: '16px',

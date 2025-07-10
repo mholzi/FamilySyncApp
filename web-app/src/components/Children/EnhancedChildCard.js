@@ -34,7 +34,8 @@ const EnhancedChildCard = ({
   childIndex = 0, // Fallback index if no child ID
   onEditChild,
   userRole = 'parent',
-  recurringActivities = [] // Add recurring activities prop
+  recurringActivities = [], // Add recurring activities prop
+  calendarEvents = [] // Add calendar events prop
 }) => {
   const [imageError, setImageError] = useState(false);
   const [isSleeping, setIsSleeping] = useState(false);
@@ -234,6 +235,37 @@ const EnhancedChildCard = ({
     // Get school events and merge with routine events
     const schoolEvents = getSchoolEvents();
     
+    // Get calendar events for this child
+    const calendarActivityEvents = [];
+    const tomorrow = new Date(now.getTime() + 86400000);
+    
+    calendarEvents.forEach(event => {
+      // Check if this event includes the current child
+      if (event.attendees && event.attendees.includes(child.id)) {
+        const eventDate = event.startTime;
+        const isToday = eventDate && eventDate.toDateString() === now.toDateString();
+        const isTomorrow = eventDate && eventDate.toDateString() === tomorrow.toDateString();
+        
+        // Add today's and tomorrow's events
+        if ((isToday || isTomorrow) && eventDate) {
+          const eventTime = eventDate.toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: false 
+          });
+          
+          calendarActivityEvents.push({
+            name: event.title,
+            time: eventTime,
+            minutes: eventDate.getHours() * 60 + eventDate.getMinutes(),
+            isActivity: true,
+            isTomorrow: isTomorrow,
+            location: event.location
+          });
+        }
+      }
+    });
+    
     // Get recurring activities for this child
     const activityEvents = [];
     recurringActivities.forEach(activity => {
@@ -266,7 +298,7 @@ const EnhancedChildCard = ({
       }
     });
     
-    const allEvents = [...routineEvents, ...schoolEvents, ...activityEvents];
+    const allEvents = [...routineEvents, ...schoolEvents, ...calendarActivityEvents, ...activityEvents];
     
     // Sort by time and filter to show only upcoming events
     let upcomingEvents = allEvents
@@ -501,15 +533,21 @@ const EnhancedChildCard = ({
                     )}
                   </div>
                 </div>
-                {routine.isActivity && routine.transportation && (
+                {routine.isActivity && (routine.transportation || routine.location) && (
                   <div style={styles.transportationInfo}>
-                    {routine.transportation.dropoff === 'au_pair' && '🚗 Drop-off: Au Pair'}
-                    {routine.transportation.pickup === 'au_pair' && (
-                      routine.transportation.dropoff === 'au_pair' ? ' | Pick-up: Au Pair' : '🚗 Pick-up: Au Pair'
-                    )}
-                    {routine.transportation.dropoff === 'child_alone' && '🚶 Child goes alone'}
-                    {routine.transportation.pickup === 'child_alone' && (
-                      routine.transportation.dropoff !== 'child_alone' ? ' | Child returns alone' : ''
+                    {routine.location ? (
+                      `📍 ${routine.location}`
+                    ) : (
+                      <>
+                        {routine.transportation.dropoff === 'au_pair' && '🚗 Drop-off: Au Pair'}
+                        {routine.transportation.pickup === 'au_pair' && (
+                          routine.transportation.dropoff === 'au_pair' ? ' | Pick-up: Au Pair' : '🚗 Pick-up: Au Pair'
+                        )}
+                        {routine.transportation.dropoff === 'child_alone' && '🚶 Child goes alone'}
+                        {routine.transportation.pickup === 'child_alone' && (
+                          routine.transportation.dropoff !== 'child_alone' ? ' | Child returns alone' : ''
+                        )}
+                      </>
                     )}
                   </div>
                 )}

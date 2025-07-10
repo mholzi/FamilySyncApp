@@ -248,47 +248,48 @@ const CalendarEventCard = ({
 
 const styles = {
   eventCard: {
-    backgroundColor: 'var(--white)',
-    borderRadius: 'var(--radius-md)',
-    padding: 'var(--space-3)',
+    backgroundColor: 'var(--md-sys-color-surface-container)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    padding: '12px',
     cursor: 'pointer',
-    transition: 'var(--transition-fast)',
-    fontSize: 'var(--font-size-sm)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
     position: 'relative',
-    boxShadow: 'var(--shadow-sm)',
-    marginBottom: 'var(--space-1)'
+    boxShadow: 'var(--md-sys-elevation-level1)',
+    marginBottom: '4px',
+    border: '1px solid transparent'
   },
   conflictCard: {
-    borderColor: '#EF4444 !important',
-    backgroundColor: '#FEF2F2'
+    borderColor: 'var(--md-sys-color-error)',
+    backgroundColor: 'var(--md-sys-color-error-container)',
+    color: 'var(--md-sys-color-on-error-container)'
   },
   shortEvent: {
-    padding: 'var(--space-2)'
+    padding: '8px'
   },
   eventHeader: {
-    marginBottom: 'var(--space-2)'
+    marginBottom: '8px'
   },
   titleRow: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 'var(--space-1)'
+    marginBottom: '4px'
   },
   eventTitle: {
     display: 'flex',
     alignItems: 'center',
-    gap: 'var(--space-2)',
+    gap: '6px',
     flex: 1
   },
   eventIcon: {
-    fontSize: 'var(--font-size-base)',
+    fontSize: '16px',
     lineHeight: 1
   },
   titleText: {
-    fontSize: 'var(--font-size-sm)',
-    fontWeight: 'var(--font-weight-semibold)',
-    color: 'var(--text-primary)',
-    lineHeight: 'var(--line-height-tight)'
+    font: 'var(--md-sys-typescale-body-medium-font)',
+    color: 'var(--md-sys-color-on-surface)',
+    fontWeight: '500',
+    lineHeight: 1.2
   },
   responsibilityBadge: {
     display: 'flex',

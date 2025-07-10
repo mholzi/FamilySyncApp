@@ -608,7 +608,7 @@ function AddChildBasicInfo({ initialData, existingChildren = [], onNext, onCance
                       <div style={styles.uploadProgressText}>{Math.round(uploadProgress)}%</div>
                     </div>
                   </div>
-                ) : formData.profilePictureUrl && !formData.profilePictureUrl.startsWith('blob:') ? (
+                ) : formData.profilePictureUrl ? (
                   <img 
                     src={formData.profilePictureUrl} 
                     alt="Child preview" 

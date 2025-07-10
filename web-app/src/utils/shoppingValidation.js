@@ -124,6 +124,7 @@ export const validateUserId = (userId) => {
 
 // Sanitize shopping list data for storage
 export const sanitizeShoppingListData = (data) => {
+  console.log('sanitizeShoppingListData - Input data:', data);
   const sanitized = { ...data };
   
   // Ensure items is always an object
@@ -145,6 +146,21 @@ export const sanitizeShoppingListData = (data) => {
     sanitized.updatedAt = Timestamp.now();
   }
 
+  // Convert scheduledFor from Date to Timestamp if needed
+  if (sanitized.scheduledFor) {
+    // Check if it's already a Timestamp-like object (has seconds and nanoseconds)
+    const isTimestamp = sanitized.scheduledFor.seconds !== undefined && 
+                       sanitized.scheduledFor.nanoseconds !== undefined;
+    
+    if (!isTimestamp) {
+      if (sanitized.scheduledFor instanceof Date) {
+        sanitized.scheduledFor = Timestamp.fromDate(sanitized.scheduledFor);
+      } else if (typeof sanitized.scheduledFor === 'string') {
+        sanitized.scheduledFor = Timestamp.fromDate(new Date(sanitized.scheduledFor));
+      }
+    }
+  }
+
   // Ensure boolean fields are set
   if (sanitized.isArchived === undefined) {
     sanitized.isArchived = false;
@@ -154,6 +170,7 @@ export const sanitizeShoppingListData = (data) => {
     sanitized.needsReimbursement = false;
   }
 
+  console.log('sanitizeShoppingListData - Output data:', sanitized);
   return sanitized;
 };
 

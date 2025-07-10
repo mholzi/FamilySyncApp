@@ -116,23 +116,34 @@ export const createCalendarEvent = async (familyId, eventData) => {
 // Create a shopping list
 export const createShoppingList = async (familyId, listData) => {
   try {
+    console.log('createShoppingList - Starting with:', { familyId, listData });
+    
     // Validate inputs
     validateFamilyId(familyId);
-    validateShoppingListData(listData);
     
-    // Sanitize data
-    const sanitizedData = sanitizeShoppingListData({
+    // Merge familyId into listData for validation
+    const dataWithFamilyId = {
       ...listData,
       familyId,
       isArchived: false,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
-    });
+    };
+    
+    validateShoppingListData(dataWithFamilyId);
+    console.log('createShoppingList - Data before sanitization:', dataWithFamilyId);
+    
+    const sanitizedData = sanitizeShoppingListData(dataWithFamilyId);
+    console.log('createShoppingList - Sanitized data:', sanitizedData);
     
     const listRef = await addDoc(collection(db, 'families', familyId, 'shopping'), sanitizedData);
+    console.log('createShoppingList - Successfully created with ID:', listRef.id);
     return listRef.id;
   } catch (error) {
-    console.error('Error creating shopping list:', error);
+    console.error('Error creating shopping list - Full error:', error);
+    console.error('Error message:', error.message);
+    console.error('Error code:', error.code);
+    console.error('Error stack:', error.stack);
     throw new Error(createUserFriendlyError(error));
   }
 };
@@ -269,6 +280,46 @@ export const createNote = async (familyId, noteData) => {
   } catch (error) {
     console.error('Error creating note:', error);
     throw error;
+  }
+};
+
+// Update shopping list details
+export const updateShoppingList = async (familyId, listId, updateData) => {
+  try {
+    console.log('updateShoppingList - Starting with:', { familyId, listId, updateData });
+    
+    // Validate inputs
+    validateFamilyId(familyId);
+    
+    if (!listId || typeof listId !== 'string') {
+      throw new Error('Invalid listId: must be a non-empty string');
+    }
+    
+    // Prepare update data with timestamp
+    const dataToUpdate = {
+      ...updateData,
+      updatedAt: Timestamp.now()
+    };
+    
+    // Convert scheduledFor from Date to Timestamp if needed
+    if (dataToUpdate.scheduledFor) {
+      if (dataToUpdate.scheduledFor instanceof Date) {
+        dataToUpdate.scheduledFor = Timestamp.fromDate(dataToUpdate.scheduledFor);
+      } else if (typeof dataToUpdate.scheduledFor === 'string') {
+        dataToUpdate.scheduledFor = Timestamp.fromDate(new Date(dataToUpdate.scheduledFor));
+      }
+    }
+    
+    console.log('updateShoppingList - Data to update:', dataToUpdate);
+    
+    const listRef = doc(db, 'families', familyId, 'shopping', listId);
+    await updateDoc(listRef, dataToUpdate);
+    console.log('updateShoppingList - Successfully updated');
+    
+    return true;
+  } catch (error) {
+    console.error('Error updating shopping list:', error);
+    throw new Error(createUserFriendlyError(error));
   }
 };
 

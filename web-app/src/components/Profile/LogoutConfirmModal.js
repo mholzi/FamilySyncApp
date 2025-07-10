@@ -1,6 +1,7 @@
 import React from 'react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase';
+import { blurOverlayStyle } from '../../styles/modalStyles';
 
 const LogoutConfirmModal = ({ isOpen, onConfirm, onCancel }) => {
   if (!isOpen) return null;
@@ -48,17 +49,8 @@ const LogoutConfirmModal = ({ isOpen, onConfirm, onCancel }) => {
 
 const styles = {
   overlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2000,
-    animation: 'fadeIn 0.2s ease'
+    ...blurOverlayStyle,
+    zIndex: 2000
   },
   modal: {
     backgroundColor: 'white',

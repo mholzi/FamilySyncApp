@@ -170,13 +170,9 @@ const InvitationsSection = ({ familyData, familyId, currentUserName }) => {
     }
   };
 
-  if (loading) {
-    return (
-      <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Pending Invitations</h2>
-        <div style={styles.loadingText}>Loading invitations...</div>
-      </section>
-    );
+  // Don't render anything if loading or no invitations
+  if (loading || invitations.length === 0) {
+    return null;
   }
 
   return (
@@ -194,10 +190,9 @@ const InvitationsSection = ({ familyData, familyId, currentUserName }) => {
           </div>
         </div>
         
-        {invitations.length > 0 ? (
-          <div style={styles.invitationsList}>
-            {invitations.map((invitation) => (
-              <div key={invitation.id} style={styles.invitationCard}>
+        <div style={styles.invitationsContainer}>
+          {invitations.map((invitation) => (
+            <div key={invitation.id} style={styles.invitationCard}>
                 <div style={styles.invitationHeader}>
                   <div>
                     <h4 style={styles.invitationEmail}>{invitation.email}</h4>
@@ -241,13 +236,8 @@ const InvitationsSection = ({ familyData, familyId, currentUserName }) => {
                   </div>
                 )}
               </div>
-            ))}
-          </div>
-        ) : (
-          <div style={styles.emptyState}>
-            <p>No pending invitations. Click the buttons above to invite family members!</p>
-          </div>
-        )}
+          ))}
+        </div>
       </section>
 
       {/* Invite Modal */}
@@ -265,59 +255,83 @@ const InvitationsSection = ({ familyData, familyId, currentUserName }) => {
 
 const styles = {
   section: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    padding: '20px',
-    marginBottom: '20px',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+    backgroundColor: 'var(--md-sys-color-surface-container-low)',
+    borderRadius: 'var(--md-sys-shape-corner-large)',
+    padding: '24px',
+    marginBottom: '16px',
+    border: '1px solid var(--md-sys-color-outline-variant)',
+    position: 'relative'
   },
   sectionHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '20px',
-    borderBottom: '1px solid #F2F2F7',
+    borderBottom: '1px solid var(--md-sys-color-outline-variant)',
     paddingBottom: '12px',
     flexWrap: 'wrap',
     gap: '12px'
   },
   sectionTitle: {
-    fontSize: '20px',
-    fontWeight: '600',
-    color: '#000',
-    margin: 0
+    fontSize: '16px',
+    fontWeight: '500',
+    color: 'var(--md-sys-color-on-surface)',
+    margin: 0,
+    fontFamily: 'var(--md-sys-typescale-title-medium-font-family-name)',
+    lineHeight: 'var(--md-sys-typescale-title-medium-line-height)',
+    letterSpacing: 'var(--md-sys-typescale-title-medium-letter-spacing)'
   },
   inviteButtons: {
     display: 'flex',
     gap: '8px'
   },
   inviteButton: {
-    backgroundColor: '#007AFF',
-    color: 'white',
+    backgroundColor: 'var(--md-sys-color-primary)',
+    color: 'var(--md-sys-color-on-primary)',
     border: 'none',
-    borderRadius: '8px',
-    padding: '8px 16px',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    padding: '10px 24px',
     fontSize: '14px',
     fontWeight: '500',
     cursor: 'pointer',
-    transition: 'background-color 0.2s ease',
+    fontFamily: 'var(--md-sys-typescale-label-large-font-family-name)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
     whiteSpace: 'nowrap'
   },
   loadingText: {
-    color: '#8E8E93',
+    color: 'var(--md-sys-color-on-surface-variant)',
     textAlign: 'center',
-    padding: '20px'
+    padding: '20px',
+    fontFamily: 'var(--md-sys-typescale-body-large-font-family-name)'
   },
-  invitationsList: {
+  invitationsContainer: {
     display: 'flex',
-    flexDirection: 'column',
-    gap: '12px'
+    gap: '12px',
+    overflowX: 'auto',
+    paddingBottom: '8px',
+    marginLeft: '-14px',
+    marginRight: '-24px',
+    paddingLeft: '24px',
+    paddingRight: '24px',
+    scrollbarWidth: 'thin',
+    scrollbarColor: 'var(--md-sys-color-outline-variant) transparent',
+    WebkitOverflowScrolling: 'touch',
+    scrollSnapType: 'x mandatory'
   },
   invitationCard: {
-    backgroundColor: '#F9F9F9',
-    borderRadius: '10px',
+    backgroundColor: 'var(--md-sys-color-surface)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
     padding: '16px',
-    border: '1px solid #E5E5EA'
+    border: '1px solid var(--md-sys-color-outline)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    flex: '0 0 calc(70vw - 24px)',
+    maxWidth: '320px',
+    minHeight: '150px',
+    scrollSnapAlign: 'start',
+    position: 'relative',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between'
   },
   invitationHeader: {
     display: 'flex',
@@ -327,61 +341,55 @@ const styles = {
   },
   invitationEmail: {
     fontSize: '16px',
-    fontWeight: '600',
-    color: '#000',
-    margin: '0 0 4px 0'
+    fontWeight: '500',
+    color: 'var(--md-sys-color-on-surface)',
+    margin: '0 0 4px 0',
+    fontFamily: 'var(--md-sys-typescale-body-large-font-family-name)',
+    lineHeight: 'var(--md-sys-typescale-body-large-line-height)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
   },
   invitationRole: {
     fontSize: '14px',
-    color: '#666',
-    margin: 0
+    color: 'var(--md-sys-color-on-surface-variant)',
+    margin: 0,
+    fontFamily: 'var(--md-sys-typescale-body-small-font-family-name)'
   },
   statusBadge: {
-    padding: '4px 12px',
-    borderRadius: '12px',
-    fontSize: '12px',
-    fontWeight: '600'
+    padding: '4px 8px',
+    borderRadius: 'var(--md-sys-shape-corner-extra-small)',
+    fontSize: '11px',
+    fontWeight: '600',
+    fontFamily: 'var(--md-sys-typescale-label-small-font-family-name)'
   },
   invitationDetails: {
+    flex: 1,
     marginBottom: '12px'
   },
   detailText: {
-    fontSize: '13px',
-    color: '#8E8E93',
-    margin: '2px 0'
+    fontSize: '12px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    margin: '2px 0',
+    fontFamily: 'var(--md-sys-typescale-body-small-font-family-name)'
   },
   invitationActions: {
     display: 'flex',
     justifyContent: 'flex-end'
   },
   cancelButton: {
-    backgroundColor: '#FFF2F2',
-    color: '#FF3B30',
-    border: 'none',
-    borderRadius: '6px',
-    padding: '6px 12px',
-    fontSize: '13px',
-    fontWeight: '500',
-    cursor: 'pointer'
-  },
-  emptyState: {
-    textAlign: 'center',
-    padding: '40px 20px',
-    color: '#8E8E93'
+    backgroundColor: 'var(--md-sys-color-error-container)',
+    color: 'var(--md-sys-color-on-error-container)',
+    border: '1px solid var(--md-sys-color-error)',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    padding: '8px 16px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    fontFamily: 'var(--md-sys-typescale-label-large-font-family-name)',
+    transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    boxShadow: 'var(--md-sys-elevation-level1)'
   }
 };
-
-// Add hover effects
-const styleSheet = document.createElement('style');
-styleSheet.textContent = `
-  .invite-button:hover {
-    background-color: #0056D6 !important;
-  }
-  
-  .cancel-invitation-button:hover {
-    background-color: #FFE5E5 !important;
-  }
-`;
-document.head.appendChild(styleSheet);
 
 export default InvitationsSection;

@@ -14,12 +14,13 @@ export const useCalendar = (familyId, userId) => {
     }
 
     try {
-      // Get upcoming events where user is an attendee
-      const now = new Date();
+      // Get events from today's start (not current time) to show all of today's events
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of today
       
       const eventsQuery = query(
         collection(db, 'families', familyId, 'calendar'),
-        where('startTime', '>=', Timestamp.fromDate(now)),
+        where('startTime', '>=', Timestamp.fromDate(today)),
         orderBy('startTime', 'asc'),
         limit(50) // Add reasonable limit for performance
       );

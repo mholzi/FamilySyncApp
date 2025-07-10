@@ -1,20 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { addShoppingItem, toggleShoppingItem, markShoppingListCompleted } from '../../utils/familyUtils';
+import { addShoppingItem, toggleShoppingItem, markShoppingListCompleted, updateShoppingList } from '../../utils/familyUtils';
 import { getFamilyItems, createOrUpdateFamilyItem, updateItemFamiliarity, getItemIcon } from '../../utils/familyItemsUtils';
 import AddItemForm from './AddItemForm';
 import ItemDetailsModal from './ItemDetailsModal';
 import ReceiptUpload from './ReceiptUpload';
 import ApprovalInterface from './ApprovalInterface';
+import EditShoppingList from './EditShoppingList';
 
-const ShoppingList = ({ list, familyId, currentUser, family, mode = 'active' }) => {
+const ShoppingList = ({ list, familyId, currentUser, family, userData, mode = 'active' }) => {
   const [familyItems, setFamilyItems] = useState({});
   const [showAddItem, setShowAddItem] = useState(false);
   const [showItemDetails, setShowItemDetails] = useState(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [showApproval, setShowApproval] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [expandedItemDetails, setExpandedItemDetails] = useState(new Set());
 
-  // Determine user role
-  const userRole = family?.parentUids?.includes(currentUser?.uid) ? 'parent' : 'aupair';
+  // Determine user role - consistent with ShoppingListPage
+  const userRole = userData?.role || (family?.parentUids?.includes(currentUser?.uid) ? 'parent' : 'aupair');
+  
 
   useEffect(() => {
     const loadFamilyItems = async () => {
@@ -91,7 +96,20 @@ const ShoppingList = ({ list, familyId, currentUser, family, mode = 'active' }) 
   const handleItemDetails = (itemName) => {
     const familyItemKey = itemName.toLowerCase().replace(/\s+/g, '_');
     const familyItem = familyItems[familyItemKey];
-    setShowItemDetails({ itemName, familyItem, familyItemKey });
+    
+    if (userRole === 'aupair') {
+      // For au pairs, toggle inline expansion
+      const newExpanded = new Set(expandedItemDetails);
+      if (newExpanded.has(itemName)) {
+        newExpanded.delete(itemName);
+      } else {
+        newExpanded.add(itemName);
+      }
+      setExpandedItemDetails(newExpanded);
+    } else {
+      // For parents, show the modal for editing
+      setShowItemDetails({ itemName, familyItem, familyItemKey });
+    }
   };
 
   const handleSaveItemDetails = async (itemData) => {
@@ -115,6 +133,23 @@ const ShoppingList = ({ list, familyId, currentUser, family, mode = 'active' }) 
     } catch (error) {
       console.error('Error completing shopping list:', error);
       alert('Failed to complete shopping list. Please try again.');
+    }
+  };
+
+  const handleUpdateList = async (updateData) => {
+    if (!familyId || !list.id || updating) return;
+    
+    setUpdating(true);
+    try {
+      console.log('Updating shopping list...');
+      await updateShoppingList(familyId, list.id, updateData);
+      console.log('Shopping list updated successfully');
+      setShowEdit(false);
+    } catch (error) {
+      console.error('Error updating shopping list:', error);
+      alert('Failed to update shopping list. Please try again.');
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -159,30 +194,60 @@ const ShoppingList = ({ list, familyId, currentUser, family, mode = 'active' }) 
         ...styles.shoppingList,
         ...styles.approvalMode,
         position: 'relative',
-        paddingBottom: '60px' // Space for button
+        paddingBottom: '60px', // Space for button
+        display: 'flex',
+        gap: '12px'
       }}>
-        <div style={styles.listHeader}>
-          <div style={styles.listInfo}>
-            <h3 style={styles.listTitle}>{list.name}</h3>
-            <div style={styles.completedDateBadge}>
-              {formatCompletedDate()}
-            </div>
+        {/* Time section on the left - matching task card design */}
+        <div style={styles.approvalTimeSection}>
+          <div style={styles.approvalTimeDisplay}>
+            {(() => {
+              if (!list.completedAt) return 'N/A';
+              const date = list.completedAt.toDate ? list.completedAt.toDate() : new Date(list.completedAt);
+              return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            })()}
           </div>
-          <span style={styles.amount}>€{list.totalAmount?.toFixed(2) || list.actualTotal?.toFixed(2) || '0.00'}</span>
+          <div style={styles.approvalDayIndicator}>
+            Completed
+          </div>
         </div>
         
-        <button 
-          style={styles.markAsPaidBtn}
-          onClick={() => setShowApproval(true)}
-        >
-          Mark as Paid
-        </button>
+        {/* Main content section */}
+        <div style={{ flex: 1 }}>
+          <div style={styles.listHeader}>
+            <div style={styles.listInfo}>
+              <h3 style={styles.listTitle}>{list.name}</h3>
+            </div>
+            <span style={styles.amount}>€{list.totalAmount?.toFixed(2) || list.actualTotal?.toFixed(2) || '0.00'}</span>
+          </div>
+        </div>
+        
+        {list.paymentStatus !== 'confirmed' && (
+          userRole === 'parent' || (userRole === 'aupair' && list.paymentStatus === 'paid-out' && list.receiptUploadedBy === currentUser?.uid)
+        ) && (
+          <button 
+            style={styles.markAsPaidBtn}
+            onClick={() => setShowApproval(true)}
+          >
+            {userRole === 'aupair' && list.paymentStatus === 'paid-out' 
+              ? 'Confirm Receipt' 
+              : 'Mark as Paid'
+            }
+          </button>
+        )}
+        
+        {list.paymentStatus === 'confirmed' && (
+          <div style={styles.confirmedBadge}>
+            ✓ Confirmed
+          </div>
+        )}
         
         {showApproval && (
           <ApprovalInterface
             list={list}
             familyId={familyId}
             currentUser={currentUser}
+            family={family}
             onClose={() => setShowApproval(false)}
           />
         )}
@@ -205,23 +270,35 @@ const ShoppingList = ({ list, familyId, currentUser, family, mode = 'active' }) 
           )}
         </div>
         
-        {allItemsCompleted && list.status !== 'completed' && (
-          <button 
-            style={styles.completeShoppingBtn}
-            onClick={handleCompleteShopping}
-          >
-            Complete Shopping
-          </button>
-        )}
-        
-        {list.status === 'completed' && (
-          <button 
-            style={styles.uploadReceiptBtn}
-            onClick={() => setShowReceipt(true)}
-          >
-            Receipt
-          </button>
-        )}
+        <div style={styles.headerActions}>
+          {userRole === 'parent' && list.status !== 'completed' && (
+            <button 
+              style={styles.editBtn}
+              onClick={() => setShowEdit(true)}
+              title="Edit list details"
+            >
+              Edit
+            </button>
+          )}
+          
+          {allItemsCompleted && list.status !== 'completed' && (
+            <button 
+              style={styles.completeShoppingBtn}
+              onClick={handleCompleteShopping}
+            >
+              Complete Shopping
+            </button>
+          )}
+          
+          {list.status === 'completed' && (
+            <button 
+              style={styles.uploadReceiptBtn}
+              onClick={() => setShowReceipt(true)}
+            >
+              Receipt
+            </button>
+          )}
+        </div>
       </div>
       
       {list.supermarket && (
@@ -235,41 +312,83 @@ const ShoppingList = ({ list, familyId, currentUser, family, mode = 'active' }) 
       )}
       
       <div style={styles.itemsList}>
-        {items.map(item => (
-          <div key={item.id} style={{
-            ...styles.item,
-            ...(item.isPurchased ? styles.itemCompleted : {})
-          }}>
-            <div style={styles.itemContent}>
-              <button
-                style={{
-                  ...styles.itemCheckbox,
-                  ...(item.isPurchased ? styles.itemCheckboxCompleted : {})
-                }}
-                onClick={() => handleToggleItem(item.id, !item.isPurchased)}
-              >
-                {item.isPurchased ? '✓' : ''}
-              </button>
-              
-              <span style={{
-                ...styles.itemName,
-                ...(item.isPurchased ? styles.itemNameCompleted : {})
-              }}>
-                {item.name}
-              </span>
-              
-              {hasItemDetails(item.name) && (
+        {items.map(item => {
+          const isExpanded = expandedItemDetails.has(item.name);
+          const familyItemKey = item.name.toLowerCase().replace(/\s+/g, '_');
+          const familyItem = familyItems[familyItemKey];
+          
+          return (
+            <div key={item.id} style={{
+              ...styles.item,
+              ...(item.isPurchased ? styles.itemCompleted : {}),
+              ...(isExpanded ? styles.itemExpanded : {})
+            }}>
+              <div style={styles.itemContent}>
                 <button
-                  style={styles.detailsBadge}
-                  onClick={() => handleItemDetails(item.name)}
-                  title="View details"
+                  style={{
+                    ...styles.itemCheckbox,
+                    ...(item.isPurchased ? styles.itemCheckboxCompleted : {})
+                  }}
+                  onClick={() => handleToggleItem(item.id, !item.isPurchased)}
                 >
-                  Details
+                  {item.isPurchased ? '✓' : ''}
                 </button>
+                
+                <span style={{
+                  ...styles.itemName,
+                  ...(item.isPurchased ? styles.itemNameCompleted : {})
+                }}>
+                  {item.name}
+                </span>
+                
+                {hasItemDetails(item.name) && (
+                  <button
+                    style={{
+                      ...styles.detailsBadge,
+                      ...(isExpanded && userRole === 'aupair' ? styles.detailsBadgeExpanded : {})
+                    }}
+                    onClick={() => handleItemDetails(item.name)}
+                    title={userRole === 'aupair' ? (isExpanded ? "Hide details" : "Show details") : "View details"}
+                  >
+                    {userRole === 'aupair' && isExpanded ? 'Hide' : 'Details'}
+                  </button>
+                )}
+              </div>
+              
+              {/* Inline expanded details for au pairs */}
+              {isExpanded && userRole === 'aupair' && familyItem && (
+                <div style={styles.expandedDetails}>
+                  {familyItem.referencePhotoUrl && (
+                    <div style={styles.expandedPhotoSection}>
+                      <img 
+                        src={familyItem.referencePhotoUrl} 
+                        alt={item.name} 
+                        style={styles.expandedPhoto}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
+                  
+                  {familyItem.guidanceNotes && (
+                    <div style={styles.expandedNotesSection}>
+                      <div style={styles.expandedNotes}>
+                        {familyItem.guidanceNotes}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {!familyItem.referencePhotoUrl && !familyItem.guidanceNotes && (
+                    <div style={styles.expandedEmptyState}>
+                      No additional details available.
+                    </div>
+                  )}
+                </div>
               )}
             </div>
-          </div>
-        ))}
+          );
+        })}
         
         {items.length === 0 && (
           <div style={styles.emptyItems}>
@@ -291,6 +410,9 @@ const ShoppingList = ({ list, familyId, currentUser, family, mode = 'active' }) 
           onAddItem={handleAddItem}
           onCancel={() => setShowAddItem(false)}
           onShowDetails={handleItemDetails}
+          familyId={familyId}
+          currentUser={currentUser}
+          userRole={userRole}
         />
       )}
 
@@ -312,6 +434,18 @@ const ShoppingList = ({ list, familyId, currentUser, family, mode = 'active' }) 
           familyId={familyId}
           currentUser={currentUser}
           onClose={() => setShowReceipt(false)}
+        />
+      )}
+
+      {showEdit && (
+        <EditShoppingList
+          list={list}
+          onCancel={() => setShowEdit(false)}
+          onUpdate={handleUpdateList}
+          updating={updating}
+          familyId={familyId}
+          currentUser={currentUser}
+          userRole={userRole}
         />
       )}
     </div>
@@ -338,6 +472,11 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '16px'
+  },
+  headerActions: {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center'
   },
   listInfo: {
     display: 'flex',
@@ -461,6 +600,49 @@ const styles = {
     cursor: 'pointer',
     transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
   },
+  detailsBadgeExpanded: {
+    backgroundColor: 'var(--md-sys-color-secondary)',
+    color: 'var(--md-sys-color-on-secondary)'
+  },
+  itemExpanded: {
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)'
+  },
+  expandedDetails: {
+    marginTop: '12px',
+    padding: '12px',
+    backgroundColor: 'var(--md-sys-color-surface-container)',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    border: '1px solid var(--md-sys-color-outline-variant)'
+  },
+  expandedPhotoSection: {
+    marginBottom: '12px',
+    textAlign: 'center'
+  },
+  expandedPhoto: {
+    maxWidth: '150px',
+    maxHeight: '150px',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    boxShadow: 'var(--md-sys-elevation-level1)',
+    objectFit: 'cover'
+  },
+  expandedNotesSection: {
+    marginBottom: '8px'
+  },
+  expandedNotes: {
+    fontSize: '14px',
+    lineHeight: '1.4',
+    color: 'var(--md-sys-color-on-surface)',
+    whiteSpace: 'pre-wrap',
+    fontStyle: 'italic',
+    opacity: 0.9
+  },
+  expandedEmptyState: {
+    fontSize: '14px',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    padding: '8px'
+  },
   addItemBtn: {
     width: '100%',
     backgroundColor: 'var(--md-sys-color-surface-container)',
@@ -485,6 +667,20 @@ const styles = {
     fontSize: '14px',
     color: 'var(--md-sys-color-on-surface-variant)',
     fontStyle: 'italic'
+  },
+  editBtn: {
+    backgroundColor: 'var(--md-sys-color-surface-container)',
+    color: 'var(--md-sys-color-on-surface)',
+    border: '1px solid var(--md-sys-color-outline)',
+    padding: '6px 12px',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    fontSize: '12px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+    display: 'inline-flex',
+    alignItems: 'center',
+    whiteSpace: 'nowrap'
   },
   completeShoppingBtn: {
     backgroundColor: 'var(--md-sys-color-primary)',
@@ -551,6 +747,42 @@ const styles = {
     cursor: 'pointer',
     transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
     minWidth: '80px'
+  },
+  approvalTimeSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    minWidth: '70px',
+    textAlign: 'left'
+  },
+  approvalTimeDisplay: {
+    fontSize: '18px',
+    fontWeight: '700',
+    color: 'var(--md-sys-color-primary)',
+    lineHeight: '1.3'
+  },
+  approvalDayIndicator: {
+    fontSize: '12px',
+    color: 'var(--md-sys-color-on-surface)',
+    backgroundColor: 'var(--md-sys-color-surface-container-highest)',
+    padding: '4px 8px',
+    borderRadius: 'var(--md-sys-shape-corner-extra-small)',
+    marginTop: '4px',
+    fontWeight: '500'
+  },
+  confirmedBadge: {
+    position: 'absolute',
+    bottom: '10px',
+    right: '10px',
+    backgroundColor: 'var(--md-sys-color-tertiary-container)',
+    color: 'var(--md-sys-color-on-tertiary-container)',
+    padding: '8px 12px',
+    borderRadius: 'var(--md-sys-shape-corner-small)',
+    fontSize: '12px',
+    fontWeight: '500',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px'
   }
 };
 
