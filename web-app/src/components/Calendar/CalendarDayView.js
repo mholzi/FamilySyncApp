@@ -299,7 +299,7 @@ const CalendarDayView = ({
   calendarEvents = []
 }) => {
   const [selectedChildren, setSelectedChildren] = useState('all');
-  const [timeRange, setTimeRange] = useState({ start: 7, end: 21 }); // Default 7 AM - 9 PM
+  const [timeRange, setTimeRange] = useState({ start: 6, end: 24 }); // Fixed 6 AM - Midnight
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [quickAddTime, setQuickAddTime] = useState(null);
@@ -338,10 +338,6 @@ const CalendarDayView = ({
     return allEvents.sort((a, b) => a.startMinutes - b.startMinutes);
   }, [children, selectedChildren, selectedDate, recurringActivities, calendarEvents]);
 
-  // Fixed time range from 6 to 24h
-  useEffect(() => {
-    setTimeRange({ start: 6, end: 24 });
-  }, []);
 
   const formatHour = (hour) => {
     return `${hour.toString().padStart(2, '0')}:00`;
@@ -455,6 +451,42 @@ const CalendarDayView = ({
     };
   };
 
+  // Get responsibility color
+  const getResponsibilityColor = (event) => {
+    // Check for school events with transport responsibilities
+    if (event.type === 'school' && (event.dropOffResponsibility || event.pickUpResponsibility)) {
+      const dropOff = event.dropOffResponsibility?.toLowerCase();
+      const pickUp = event.pickUpResponsibility?.toLowerCase();
+      
+      // Check if shared (different responsibilities for drop-off and pick-up)
+      if (dropOff && pickUp && dropOff !== pickUp) {
+        return { background: '#F3E5F5', border: '#7B1FA2', textColor: '#1A1A1A' }; // Dark text for shared
+      }
+      // Check specific responsibilities
+      if ((dropOff === 'au_pair' || dropOff === 'aupair') || (pickUp === 'au_pair' || pickUp === 'aupair')) {
+        return { background: '#BBDEFB', border: '#2196F3', textColor: '#0D47A1' }; // Blue for aupair
+      }
+      if (dropOff === 'parent' || pickUp === 'parent') {
+        return { background: '#C8E6C9', border: '#4CAF50', textColor: '#1B5E20' }; // Green for parent
+      }
+    }
+    
+    // Check regular responsibility field
+    const responsibility = event.responsibility?.toLowerCase();
+    if (responsibility === 'au_pair' || responsibility === 'aupair') {
+      return { background: '#BBDEFB', border: '#2196F3', textColor: '#0D47A1' }; // Blue for aupair
+    }
+    if (responsibility === 'parent') {
+      return { background: '#C8E6C9', border: '#4CAF50', textColor: '#1B5E20' }; // Green for parent
+    }
+    if (responsibility === 'shared') {
+      return { background: '#F3E5F5', border: '#7B1FA2', textColor: '#1A1A1A' }; // Dark text for shared
+    }
+    
+    // Default to child color if no specific responsibility
+    return null;
+  };
+
   const hasConflicts = (event) => {
     // Only check conflicts for events that Aupair needs to manage
     if (event.responsibility !== 'au_pair' && event.responsibility !== 'aupair' && 
@@ -479,6 +511,19 @@ const CalendarDayView = ({
       return ((event.startMinutes < otherEvent.startMinutes + otherEvent.duration) &&
               (event.startMinutes + event.duration > otherEvent.startMinutes));
     });
+  };
+
+  // Check if an event has ended (is in the past)
+  const isEventPast = (event) => {
+    const now = new Date();
+    const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
+    
+    // Only check if the selected date is today
+    if (selectedDate.toDateString() === now.toDateString()) {
+      return event.endMinutes < currentTimeMinutes;
+    }
+    
+    return false;
   };
 
   return (
@@ -551,13 +596,16 @@ const CalendarDayView = ({
                 const position = getEventPosition(event);
                 const hasConflict = hasConflicts(event);
                 const childColor = getChildColorFromId(event.childId);
+                const responsibilityColor = getResponsibilityColor(event);
+                const isPast = isEventPast(event);
                 
                 return (
                   <div
                     key={event.id}
                     style={{
                       ...styles.eventContainer,
-                      ...position
+                      ...position,
+                      opacity: isPast ? 0.5 : 1
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -566,27 +614,31 @@ const CalendarDayView = ({
                   >
                     <div style={{
                       ...styles.eventCard,
-                      backgroundColor: childColor.light,
-                      border: `1px solid ${childColor.primary}`,
-                      ...(hasConflict ? styles.conflictCard : {})
+                      backgroundColor: responsibilityColor ? responsibilityColor.background : childColor.light,
+                      border: `2px solid ${responsibilityColor ? responsibilityColor.border : childColor.primary}`,
+                      ...(hasConflict ? styles.conflictCard : {}),
+                      ...(isPast ? { filter: 'grayscale(50%)' } : {})
                     }}>
                       <div style={styles.eventContentRow}>
                         <div style={{
                           ...styles.eventTime,
-                          color: childColor.primary
+                          color: responsibilityColor ? responsibilityColor.textColor : childColor.primary,
+                          fontWeight: responsibilityColor ? '600' : '500'
                         }}>
                           {event.time || `${Math.floor(event.startMinutes / 60).toString().padStart(2, '0')}:${(event.startMinutes % 60).toString().padStart(2, '0')}`}
                         </div>
                         <div style={{
                           ...styles.eventTitle,
-                          color: '#000000'
+                          color: responsibilityColor ? responsibilityColor.textColor : '#000000',
+                          fontWeight: responsibilityColor ? '600' : '500'
                         }}>{event.title}</div>
                       </div>
                       
                       {/* End time */}
                       <div style={{
                         ...styles.endTime,
-                        color: childColor.primary
+                        color: responsibilityColor ? responsibilityColor.textColor : childColor.primary,
+                        opacity: 0.8
                       }}>
                         {`${Math.floor(event.endMinutes / 60).toString().padStart(2, '0')}:${(event.endMinutes % 60).toString().padStart(2, '0')}`}
                       </div>
@@ -657,6 +709,25 @@ const CalendarDayView = ({
           onSave={handleSaveEventChanges}
         />
       )}
+
+      {/* Legend */}
+      <div style={styles.legend}>
+        <div style={styles.legendTitle}>Responsibility:</div>
+        <div style={styles.legendItems}>
+          <div style={styles.legendItem}>
+            <div style={{...styles.legendColor, backgroundColor: '#BBDEFB', border: '2px solid #2196F3'}} />
+            <span style={styles.legendLabel}>Aupair</span>
+          </div>
+          <div style={styles.legendItem}>
+            <div style={{...styles.legendColor, backgroundColor: '#C8E6C9', border: '2px solid #4CAF50'}} />
+            <span style={styles.legendLabel}>Parent</span>
+          </div>
+          <div style={styles.legendItem}>
+            <div style={{...styles.legendColor, backgroundColor: '#E1BEE7', border: '2px solid #9C27B0'}} />
+            <span style={styles.legendLabel}>Shared</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -838,6 +909,42 @@ const styles = {
     borderRadius: '4px',
     fontWeight: '600',
     border: '1px solid var(--md-sys-color-error)'
+  },
+  legend: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    padding: '12px 16px',
+    backgroundColor: 'var(--md-sys-color-surface-container-low)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    marginTop: '16px',
+    marginBottom: '100px'
+  },
+  legendTitle: {
+    fontSize: '14px',
+    fontWeight: '500',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    fontFamily: 'var(--md-sys-typescale-label-medium-font-family-name)'
+  },
+  legendItems: {
+    display: 'flex',
+    gap: '16px',
+    flexWrap: 'wrap'
+  },
+  legendItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  legendColor: {
+    width: '24px',
+    height: '24px',
+    borderRadius: 'var(--md-sys-shape-corner-extra-small)'
+  },
+  legendLabel: {
+    fontSize: '14px',
+    color: 'var(--md-sys-color-on-surface)',
+    fontFamily: 'var(--md-sys-typescale-body-medium-font-family-name)'
   }
 };
 

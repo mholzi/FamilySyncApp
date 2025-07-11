@@ -56,7 +56,7 @@ const EditShoppingList = ({ list, onCancel, onUpdate, updating, familyId, curren
     }
 
     const scheduledDateTime = new Date(scheduledDate);
-    scheduledDateTime.setHours(10, 0, 0, 0); // Set default time to 10:00 AM
+    scheduledDateTime.setHours(10, 0, 0, 0); // Set default time to 10:00
     const updateData = {
       name: name.trim(),
       scheduledFor: scheduledDateTime,

@@ -8,56 +8,28 @@ Include acceptance criteria if applicable.
 -->
 
 ### User Story
-As a super administrator, I want to have a dedicated login and monitoring dashboard so that I can oversee the entire FamilySync platform, monitor user activity, manage families, and ensure system health.
+As a super administrator, I want to have a dedicated login page and a simple dashboard showing basic platform statistics so that I can monitor the overall health of the FamilySync platform.
 
 ### Detailed Requirements
 1. **Separate Authentication Flow**
    - Dedicated super admin login page at `/superadmin`
    - Separate authentication from regular family users
    - Super admin credentials stored securely in Firebase with special role
-   - Session management with automatic timeout after 30 minutes of inactivity
-   - Multi-factor authentication (MFA) required
+   - Simple email/password authentication
 
-2. **Super Admin Dashboard**
-   - Overview statistics (total users, active families, system health)
-   - Real-time monitoring of key metrics
-   - Quick access to all management functions
-   - System alerts and notifications
-
-3. **User Management**
-   - View all registered users (parents and au pairs)
-   - Search and filter users by name, email, role, family
-   - View detailed user profiles and activity logs
-   - Ability to suspend/unsuspend user accounts
-   - Reset user passwords
-   - View user login history
-
-4. **Family Management**
-   - View all families in the system
-   - See family composition and relationships
-   - Monitor family activity levels
-   - View family creation dates and subscription status
-   - Access family data for support purposes (read-only)
-
-5. **System Monitoring**
-   - Firebase usage statistics (reads, writes, bandwidth)
-   - Error logs and system alerts
-   - Performance metrics
-   - Active user sessions
-   - Database size and growth trends
-
-6. **Audit Trail**
-   - Log all super admin actions
-   - Timestamp and user attribution for every action
-   - Export audit logs for compliance
+2. **Basic Statistics Dashboard**
+   - Total number of registered users
+   - Total number of active families
+   - Total number of au pairs
+   - Total number of host parents
+   - Display statistics in simple cards following Material Design 3
 
 ### Success Criteria
-- [ ] Super admin can log in through dedicated portal
-- [ ] Dashboard displays real-time system statistics
-- [ ] All user and family data is accessible (read-only by default)
-- [ ] Admin actions are logged for audit purposes
+- [ ] Super admin can log in through dedicated portal at `/superadmin`
+- [ ] Dashboard displays basic statistics in read-only format
 - [ ] System follows the same Material Design 3 patterns as main app
-- [ ] Mobile-responsive design for on-the-go monitoring
+- [ ] Mobile-responsive design
+- [ ] No access from regular user accounts
 
 ---
 
@@ -129,27 +101,20 @@ This is critical for preventing common mistakes.
 ### Security Requirements
 - [ ] Super admin role verified on every request
 - [ ] Separate Firestore collection for admin credentials
-- [ ] IP allowlisting for production environment
-- [ ] Rate limiting on all admin endpoints
-- [ ] MFA required for all super admin accounts
-- [ ] Session tokens expire after 30 minutes
-- [ ] All actions logged with timestamp and admin ID
-- [ ] Read-only access by default, write actions require confirmation
+- [ ] Rate limiting on login attempts
+- [ ] Session management with Firebase Auth
+- [ ] Read-only access to statistics
 
 ### Performance Requirements
 - Dashboard load time: < 2 seconds
-- Real-time updates every 5 seconds for monitoring data
-- Support pagination for > 100 users/families
-- Efficient queries using Firestore indexes
-- Cache frequently accessed data
+- Real-time statistics updates using Firestore listeners
+- Efficient aggregation queries
 
 ### Testing Requirements
-- [ ] Unit tests for all admin components
-- [ ] Integration tests for admin Firebase operations
-- [ ] E2E test for complete admin login flow
+- [ ] Unit tests for login component
+- [ ] Unit tests for statistics dashboard
+- [ ] Integration tests for Firebase auth
 - [ ] Security tests for role-based access
-- [ ] Performance tests for large datasets
-- [ ] Audit trail verification tests
 
 ### Accessibility Requirements
 - [ ] Keyboard navigation for all admin functions
@@ -169,30 +134,20 @@ This is critical for preventing common mistakes.
   - Authentication failures
   - Insufficient permissions
   - Network failures
-  - Firebase quota exceeded
-  - Invalid operations
-  - System errors
+  - Firebase connection issues
 
 ### Edge Cases
 1. What happens if regular user tries to access admin routes?
-2. What if Firebase Admin SDK fails to initialize?
-3. How to handle concurrent admin sessions?
-4. What if an admin account is compromised?
-5. How to manage admin access revocation?
-6. What happens during Firebase maintenance?
+2. What if Firebase connection fails?
+3. How to handle invalid login attempts?
 
 ### Dependencies
-- New npm packages needed: 
-  - `firebase-admin` (for admin SDK)
-  - `react-chartjs-2` (for monitoring charts)
-  - `date-fns` (for date formatting)
+- New npm packages needed: None (use existing packages)
 - Firebase services required: 
   - Authentication with custom claims
-  - Firestore for data access
-  - Cloud Functions for admin operations
+  - Firestore for reading user/family data
 - Environment variables: 
-  - `REACT_APP_SUPER_ADMIN_EMAIL`
-  - `REACT_APP_ADMIN_API_ENDPOINT`
+  - `REACT_APP_SUPER_ADMIN_EMAIL=mholzi@gmail.com`
 
 ### Rollback Plan
 - Feature flag: `ENABLE_SUPER_ADMIN`
@@ -223,22 +178,18 @@ npm test -- admin
 
 ### Manual Validation
 - [ ] Super admin can log in at /superadmin
-- [ ] Dashboard shows accurate real-time statistics
-- [ ] User search and filtering works correctly
-- [ ] Family data displays properly
-- [ ] All admin actions are logged
-- [ ] Session timeout works after 30 minutes
+- [ ] Dashboard shows accurate statistics
+- [ ] Statistics cards display correctly
 - [ ] Mobile responsive design verified
 - [ ] No access from regular user accounts
+- [ ] Logout functionality works
 
 ### Integration Points
 - [ ] Separate auth flow from regular users
-- [ ] Admin SDK integrated with Cloud Functions
-- [ ] Real-time monitoring connected to Firestore
-- [ ] Audit logs writing correctly
+- [ ] Statistics queries to Firestore
 - [ ] Error states handled gracefully
-- [ ] Loading states for all data fetches
-- [ ] Empty states for no data scenarios
+- [ ] Loading states for statistics
+- [ ] Proper routing isolation
 
 ---
 
@@ -248,23 +199,21 @@ Any additional context, decisions made, or open questions.
 -->
 
 ### Open Questions
-1. Should super admins be able to modify user data or only view?
-2. What level of family data access is appropriate for support?
-3. Should there be multiple admin permission levels?
-4. How long should audit logs be retained?
+None - all requirements clarified
 
 ### Assumptions
-1. Only Markus (app owner) will initially have super admin access
+1. Only mholzi@gmail.com will have super admin access
 2. Super admin system is completely separate from family user system
-3. Read-only access is sufficient for most monitoring needs
-4. Cloud Functions will handle sensitive admin operations
+3. Basic statistics are sufficient for initial monitoring
+4. Real-time updates via Firestore listeners for live statistics
 
 ### Out of Scope
-1. User data modification (initially read-only)
-2. Billing/subscription management
-3. Automated alerts/notifications
-4. API access for external monitoring tools
-5. Multiple admin roles/permissions
+1. User management features
+2. Family management features
+3. System monitoring beyond basic stats
+4. Audit trails
+5. MFA authentication
+6. Any write operations
 
 ---
 

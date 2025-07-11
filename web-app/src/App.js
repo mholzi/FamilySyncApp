@@ -10,12 +10,16 @@ import Dashboard from './components/Dashboard';
 import Onboarding from './components/Onboarding';
 import AuPairInviteFlow from './components/AuPairInviteFlow';
 import ThemeProvider from './components/ThemeProvider';
+import SuperAdminPage from './pages/SuperAdminPage';
 
 function App() {
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
+  
+  // Check if we're on the super admin route
+  const isSuperAdminRoute = window.location.pathname === '/superadmin';
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -76,6 +80,15 @@ function App() {
             </div>
           </div>
         </div>
+      </ThemeProvider>
+    );
+  }
+
+  // Show Super Admin page if on /superadmin route
+  if (isSuperAdminRoute) {
+    return (
+      <ThemeProvider>
+        <SuperAdminPage />
       </ThemeProvider>
     );
   }

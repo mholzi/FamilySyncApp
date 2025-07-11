@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '../../firebase';
-import { collection, query, where, onSnapshot, doc, getDoc, setDoc, serverTimestamp, updateDoc, arrayUnion, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, getDoc, setDoc, serverTimestamp, updateDoc, arrayUnion, orderBy, deleteDoc } from 'firebase/firestore';
 import { useFamily } from '../../hooks/useFamily';
 import DirectMessageChat from './DirectMessageChat';
+import { cleanupOldFamilyNotes } from '../../utils/notesCleanup';
 import './MessagesPage.css';
 
 const MessagesPage = () => {
@@ -20,13 +21,14 @@ const MessagesPage = () => {
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [showNewMessageModal, setShowNewMessageModal] = useState(false);
   const [familyMembers, setFamilyMembers] = useState([]);
+  const [viewedMessagesTimestamp, setViewedMessagesTimestamp] = useState(null);
+  const [newThreshold, setNewThreshold] = useState(Date.now());
+  const [familyChatUnreadCount, setFamilyChatUnreadCount] = useState(0);
   
   // Performance optimization: Pagination
   const [visibleMessageCount, setVisibleMessageCount] = useState(20);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   
-  // Message archiving
-  const [showArchivedMessages, setShowArchivedMessages] = useState(false);
   
   // First-time help/onboarding
   const [showOnboardingHelp, setShowOnboardingHelp] = useState(false);
@@ -39,6 +41,21 @@ const MessagesPage = () => {
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // Auto-remove NEW indicators after 3 seconds
+  useEffect(() => {
+    // Set the timestamp when the component mounts
+    if (!viewedMessagesTimestamp) {
+      setViewedMessagesTimestamp(Date.now());
+    }
+
+    // After 3 seconds, update the new threshold to hide NEW indicators
+    const timer = setTimeout(() => {
+      setNewThreshold(Date.now() - (3 * 1000)); // 3 seconds ago
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [viewedMessagesTimestamp]);
 
   // Check if this is the first time visiting Messages (for parents)
   useEffect(() => {
@@ -53,6 +70,21 @@ const MessagesPage = () => {
       }
     }
   }, [user?.uid, family?.id]);
+
+  // Cleanup old family notes on component mount
+  useEffect(() => {
+    if (!family?.id) return;
+
+    // Run cleanup on mount
+    cleanupOldFamilyNotes(family.id);
+
+    // Run cleanup every hour
+    const interval = setInterval(() => {
+      cleanupOldFamilyNotes(family.id);
+    }, 60 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [family?.id]);
 
   // Fetch family notes
   useEffect(() => {
@@ -89,7 +121,8 @@ const MessagesPage = () => {
             type: 'note',
             ...noteData,
             authorName,
-            authorId: noteData.createdBy
+            authorId: noteData.createdBy,
+            comments: noteData.comments || []
           };
         }));
         setFamilyNotes(notes);
@@ -122,37 +155,34 @@ const MessagesPage = () => {
             continue;
           }
           
-          // Extract comments from help requests
-          if (taskData.helpRequests?.length > 0) {
-            taskData.helpRequests.forEach((request) => {
-              commentsData.push({
-                id: `${doc.id}_help_${request.id}`,
-                type: 'task',
-                taskId: doc.id,
-                taskTitle: taskData.title,
-                taskDescription: taskData.description,
-                taskCategory: taskData.category,
-                taskDueDate: taskData.dueDate,
-                taskCompleted: taskData.isCompleted,
-                taskCompletedAt: taskData.completedAt,
-                message: request.message,
-                authorId: request.requestedBy,
-                authorName: request.requestedByName,
-                authorRole: 'aupair',
-                timestamp: request.timestamp,
-                isQuestion: request.message.trim().endsWith('?'),
-                hasResponse: !!request.response,
-                response: request.response,
-                responseBy: request.responseBy,
-                responseAt: request.responseAt
-              });
-            });
+          // Skip completed and confirmed tasks entirely
+          if (taskData.isCompleted || taskData.status === 'confirmed') {
+            continue;
           }
-
-          // Extract completion notes
-          if (taskData.completionNotes) {
+          
+          // Extract comments from help requests - consolidate by task
+          if (taskData.helpRequests?.length > 0) {
+            // Create a single message card for this task with all comments
+            const taskMessages = taskData.helpRequests.map(request => ({
+              id: request.id,
+              message: request.message,
+              authorId: request.requestedBy,
+              authorName: request.requestedByName,
+              authorRole: request.authorRole || 'aupair',
+              timestamp: request.timestamp,
+              isQuestion: request.message.trim().endsWith('?'),
+              hasResponse: !!request.response,
+              response: request.response,
+              responseBy: request.responseBy,
+              responseAt: request.responseAt,
+              responseAuthorName: request.responseAuthorName
+            }));
+            
+            // Check if any message is an unanswered question
+            const hasUnansweredQuestion = taskMessages.some(msg => msg.isQuestion && !msg.hasResponse);
+            
             commentsData.push({
-              id: `${doc.id}_completion`,
+              id: `${doc.id}_consolidated`,
               type: 'task',
               taskId: doc.id,
               taskTitle: taskData.title,
@@ -161,15 +191,21 @@ const MessagesPage = () => {
               taskDueDate: taskData.dueDate,
               taskCompleted: taskData.isCompleted,
               taskCompletedAt: taskData.completedAt,
-              message: taskData.completionNotes,
-              authorId: taskData.completedBy,
-              authorName: taskData.completedByName || 'Au Pair',
-              authorRole: 'aupair',
-              timestamp: taskData.completedAt,
-              isQuestion: false,
-              hasResponse: true
+              taskMessages: taskMessages, // All messages for this task
+              hasUnansweredQuestion: hasUnansweredQuestion,
+              // Use the most recent message timestamp
+              timestamp: taskMessages.reduce((latest, msg) => 
+                (!latest || (msg.timestamp && msg.timestamp > latest)) ? msg.timestamp : latest, 
+                null
+              ),
+              // For the main display, show the latest message
+              message: taskMessages[taskMessages.length - 1]?.message || '',
+              authorName: taskMessages[taskMessages.length - 1]?.authorName || 'Unknown',
+              authorRole: taskMessages[taskMessages.length - 1]?.authorRole || 'aupair'
             });
           }
+
+          // Skip completion notes since we're excluding completed tasks
         }
         
         setTaskComments(commentsData);
@@ -256,26 +292,77 @@ const MessagesPage = () => {
     return () => unsubscribe();
   }, [user?.uid]);
 
+  // Fetch family chat unread count
+  useEffect(() => {
+    if (!user?.uid || !family?.id) return;
+
+    // Subscribe to family chat messages
+    const messagesQuery = query(
+      collection(db, 'conversations', 'family-chat', 'messages'),
+      orderBy('timestamp', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
+      // Count messages that are:
+      // 1. Not authored by current user
+      // 2. Not seen by current user
+      let unreadCount = 0;
+      
+      snapshot.docs.forEach(doc => {
+        const messageData = doc.data();
+        if (messageData.authorId !== user.uid && 
+            (!messageData.seenBy || !messageData.seenBy.includes(user.uid))) {
+          unreadCount++;
+        }
+      });
+      
+      setFamilyChatUnreadCount(unreadCount);
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid, family?.id]);
+
   // Calculate unanswered questions count
   const unansweredQuestionsCount = useMemo(() => {
     return taskComments.filter(comment => 
-      comment.isQuestion && !comment.hasResponse
+      comment.hasUnansweredQuestion || (comment.isQuestion && !comment.hasResponse)
     ).length;
   }, [taskComments]);
 
-  // Check if message should be auto-archived (older than 30 days and resolved)
-  const shouldAutoArchive = useCallback((message) => {
-    const messageTimestamp = message.timestamp || message.createdAt;
-    if (!messageTimestamp) return false;
+  // Calculate total unread count for bottom navigation
+  const totalUnreadCount = useMemo(() => {
+    // Count unread family chat messages
+    let total = familyChatUnreadCount;
     
-    const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-    const messageAge = messageTimestamp.toMillis();
+    // Count unread direct messages
+    directMessages.forEach(conv => {
+      if (conv.lastMessageBy && conv.lastMessageBy !== user?.uid && 
+          (!conv.seenBy || !conv.seenBy.includes(user?.uid))) {
+        total++;
+      }
+    });
     
-    // Auto-archive old resolved questions or completed task comments
-    return messageAge < thirtyDaysAgo && 
-           ((message.isQuestion && message.hasResponse) || 
-            (message.type === 'task' && message.message.includes('completed')));
-  }, []);
+    // Count unread family notes (notes without readBy including current user)
+    familyNotes.forEach(note => {
+      if (note.authorId !== user?.uid && 
+          (!note.readBy || !note.readBy.includes(user?.uid))) {
+        total++;
+      }
+    });
+    
+    // Count unanswered questions in tasks
+    total += unansweredQuestionsCount;
+    
+    return total;
+  }, [familyChatUnreadCount, directMessages, familyNotes, unansweredQuestionsCount, user?.uid]);
+
+  // Export the total unread count so it can be used in parent components
+  useEffect(() => {
+    if (window.updateMessagesUnreadCount) {
+      window.updateMessagesUnreadCount(totalUnreadCount);
+    }
+  }, [totalUnreadCount]);
+
 
   // Mark messages as read when user views them - memoized for performance
   const markAsRead = useCallback(async (messageId, messageType) => {
@@ -304,16 +391,10 @@ const MessagesPage = () => {
 
     // Combine all messages based on filter
     if (filter === 'all' || filter === 'notes') {
-      const notesToShow = showArchivedMessages 
-        ? familyNotes 
-        : familyNotes.filter(note => !note.isArchived && !shouldAutoArchive(note));
-      allMessages = [...allMessages, ...notesToShow];
+      allMessages = [...allMessages, ...familyNotes];
     }
     if (filter === 'all' || filter === 'tasks') {
-      const tasksToShow = showArchivedMessages 
-        ? taskComments 
-        : taskComments.filter(comment => !shouldAutoArchive(comment));
-      allMessages = [...allMessages, ...tasksToShow];
+      allMessages = [...allMessages, ...taskComments];
     }
     if (filter === 'all' || filter === 'chats') {
       allMessages = [...allMessages, ...directMessages];
@@ -347,7 +428,7 @@ const MessagesPage = () => {
     setHasMoreMessages(allMessages.length > visibleMessageCount);
     
     return allMessages;
-  }, [filter, debouncedSearchQuery, familyNotes, taskComments, directMessages, visibleMessageCount, showArchivedMessages, shouldAutoArchive]);
+  }, [filter, debouncedSearchQuery, familyNotes, taskComments, directMessages, visibleMessageCount]);
 
   // Get visible messages for rendering (performance optimization)
   const visibleMessages = useMemo(() => {
@@ -359,24 +440,6 @@ const MessagesPage = () => {
     setVisibleMessageCount(prev => prev + 20);
   }, []);
 
-  // Archive message function (currently unused but available for future use)
-  // eslint-disable-next-line no-unused-vars
-  const archiveMessage = useCallback(async (messageId, messageType) => {
-    if (!user?.uid) return;
-    
-    try {
-      if (messageType === 'note') {
-        await updateDoc(doc(db, 'families', family.id, 'familyNotes', messageId), {
-          isArchived: true,
-          archivedAt: serverTimestamp(),
-          archivedBy: user.uid
-        });
-      }
-      // Task comments don't support individual archiving in this implementation
-    } catch (error) {
-      console.error('Error archiving message:', error);
-    }
-  }, [user?.uid, family?.id]);
 
   // Start a new conversation
   const startConversation = async (otherUserId) => {
@@ -428,6 +491,8 @@ const MessagesPage = () => {
       participants: family?.members || [],
       isFamilyChat: true
     });
+    // Reset unread count when opening chat
+    setFamilyChatUnreadCount(0);
   };
 
   if (familyLoading || loading) {
@@ -508,13 +573,6 @@ const MessagesPage = () => {
           >
             Chats
           </button>
-          <button
-            className={`filter-btn archive-btn ${showArchivedMessages ? 'active' : ''}`}
-            onClick={() => setShowArchivedMessages(!showArchivedMessages)}
-            title={showArchivedMessages ? 'Hide archived messages' : 'Show archived messages'}
-          >
-            📦 Archive
-          </button>
         </div>
       </div>
 
@@ -522,7 +580,14 @@ const MessagesPage = () => {
       <button className="family-chat-btn" onClick={openFamilyChat}>
         <span className="family-chat-icon">👨‍👩‍👧‍👦</span>
         <span className="family-chat-text">Family Chat</span>
-        <span className="family-chat-arrow">→</span>
+        <div className="family-chat-right">
+          {familyChatUnreadCount > 0 && (
+            <span className="family-chat-unread-badge">
+              {familyChatUnreadCount > 99 ? '99+' : familyChatUnreadCount}
+            </span>
+          )}
+          <span className="family-chat-arrow">→</span>
+        </div>
       </button>
 
       <div className="messages-list">
@@ -537,6 +602,8 @@ const MessagesPage = () => {
                 key={message.id} 
                 message={message}
                 currentUserId={user?.uid}
+                family={family}
+                newThreshold={newThreshold}
                 onClick={message.type === 'chat' ? () => {
                   setSelectedConversation(message);
                 } : { markAsRead }}
@@ -683,17 +750,21 @@ const getFriendlyName = (authorName) => {
 };
 
 // Message Card Component - Memoized for performance
-const MessageCard = React.memo(({ message, onClick, currentUserId }) => {
+const MessageCard = React.memo(({ message, onClick, currentUserId, family, newThreshold }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const isUnansweredQuestion = message.isQuestion && !message.hasResponse;
+  const [replyText, setReplyText] = useState('');
+  const [isReplying, setIsReplying] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const isUnansweredQuestion = message.hasUnansweredQuestion || (message.isQuestion && !message.hasResponse);
   
   // Determine if message is unread by current user
   const isUnread = message.type === 'note' 
     ? (message.readBy ? !message.readBy.includes(currentUserId) : true)
     : (message.seenBy ? !message.seenBy.includes(currentUserId) : false);
   const messageTimestamp = message.timestamp || message.createdAt;
-  const isNewMessage = messageTimestamp && 
-    (Date.now() - messageTimestamp.toMillis()) < (24 * 60 * 60 * 1000); // Less than 24 hours old
+  // Check if message timestamp is after the new threshold
+  const messageTime = messageTimestamp?.toMillis ? messageTimestamp.toMillis() : 0;
+  const isNewMessage = messageTime > newThreshold;
 
   const handleCardClick = (e) => {
     if (message.type === 'chat') {
@@ -707,6 +778,9 @@ const MessageCard = React.memo(({ message, onClick, currentUserId }) => {
         onClick.markAsRead(message.id, message.type);
       }
     } else if (message.type === 'note') {
+      // For notes, toggle expansion
+      e.stopPropagation();
+      setIsExpanded(!isExpanded);
       // Mark family notes as read when clicked
       if (onClick?.markAsRead) {
         onClick.markAsRead(message.id, message.type);
@@ -714,9 +788,25 @@ const MessageCard = React.memo(({ message, onClick, currentUserId }) => {
     }
   };
 
+  const handleDeleteNote = async (e) => {
+    e.stopPropagation();
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await deleteDoc(doc(db, 'families', family.id, 'notes', message.id));
+      setShowDeleteConfirm(false);
+    } catch (error) {
+      console.error('Error deleting note:', error);
+      alert('Failed to delete note. Please try again.');
+      setShowDeleteConfirm(false);
+    }
+  };
+
   return (
     <div 
-      className={`message-card ${isUnansweredQuestion ? 'unanswered-question' : ''} ${message.type === 'chat' ? 'clickable' : ''} ${message.type === 'task' ? 'expandable' : ''} ${isUnread ? 'unread' : ''} ${isNewMessage ? 'new-message' : ''}`}
+      className={`message-card ${isUnansweredQuestion ? 'unanswered-question' : ''} ${message.type === 'chat' ? 'clickable' : ''} ${(message.type === 'task' || message.type === 'note') ? 'expandable' : ''} ${isUnread ? 'unread' : ''} ${isNewMessage ? 'new-message' : ''}`}
       onClick={handleCardClick}
     >
       {/* Message Type Indicator */}
@@ -735,6 +825,35 @@ const MessageCard = React.memo(({ message, onClick, currentUserId }) => {
             </span>
           </span>
         )}
+        {message.type === 'note' && (
+          <>
+            <span className="expand-indicator" style={{ marginLeft: 'auto', marginRight: '8px' }}>
+              {isExpanded ? '▼' : '▶'}
+            </span>
+            {message.authorId === currentUserId && (
+              <button 
+                className="note-delete-btn"
+                onClick={handleDeleteNote}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--md-sys-color-error)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  fontSize: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '4px',
+                  transition: 'background-color 0.2s'
+                }}
+                title="Delete note"
+              >
+                🗑️
+              </button>
+            )}
+          </>
+        )}
       </div>
 
       {/* Message Content */}
@@ -748,6 +867,109 @@ const MessageCard = React.memo(({ message, onClick, currentUserId }) => {
             )}
             <p className="message-text">{message.content || message.text || message.message}</p>
             {message.isPinned && <span className="pinned-indicator">📌 Pinned</span>}
+            
+            {/* Expandable Note Context */}
+            {isExpanded && (
+              <div className="task-context" onClick={(e) => e.stopPropagation()} style={{ marginTop: '12px' }}>
+                {/* Response Box */}
+                <div className="task-reply-box">
+                  <textarea
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    placeholder="Add a comment to this note..."
+                    className="task-reply-input"
+                    rows={3}
+                  />
+                  <button
+                    className="task-reply-button"
+                    onClick={async () => {
+                      if (!replyText.trim()) return;
+                      
+                      setIsReplying(true);
+                      try {
+                        // Get current user data
+                        const userDoc = await getDoc(doc(db, 'users', currentUserId));
+                        const userData = userDoc.exists() ? userDoc.data() : {};
+                        
+                        // Create new comment
+                        const newComment = {
+                          id: `comment_${Date.now()}`,
+                          message: replyText.trim(),
+                          authorId: currentUserId,
+                          authorName: userData.name || userData.displayName || userData.email || 'Unknown',
+                          authorRole: userData.role || 'parent',
+                          timestamp: new Date()
+                        };
+                        
+                        // Get the note document
+                        const noteRef = doc(db, 'families', family.id, 'notes', message.id);
+                        const noteDoc = await getDoc(noteRef);
+                        
+                        if (noteDoc.exists()) {
+                          const noteData = noteDoc.data();
+                          const currentComments = noteData.comments || [];
+                          const updatedComments = [...currentComments, newComment];
+                          
+                          // Update the note
+                          await updateDoc(noteRef, {
+                            comments: updatedComments,
+                            updatedAt: serverTimestamp()
+                          });
+                          
+                          setReplyText('');
+                          // The onSnapshot listener will automatically update the UI
+                        }
+                      } catch (error) {
+                        console.error('Error adding comment:', error);
+                        alert('Failed to add comment. Please try again.');
+                      } finally {
+                        setIsReplying(false);
+                      }
+                    }}
+                    disabled={!replyText.trim() || isReplying}
+                  >
+                    {isReplying ? 'Adding...' : 'Add Comment'}
+                  </button>
+                </div>
+
+                {/* Comments Thread */}
+                {message.comments && message.comments.length > 0 && (
+                  <div className="task-messages-thread">
+                    <h4>Comments</h4>
+                    {/* Sort comments newest first */}
+                    {[...message.comments].sort((a, b) => {
+                      const aTime = a.timestamp?.toMillis ? a.timestamp.toMillis() : (a.timestamp?.getTime ? a.timestamp.getTime() : 0);
+                      const bTime = b.timestamp?.toMillis ? b.timestamp.toMillis() : (b.timestamp?.getTime ? b.timestamp.getTime() : 0);
+                      return bTime - aTime;
+                    }).map((comment, index) => (
+                      <div key={comment.id || index} className="task-thread-message">
+                        <div className="thread-message-header">
+                          <span className="thread-message-author">
+                            {getFriendlyName(comment.authorName)}
+                          </span>
+                          <span className="thread-message-time">
+                            {comment.timestamp?.toDate ? comment.timestamp.toDate().toLocaleString('en-GB', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: false
+                            }) : (comment.timestamp?.toLocaleString ? comment.timestamp.toLocaleString('en-GB', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: false
+                            }) : 'Recently')}
+                          </span>
+                        </div>
+                        <p className="thread-message-text">{comment.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         ) : message.type === 'chat' ? (
           <>
@@ -760,9 +982,6 @@ const MessageCard = React.memo(({ message, onClick, currentUserId }) => {
           </>
         ) : (
           <>
-            <div className="message-author">
-              {getFriendlyName(message.authorName)} • {message.authorRole}
-            </div>
             <p className="message-text">{message.message}</p>
             {isUnansweredQuestion && (
               <div className="awaiting-response">Awaiting response...</div>
@@ -775,11 +994,128 @@ const MessageCard = React.memo(({ message, onClick, currentUserId }) => {
             
             {/* Expandable Task Context */}
             {isExpanded && message.type === 'task' && (
-              <div className="task-context">
-                <div className="task-context-header">
-                  <strong>Task Details:</strong>
+              <div className="task-context" onClick={(e) => e.stopPropagation()}>
+                {/* Response Box at top */}
+                <div className="task-reply-box">
+                  <textarea
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    placeholder="Type your response..."
+                    className="task-reply-input"
+                    rows={3}
+                  />
+                  <button
+                    className="task-reply-button"
+                    onClick={async () => {
+                      if (!replyText.trim() || !message.taskId) return;
+                      
+                      setIsReplying(true);
+                      try {
+                        // Get current user data
+                        const userDoc = await getDoc(doc(db, 'users', currentUserId));
+                        const userData = userDoc.exists() ? userDoc.data() : {};
+                        
+                        // Create new comment
+                        const newComment = {
+                          id: `comment_${Date.now()}`,
+                          message: replyText.trim(),
+                          requestedBy: currentUserId,
+                          requestedByName: userData.name || userData.displayName || userData.email || 'Unknown',
+                          authorId: currentUserId,
+                          authorName: userData.name || userData.displayName || userData.email || 'Unknown',
+                          authorRole: userData.role || 'parent',
+                          timestamp: new Date(),
+                          isQuestion: replyText.trim().endsWith('?'),
+                          hasResponse: false,
+                          response: null,
+                          responseBy: null,
+                          responseAt: null
+                        };
+                        
+                        // Get the task document
+                        const taskRef = doc(db, 'families', family.id, 'householdTodos', message.taskId);
+                        const taskDoc = await getDoc(taskRef);
+                        
+                        if (taskDoc.exists()) {
+                          const taskData = taskDoc.data();
+                          const currentHelpRequests = taskData.helpRequests || [];
+                          const updatedHelpRequests = [...currentHelpRequests, newComment];
+                          
+                          // Update the task
+                          await updateDoc(taskRef, {
+                            helpRequests: updatedHelpRequests,
+                            updatedAt: serverTimestamp()
+                          });
+                          
+                          setReplyText('');
+                          // The onSnapshot listener will automatically update the UI
+                        }
+                      } catch (error) {
+                        console.error('Error adding reply:', error);
+                        alert('Failed to send reply. Please try again.');
+                      } finally {
+                        setIsReplying(false);
+                      }
+                    }}
+                    disabled={!replyText.trim() || isReplying}
+                  >
+                    {isReplying ? 'Sending...' : 'Send Reply'}
+                  </button>
                 </div>
-                <div className="task-context-content">
+
+                {/* Messages Thread */}
+                {message.taskMessages && message.taskMessages.length > 0 && (
+                  <div className="task-messages-thread">
+                    <h4>Conversation Thread</h4>
+                    {/* Sort messages newest first */}
+                    {[...message.taskMessages].sort((a, b) => {
+                      const aTime = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
+                      const bTime = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
+                      return bTime - aTime;
+                    }).map((msg, index) => (
+                      <div key={msg.id || index} className="task-thread-message">
+                        <div className="thread-message-header">
+                          <span className="thread-message-author">
+                            {getFriendlyName(msg.authorName)}
+                          </span>
+                          <span className="thread-message-time">
+                            {msg.timestamp?.toDate().toLocaleString('en-GB', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: false
+                            })}
+                          </span>
+                        </div>
+                        <p className="thread-message-text">{msg.message}</p>
+                        {msg.response && (
+                          <div className="thread-message-response">
+                            <div className="thread-response-header">
+                              <span className="thread-message-author">
+                                {getFriendlyName(msg.responseAuthorName || 'Parent')}
+                              </span>
+                              <span className="thread-message-time">
+                                {msg.responseAt?.toDate ? msg.responseAt.toDate().toLocaleString('en-GB', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  hour12: false
+                                }) : 'Recently'}
+                              </span>
+                            </div>
+                            <p className="thread-message-text">{msg.response}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Task Details */}
+                <div className="task-context-details">
+                  <h4>Task Information</h4>
                   <p><strong>Title:</strong> {message.taskTitle}</p>
                   {message.taskDescription && (
                     <p><strong>Description:</strong> {message.taskDescription}</p>
@@ -801,11 +1137,12 @@ const MessageCard = React.memo(({ message, onClick, currentUserId }) => {
       <div className="message-metadata">
         <div className="message-time-container">
           <span className="message-time">
-            {(message.timestamp || message.createdAt)?.toDate().toLocaleDateString('en-US', {
+            {(message.timestamp || message.createdAt)?.toDate().toLocaleString('en-US', {
               month: 'short',
               day: 'numeric',
-              hour: 'numeric',
-              minute: '2-digit'
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
             })}
           </span>
           {isNewMessage && <span className="new-indicator">NEW</span>}
@@ -813,9 +1150,6 @@ const MessageCard = React.memo(({ message, onClick, currentUserId }) => {
             <span className="unread-indicator">●</span>
           )}
         </div>
-        {message.type === 'task' && !isExpanded && (
-          <span className="expand-hint">Tap to expand</span>
-        )}
         {/* Author name box */}
         {message.authorName && (
           <div className="message-author-box">
@@ -823,6 +1157,106 @@ const MessageCard = React.memo(({ message, onClick, currentUserId }) => {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div 
+          className="delete-confirm-overlay" 
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowDeleteConfirm(false);
+          }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 3000,
+            padding: '20px'
+          }}
+        >
+          <div 
+            className="delete-confirm-modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'var(--md-sys-color-surface)',
+              borderRadius: 'var(--md-sys-shape-corner-large)',
+              padding: '24px',
+              maxWidth: '400px',
+              width: '100%',
+              boxShadow: 'var(--md-sys-elevation-level3)',
+              animation: 'slideUp 0.3s ease'
+            }}
+          >
+            <h3 style={{
+              margin: '0 0 16px 0',
+              fontSize: '20px',
+              fontWeight: '500',
+              color: 'var(--md-sys-color-on-surface)'
+            }}>
+              Delete Family Note?
+            </h3>
+            <p style={{
+              margin: '0 0 24px 0',
+              fontSize: '16px',
+              color: 'var(--md-sys-color-on-surface-variant)',
+              lineHeight: '1.5'
+            }}>
+              Are you sure you want to delete this note? This action cannot be undone.
+            </p>
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowDeleteConfirm(false);
+                }}
+                style={{
+                  padding: '10px 24px',
+                  border: '1px solid var(--md-sys-color-outline)',
+                  borderRadius: 'var(--md-sys-shape-corner-full)',
+                  backgroundColor: 'transparent',
+                  color: 'var(--md-sys-color-primary)',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  confirmDelete();
+                }}
+                style={{
+                  padding: '10px 24px',
+                  border: 'none',
+                  borderRadius: 'var(--md-sys-shape-corner-full)',
+                  backgroundColor: 'var(--md-sys-color-error)',
+                  color: 'var(--md-sys-color-on-error)',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
+                  boxShadow: 'var(--md-sys-elevation-level1)'
+                }}
+              >
+                Delete Note
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 });

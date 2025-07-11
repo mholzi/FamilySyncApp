@@ -45,7 +45,7 @@ const AddShoppingList = ({ onCancel, onCreate, creating, familyId, currentUser, 
     }
 
     const scheduledDateTime = new Date(scheduledDate);
-    scheduledDateTime.setHours(10, 0, 0, 0); // Set default time to 10:00 AM
+    scheduledDateTime.setHours(10, 0, 0, 0); // Set default time to 10:00
     const listData = {
       name: name.trim(),
       scheduledFor: scheduledDateTime,

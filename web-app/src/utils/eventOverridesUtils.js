@@ -91,6 +91,7 @@ export const applyEventOverride = (event, override) => {
     responsibility: override.responsibility || event.responsibility,
     location: override.location || event.location,
     additionalInfo: override.additionalInfo || event.additionalInfo,
+    requiredItems: override.requiredItems !== undefined ? override.requiredItems : event.requiredItems,
     isModified: true,
     overrideId: override.id
   };

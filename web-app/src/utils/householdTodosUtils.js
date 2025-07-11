@@ -253,6 +253,9 @@ export const confirmHouseholdTodo = async (familyId, todoId, confirmedBy) => {
         console.log('✅ Parent confirmed au pair\'s completion');
       }
 
+      // Clear help requests when task is confirmed
+      updateData.helpRequests = [];
+      
       await updateDoc(todoDocRef, updateData);
       console.log('✅ Todo confirmed and will be hidden from view');
       

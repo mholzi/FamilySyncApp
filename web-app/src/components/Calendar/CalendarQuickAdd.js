@@ -416,7 +416,7 @@ const CalendarQuickAdd = ({
                           const startDate = new Date();
                           startDate.setHours(parseInt(hours), parseInt(minutes));
                           startDate.setMinutes(startDate.getMinutes() - eventData.travelTime);
-                          return startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                          return startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
                         })()}
                       </div>
                     )}

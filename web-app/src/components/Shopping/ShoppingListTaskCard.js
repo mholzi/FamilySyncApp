@@ -31,11 +31,11 @@ const ShoppingListTaskCard = ({ list, onNavigate }) => {
       const tomorrowDay = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate());
       
       if (scheduleDay.getTime() === todayDay.getTime()) {
-        const timeStr = scheduledDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const timeStr = scheduledDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
         return `Today at ${timeStr}`;
       }
       if (scheduleDay.getTime() === tomorrowDay.getTime()) {
-        const timeStr = scheduledDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const timeStr = scheduledDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
         return `Tomorrow at ${timeStr}`;
       }
       
@@ -45,11 +45,11 @@ const ShoppingListTaskCard = ({ list, onNavigate }) => {
       const dayAfterDay = new Date(dayAfter.getFullYear(), dayAfter.getMonth(), dayAfter.getDate());
       
       if (scheduleDay.getTime() === dayAfterDay.getTime()) {
-        const timeStr = scheduledDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const timeStr = scheduledDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
         return `Day after tomorrow at ${timeStr}`;
       }
       
-      return scheduledDate.toLocaleDateString() + ' at ' + scheduledDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return scheduledDate.toLocaleDateString() + ' at ' + scheduledDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
     }
     
     return '';

@@ -25,19 +25,27 @@ service cloud.firestore {
              getUserFamilyId(request.auth.uid) == familyId;
     }
     
-    // Users - can only read/write own profile, family members can read
+    // Helper function to check if user is super admin
+    function isSuperAdmin() {
+      return request.auth != null && 
+             request.auth.token.email == 'mholzi@gmail.com';
+    }
+    
+    // Users - can only read/write own profile, family members can read, super admin can read
     match /users/{userId} {
       allow read: if request.auth != null && 
                      (request.auth.uid == userId || 
                       (resource.data.familyId != null && 
-                       isFamilyMember(resource.data.familyId)));
+                       isFamilyMember(resource.data.familyId)) ||
+                      isSuperAdmin());
       allow write: if request.auth != null && 
                       request.auth.uid == userId;
     }
     
-    // Families - only family members can read/write
+    // Families - only family members can read/write, super admin can read
     match /families/{familyId} {
-      allow read, write: if isFamilyMember(familyId);
+      allow read: if isFamilyMember(familyId) || isSuperAdmin();
+      allow write: if isFamilyMember(familyId);
       
       // Shopping Lists - family members only with additional validation
       match /shopping/{shoppingId} {

@@ -11,6 +11,7 @@ const DirectMessageChat = ({ conversationId, participants, currentUserId, onBack
   const [sending, setSending] = useState(false);
   const [otherParticipant, setOtherParticipant] = useState(null);
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
+  const [userProfiles, setUserProfiles] = useState({});
   const messagesEndRef = useRef(null);
 
   // Scroll to bottom when messages change
@@ -80,21 +81,44 @@ const DirectMessageChat = ({ conversationId, participants, currentUserId, onBack
       orderBy('timestamp', 'asc')
     );
 
-    const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
+    const unsubscribe = onSnapshot(messagesQuery, async (snapshot) => {
       const messagesData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
       setMessages(messagesData);
 
-      // Mark messages as read
-      if (conversationId !== 'family-chat') {
-        markMessagesAsRead(messagesData);
+      // Fetch user profiles for all unique authors
+      const uniqueAuthorIds = [...new Set(messagesData.map(msg => msg.authorId).filter(id => id))];
+      const profilesMap = {};
+      
+      for (const authorId of uniqueAuthorIds) {
+        if (!userProfiles[authorId]) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', authorId));
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              profilesMap[authorId] = {
+                name: userData.name || userData.displayName || userData.email,
+                role: userData.role
+              };
+            }
+          } catch (error) {
+            console.error('Error fetching user profile:', error);
+          }
+        }
       }
+      
+      if (Object.keys(profilesMap).length > 0) {
+        setUserProfiles(prev => ({ ...prev, ...profilesMap }));
+      }
+
+      // Mark messages as read
+      markMessagesAsRead(messagesData);
     });
 
     return () => unsubscribe();
-  }, [conversationId, currentUserId]);
+  }, [conversationId, currentUserId, userProfiles]);
 
   const markMessagesAsRead = async (messagesData) => {
     const unreadMessages = messagesData.filter(
@@ -218,8 +242,14 @@ const DirectMessageChat = ({ conversationId, participants, currentUserId, onBack
                     hour: '2-digit',
                     minute: '2-digit'
                   })}
-                  {!isOwn && message.authorName && (
-                    <span className="message-author-inline"> • {message.authorName.split(' ')[0] || message.authorName}</span>
+                  {!isOwn && conversationId === 'family-chat' && (
+                    <span className="message-author-inline">
+                      {' • '}
+                      {userProfiles[message.authorId]?.name ? 
+                        (userProfiles[message.authorId].name.split(' ')[0] || userProfiles[message.authorId].name) : 
+                        (message.authorName?.split(' ')[0] || message.authorName || 'Unknown')
+                      }
+                    </span>
                   )}
                 </span>
               </div>

@@ -38,6 +38,42 @@ const getUserInitials = (name) => {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 };
 
+// Get responsibility color
+const getResponsibilityColor = (event) => {
+  // Check for school events with transport responsibilities
+  if (event.type === 'school' && (event.dropOffResponsibility || event.pickUpResponsibility)) {
+    const dropOff = event.dropOffResponsibility?.toLowerCase();
+    const pickUp = event.pickUpResponsibility?.toLowerCase();
+    
+    // Check if shared (different responsibilities for drop-off and pick-up)
+    if (dropOff && pickUp && dropOff !== pickUp) {
+      return { background: '#F3E5F5', border: '#7B1FA2', textColor: '#1A1A1A' }; // Dark text for shared
+    }
+    // Check specific responsibilities
+    if ((dropOff === 'au_pair' || dropOff === 'aupair') || (pickUp === 'au_pair' || pickUp === 'aupair')) {
+      return { background: '#BBDEFB', border: '#2196F3', textColor: '#0D47A1' }; // Blue for aupair
+    }
+    if (dropOff === 'parent' || pickUp === 'parent') {
+      return { background: '#C8E6C9', border: '#4CAF50', textColor: '#1B5E20' }; // Green for parent
+    }
+  }
+  
+  // Check regular responsibility field
+  const responsibility = event.responsibility?.toLowerCase();
+  if (responsibility === 'au_pair' || responsibility === 'aupair') {
+    return { background: '#BBDEFB', border: '#2196F3', textColor: '#0D47A1' }; // Blue for aupair
+  }
+  if (responsibility === 'parent') {
+    return { background: '#C8E6C9', border: '#4CAF50', textColor: '#1B5E20' }; // Green for parent
+  }
+  if (responsibility === 'shared') {
+    return { background: '#F3E5F5', border: '#7B1FA2', textColor: '#1A1A1A' }; // Dark text for shared
+  }
+  
+  // Default to child color if no specific responsibility
+  return null;
+};
+
 const CalendarAgendaView = ({ 
   familyData,
   children = [],
@@ -196,8 +232,8 @@ const CalendarAgendaView = ({
     return displayText.charAt(0).toUpperCase() + displayText.slice(1);
   };
 
-  const getResponsibilityColor = (responsibility) => {
-    // Define colors for different responsibilities
+  const getResponsibilityTagColor = (responsibility) => {
+    // Define colors for responsibility tags
     const colors = {
       'au_pair': { bg: '#E3F2FD', text: '#1976D2' }, // Blue
       'aupair': { bg: '#E3F2FD', text: '#1976D2' }, // Blue
@@ -235,29 +271,44 @@ const CalendarAgendaView = ({
   const renderEventCard = (event) => {
     const isExpanded = expandedEvents.has(event.id);
     const child = getChildInfo(event.childId);
-    const childColor = getChildColor(event.childId);
+    const childColor = getChildColorFromId(event.childId);
+    const responsibilityColor = getResponsibilityColor(event);
     
     // Calculate leave by time if travel time exists
     const leaveByTime = event.travelTime ? 
-      format(new Date(new Date(`${event.date} ${event.time}`).getTime() - event.travelTime * 60000), 'h:mm a') : 
+      format(new Date(new Date(`${event.date} ${event.time}`).getTime() - event.travelTime * 60000), 'HH:mm') : 
       null;
 
     return (
       <div 
         key={event.id}
-        style={styles.eventCard}
+        style={{
+          ...styles.eventCard,
+          backgroundColor: responsibilityColor ? responsibilityColor.background : childColor.light,
+          border: `2px solid ${responsibilityColor ? responsibilityColor.border : childColor.primary}`
+        }}
         onClick={() => toggleExpanded(event.id)}
       >
         {/* Compact View */}
         <div style={styles.compactView}>
           <div style={styles.timeColumn}>
-            <div style={styles.eventTime}>{event.time || format(new Date(event.startTime), 'h:mm a')}</div>
-            <div style={styles.endTime}>{formatEndTime(event)}</div>
+            <div style={{
+              ...styles.eventTime,
+              color: responsibilityColor ? '#1A1A1A' : 'var(--md-sys-color-on-surface)'
+            }}>{event.time || format(new Date(event.startTime), 'HH:mm')}</div>
+            <div style={{
+              ...styles.endTime,
+              color: responsibilityColor ? '#424242' : 'var(--md-sys-color-on-surface-variant)'
+            }}>{formatEndTime(event)}</div>
           </div>
           
           <div style={styles.eventInfo}>
             <div style={styles.eventHeader}>
-              <span style={styles.eventTitle}>{event.title}</span>
+              <span style={{
+                ...styles.eventTitle,
+                color: responsibilityColor ? '#1A1A1A' : 'var(--md-sys-color-on-surface)',
+                fontWeight: responsibilityColor ? '600' : '400'
+              }}>{event.title}</span>
               {child && (
                 <div style={{
                   ...styles.childCircle, 
@@ -275,8 +326,8 @@ const CalendarAgendaView = ({
                   {event.dropOffResponsibility && (
                     <div style={{
                       ...styles.responsibilityTag,
-                      backgroundColor: getResponsibilityColor(event.dropOffResponsibility === 'au_pair' ? 'aupair' : event.dropOffResponsibility).bg,
-                      color: getResponsibilityColor(event.dropOffResponsibility === 'au_pair' ? 'aupair' : event.dropOffResponsibility).text
+                      backgroundColor: getResponsibilityTagColor(event.dropOffResponsibility === 'au_pair' ? 'aupair' : event.dropOffResponsibility).bg,
+                      color: getResponsibilityTagColor(event.dropOffResponsibility === 'au_pair' ? 'aupair' : event.dropOffResponsibility).text
                     }}>
                       Drop: {getResponsibilityTag(event.dropOffResponsibility)}
                     </div>
@@ -284,8 +335,8 @@ const CalendarAgendaView = ({
                   {event.pickUpResponsibility && event.pickUpResponsibility !== event.dropOffResponsibility && (
                     <div style={{
                       ...styles.responsibilityTag,
-                      backgroundColor: getResponsibilityColor(event.pickUpResponsibility === 'au_pair' ? 'aupair' : event.pickUpResponsibility).bg,
-                      color: getResponsibilityColor(event.pickUpResponsibility === 'au_pair' ? 'aupair' : event.pickUpResponsibility).text
+                      backgroundColor: getResponsibilityTagColor(event.pickUpResponsibility === 'au_pair' ? 'aupair' : event.pickUpResponsibility).bg,
+                      color: getResponsibilityTagColor(event.pickUpResponsibility === 'au_pair' ? 'aupair' : event.pickUpResponsibility).text
                     }}>
                       Pick: {getResponsibilityTag(event.pickUpResponsibility)}
                     </div>
@@ -293,8 +344,8 @@ const CalendarAgendaView = ({
                   {event.pickUpResponsibility === event.dropOffResponsibility && event.dropOffResponsibility && (
                     <div style={{
                       ...styles.responsibilityTag,
-                      backgroundColor: getResponsibilityColor(event.dropOffResponsibility === 'au_pair' ? 'aupair' : event.dropOffResponsibility).bg,
-                      color: getResponsibilityColor(event.dropOffResponsibility === 'au_pair' ? 'aupair' : event.dropOffResponsibility).text
+                      backgroundColor: getResponsibilityTagColor(event.dropOffResponsibility === 'au_pair' ? 'aupair' : event.dropOffResponsibility).bg,
+                      color: getResponsibilityTagColor(event.dropOffResponsibility === 'au_pair' ? 'aupair' : event.dropOffResponsibility).text
                     }}>
                       {getResponsibilityTag(event.dropOffResponsibility)}
                     </div>
@@ -312,8 +363,8 @@ const CalendarAgendaView = ({
                   {!event.dropOffResponsibility && !event.pickUpResponsibility && event.responsibility && (
                     <div style={{
                       ...styles.responsibilityTag,
-                      backgroundColor: getResponsibilityColor(event.responsibility).bg,
-                      color: getResponsibilityColor(event.responsibility).text
+                      backgroundColor: getResponsibilityTagColor(event.responsibility).bg,
+                      color: getResponsibilityTagColor(event.responsibility).text
                     }}>
                       {getResponsibilityTag(event.responsibility)}
                     </div>
@@ -323,7 +374,10 @@ const CalendarAgendaView = ({
             </div>
           </div>
           
-          <div style={styles.expandIcon}>
+          <div style={{
+            ...styles.expandIcon,
+            color: responsibilityColor ? '#424242' : 'var(--md-sys-color-on-surface-variant)'
+          }}>
             {isExpanded ? '▼' : '▶'}
           </div>
         </div>
@@ -333,15 +387,27 @@ const CalendarAgendaView = ({
           <div style={styles.expandedView}>
             {event.location && (
               <div style={styles.detailRow}>
-                <span style={styles.detailLabel}>Location:</span>
-                <span style={styles.detailValue}>{event.location}</span>
+                <span style={{
+                  ...styles.detailLabel,
+                  color: responsibilityColor ? '#424242' : 'var(--md-sys-color-on-surface-variant)'
+                }}>Location:</span>
+                <span style={{
+                  ...styles.detailValue,
+                  color: responsibilityColor ? '#1A1A1A' : 'var(--md-sys-color-on-surface)'
+                }}>{event.location}</span>
               </div>
             )}
             
             {event.dropOffResponsibility && (
               <div style={styles.detailRow}>
-                <span style={styles.detailLabel}>Drop-off:</span>
-                <span style={styles.detailValue}>
+                <span style={{
+                  ...styles.detailLabel,
+                  color: responsibilityColor ? '#424242' : 'var(--md-sys-color-on-surface-variant)'
+                }}>Drop-off:</span>
+                <span style={{
+                  ...styles.detailValue,
+                  color: responsibilityColor ? '#1A1A1A' : 'var(--md-sys-color-on-surface)'
+                }}>
                   {event.dropOffResponsibility} 
                   {leaveByTime && ` (Leave by: ${leaveByTime})`}
                 </span>
@@ -350,27 +416,49 @@ const CalendarAgendaView = ({
             
             {event.pickUpResponsibility && (
               <div style={styles.detailRow}>
-                <span style={styles.detailLabel}>Pick-up:</span>
-                <span style={styles.detailValue}>{event.pickUpResponsibility}</span>
+                <span style={{
+                  ...styles.detailLabel,
+                  color: responsibilityColor ? '#424242' : 'var(--md-sys-color-on-surface-variant)'
+                }}>Pick-up:</span>
+                <span style={{
+                  ...styles.detailValue,
+                  color: responsibilityColor ? '#1A1A1A' : 'var(--md-sys-color-on-surface)'
+                }}>{event.pickUpResponsibility}</span>
               </div>
             )}
             
             {event.notes && (
               <div style={styles.detailRow}>
-                <span style={styles.detailLabel}>Notes:</span>
-                <span style={styles.detailValue}>{event.notes}</span>
+                <span style={{
+                  ...styles.detailLabel,
+                  color: responsibilityColor ? '#424242' : 'var(--md-sys-color-on-surface-variant)'
+                }}>Notes:</span>
+                <span style={{
+                  ...styles.detailValue,
+                  color: responsibilityColor ? '#1A1A1A' : 'var(--md-sys-color-on-surface)'
+                }}>{event.notes}</span>
               </div>
             )}
             
             {event.requiredItems && event.requiredItems.length > 0 && (
               <div style={styles.detailRow}>
-                <span style={styles.detailLabel}>Required:</span>
-                <span style={styles.detailValue}>{event.requiredItems.join(', ')}</span>
+                <span style={{
+                  ...styles.detailLabel,
+                  color: responsibilityColor ? '#424242' : 'var(--md-sys-color-on-surface-variant)'
+                }}>Required:</span>
+                <span style={{
+                  ...styles.detailValue,
+                  color: responsibilityColor ? '#1A1A1A' : 'var(--md-sys-color-on-surface)'
+                }}>{event.requiredItems.join(', ')}</span>
               </div>
             )}
             
             <button 
-              style={styles.editButton}
+              style={{
+                ...styles.editButton,
+                backgroundColor: responsibilityColor ? responsibilityColor.border : 'var(--md-sys-color-primary)',
+                color: 'white'
+              }}
               onClick={(e) => {
                 e.stopPropagation();
                 handleEventClick(event);
@@ -430,6 +518,25 @@ const CalendarAgendaView = ({
           onSave={handleSaveEventChanges}
         />
       )}
+
+      {/* Legend */}
+      <div style={styles.legend}>
+        <div style={styles.legendTitle}>Responsibility:</div>
+        <div style={styles.legendItems}>
+          <div style={styles.legendItem}>
+            <div style={{...styles.legendColor, backgroundColor: '#BBDEFB', border: '2px solid #2196F3'}} />
+            <span style={styles.legendLabel}>Aupair</span>
+          </div>
+          <div style={styles.legendItem}>
+            <div style={{...styles.legendColor, backgroundColor: '#C8E6C9', border: '2px solid #4CAF50'}} />
+            <span style={styles.legendLabel}>Parent</span>
+          </div>
+          <div style={styles.legendItem}>
+            <div style={{...styles.legendColor, backgroundColor: '#E1BEE7', border: '2px solid #9C27B0'}} />
+            <span style={styles.legendLabel}>Shared</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -437,6 +544,7 @@ const CalendarAgendaView = ({
 const styles = {
   container: {
     padding: '16px',
+    paddingBottom: '180px', // Extra padding to ensure legend is visible above bottom nav
     backgroundColor: 'var(--md-sys-color-surface)',
     minHeight: '400px'
   },
@@ -461,7 +569,8 @@ const styles = {
     padding: '12px',
     cursor: 'pointer',
     transition: 'all var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
-    border: '1px solid var(--md-sys-color-outline-variant)'
+    border: '1px solid var(--md-sys-color-outline-variant)',
+    boxShadow: 'var(--md-sys-elevation-level1)'
   },
   compactView: {
     display: 'flex',
@@ -551,7 +660,7 @@ const styles = {
   expandedView: {
     marginTop: '12px',
     paddingTop: '12px',
-    borderTop: '1px solid var(--md-sys-color-outline-variant)'
+    borderTop: '1px solid rgba(0, 0, 0, 0.12)'
   },
   detailRow: {
     display: 'flex',
@@ -590,6 +699,41 @@ const styles = {
   emptyText: {
     fontSize: '16px',
     fontFamily: 'var(--md-sys-typescale-body-large-font-family-name)'
+  },
+  legend: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    padding: '12px 16px',
+    backgroundColor: 'var(--md-sys-color-surface-container-low)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    marginTop: '16px'
+  },
+  legendTitle: {
+    fontSize: '14px',
+    fontWeight: '500',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    fontFamily: 'var(--md-sys-typescale-label-medium-font-family-name)'
+  },
+  legendItems: {
+    display: 'flex',
+    gap: '16px',
+    flexWrap: 'wrap'
+  },
+  legendItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  legendColor: {
+    width: '24px',
+    height: '24px',
+    borderRadius: 'var(--md-sys-shape-corner-extra-small)'
+  },
+  legendLabel: {
+    fontSize: '14px',
+    color: 'var(--md-sys-color-on-surface)',
+    fontFamily: 'var(--md-sys-typescale-body-medium-font-family-name)'
   }
 };
 

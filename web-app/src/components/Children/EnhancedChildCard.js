@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getNextOccurrences } from '../../utils/recurringActivityTemplates';
+import { subscribeToEventOverrides, getEventOverride, applyEventOverride } from '../../utils/eventOverridesUtils';
+import { useFamily } from '../../hooks/useFamily';
+import { auth } from '../../firebase';
 
 // Default color palette for children
 const CHILD_COLORS = [
@@ -39,9 +42,37 @@ const EnhancedChildCard = ({
 }) => {
   const [imageError, setImageError] = useState(false);
   const [isSleeping, setIsSleeping] = useState(false);
+  const [eventOverrides, setEventOverrides] = useState({});
+  
+  // Get family data for familyId
+  const { userData } = useFamily(auth.currentUser?.uid);
+  const familyId = userData?.familyId;
   
   // Get consistent color for this child
   const childColor = getChildColor(child.id, childIndex);
+  
+  // Subscribe to event overrides
+  useEffect(() => {
+    if (!familyId) {
+      setEventOverrides({});
+      return;
+    }
+
+    const unsubscribe = subscribeToEventOverrides(familyId, (overrides) => {
+      setEventOverrides(overrides);
+    });
+
+    return () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        try {
+          unsubscribe();
+        } catch (error) {
+          console.warn('Error unsubscribing from event overrides:', error);
+        }
+      }
+    };
+  }, [familyId]);
+  
   // Calculate age - unused function
   // const calculateAge = (dateOfBirth) => {
   //   if (!dateOfBirth) return 0;
@@ -143,30 +174,51 @@ const EnhancedChildCard = ({
     
     const routineEvents = [];
     
+    // Helper function to process routine events with overrides
+    const processRoutineEvent = (eventData) => {
+      const date = now.toDateString();
+      const override = getEventOverride(eventOverrides, 'routine', date, child.id, eventData.time);
+      
+      // Apply override (this will return null if event is cancelled)
+      const finalEvent = applyEventOverride(eventData, override);
+      if (finalEvent) {
+        // Update time if it was modified
+        if (finalEvent.time !== eventData.time) {
+          finalEvent.minutes = timeToMinutes(finalEvent.time);
+        }
+        return finalEvent;
+      }
+      return null;
+    };
+    
     // Note: responsibilities are available in routine.responsibilities if needed
 
     // Show all routines for visibility and context (no filtering by responsibility)
     
     // Add wake up time
     if (routine.wakeUpTime) {
-      routineEvents.push({
+      const event = processRoutineEvent({
         name: 'Wake Up',
         time: routine.wakeUpTime,
         minutes: timeToMinutes(routine.wakeUpTime),
-        icon: '☀️'
+        icon: '☀️',
+        type: 'routine'
       });
+      if (event) routineEvents.push(event);
     }
     
     // Add meal times
     if (routine.mealTimes) {
       // Breakfast
       if (routine.mealTimes.breakfast) {
-        routineEvents.push({
+        const event = processRoutineEvent({
           name: 'Breakfast',
           time: routine.mealTimes.breakfast,
           minutes: timeToMinutes(routine.mealTimes.breakfast),
-          icon: '🥣'
+          icon: '🥣',
+          type: 'routine'
         });
+        if (event) routineEvents.push(event);
       }
       
       // Lunch times (can be multiple)
@@ -175,34 +227,40 @@ const EnhancedChildCard = ({
           ? routine.mealTimes.lunch 
           : [routine.mealTimes.lunch];
         lunchTimes.forEach((lunchTime, index) => {
-          routineEvents.push({
+          const event = processRoutineEvent({
             name: lunchTimes.length > 1 ? `Lunch ${index + 1}` : 'Lunch',
             time: lunchTime,
             minutes: timeToMinutes(lunchTime),
-            icon: '🥗'
+            icon: '🥗',
+            type: 'routine'
           });
+          if (event) routineEvents.push(event);
         });
       }
       
       // Dinner
       if (routine.mealTimes.dinner) {
-        routineEvents.push({
+        const event = processRoutineEvent({
           name: 'Dinner',
           time: routine.mealTimes.dinner,
           minutes: timeToMinutes(routine.mealTimes.dinner),
-          icon: '🍽️'
+          icon: '🍽️',
+          type: 'routine'
         });
+        if (event) routineEvents.push(event);
       }
       
       // Snacks (can be multiple)
       if (routine.mealTimes.snacks) {
         routine.mealTimes.snacks.forEach((snackTime, index) => {
-          routineEvents.push({
+          const event = processRoutineEvent({
             name: routine.mealTimes.snacks.length > 1 ? `Snack ${index + 1}` : 'Snack',
             time: snackTime,
             minutes: timeToMinutes(snackTime),
-            icon: '🍎'
+            icon: '🍎',
+            type: 'routine'
           });
+          if (event) routineEvents.push(event);
         });
       }
     }
@@ -211,25 +269,29 @@ const EnhancedChildCard = ({
     if (routine.napTimes && routine.napTimes.length > 0) {
       routine.napTimes.forEach((nap, index) => {
         if (nap.startTime) {
-          routineEvents.push({
+          const event = processRoutineEvent({
             name: routine.napTimes.length > 1 ? `Nap ${index + 1}` : 'Nap Time',
             time: nap.startTime,
             minutes: timeToMinutes(nap.startTime),
             duration: nap.duration,
-            icon: '😴'
+            icon: '😴',
+            type: 'routine'
           });
+          if (event) routineEvents.push(event);
         }
       });
     }
     
     // Add bedtime
     if (routine.bedtime) {
-      routineEvents.push({
+      const event = processRoutineEvent({
         name: 'Bedtime',
         time: routine.bedtime,
         minutes: timeToMinutes(routine.bedtime),
-        icon: '🌙'
+        icon: '🌙',
+        type: 'routine'
       });
+      if (event) routineEvents.push(event);
     }
     
     // Get school events and merge with routine events
@@ -254,14 +316,31 @@ const EnhancedChildCard = ({
             hour12: false 
           });
           
-          calendarActivityEvents.push({
+          // Check for event overrides for calendar events
+          const date = isToday ? now.toDateString() : tomorrow.toDateString();
+          const override = getEventOverride(eventOverrides, 'calendar_event', date, child.id, eventTime);
+          
+          // Create initial event data
+          const eventData = {
             name: event.title,
             time: eventTime,
             minutes: eventDate.getHours() * 60 + eventDate.getMinutes(),
             isActivity: true,
             isTomorrow: isTomorrow,
             location: event.location
-          });
+          };
+          
+          // Apply override (this will return null if event is cancelled)
+          const finalEvent = applyEventOverride(eventData, override);
+          if (!finalEvent) return; // Skip cancelled events
+          
+          // Update time if it was modified
+          if (finalEvent.time !== eventTime) {
+            const [hours, minutes] = finalEvent.time.split(':').map(Number);
+            finalEvent.minutes = hours * 60 + minutes;
+          }
+          
+          calendarActivityEvents.push(finalEvent);
         }
       }
     });
@@ -309,38 +388,60 @@ const EnhancedChildCard = ({
     if (upcomingEvents.length < 3) {
       // Get tomorrow's routines in order
       const tomorrowRoutines = [];
+      const tomorrow = new Date(now.getTime() + 86400000);
+      
+      // Helper function to process tomorrow's routine events with overrides
+      const processTomorrowRoutineEvent = (eventData) => {
+        const date = tomorrow.toDateString();
+        const override = getEventOverride(eventOverrides, 'routine', date, child.id, eventData.time);
+        
+        // Apply override (this will return null if event is cancelled)
+        const finalEvent = applyEventOverride(eventData, override);
+        if (finalEvent) {
+          // Update time if it was modified
+          if (finalEvent.time !== eventData.time) {
+            finalEvent.minutes = timeToMinutes(finalEvent.time);
+          }
+          finalEvent.isTomorrow = true;
+          return finalEvent;
+        }
+        return null;
+      };
       
       // Add wake up
       if (routine.wakeUpTime) {
-        tomorrowRoutines.push({
+        const event = processTomorrowRoutineEvent({
           name: 'Wake Up',
           time: routine.wakeUpTime,
           minutes: timeToMinutes(routine.wakeUpTime),
           icon: '☀️',
-          isTomorrow: true
+          type: 'routine'
         });
+        if (event) tomorrowRoutines.push(event);
       }
       
       // Add breakfast
       if (routine.mealTimes?.breakfast) {
-        tomorrowRoutines.push({
+        const event = processTomorrowRoutineEvent({
           name: 'Breakfast',
           time: routine.mealTimes.breakfast,
           minutes: timeToMinutes(routine.mealTimes.breakfast),
           icon: '🥣',
-          isTomorrow: true
+          type: 'routine'
         });
+        if (event) tomorrowRoutines.push(event);
       }
       
       // Add first snack
       if (routine.mealTimes?.snacks && routine.mealTimes.snacks[0]) {
-        tomorrowRoutines.push({
+        const event = processTomorrowRoutineEvent({
           name: 'Morning Snack',
           time: routine.mealTimes.snacks[0],
           minutes: timeToMinutes(routine.mealTimes.snacks[0]),
           icon: '🍎',
-          isTomorrow: true
+          type: 'routine'
         });
+        if (event) tomorrowRoutines.push(event);
       }
       
       // Sort tomorrow's routines by time and add as many as needed to reach 3 total

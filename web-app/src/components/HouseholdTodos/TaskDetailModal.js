@@ -363,9 +363,9 @@ const TaskDetailModal = ({
 
           {/* Comments Section */}
           <div className="comments-section">
-            <h4>💬 Comments</h4>
+            <h4>💬 Comments & Messages</h4>
             
-            {/* Add Comment Form */}
+            {/* Add Comment Form at the top */}
             {canAddComment && (
               <div className="add-comment-form">
                 <textarea
@@ -399,54 +399,57 @@ const TaskDetailModal = ({
               </div>
             )}
             
-            {/* Comments List */}
+            {/* Comments List - Sorted newest first */}
             {task.helpRequests?.length > 0 && (
               <div className="comments-list">
-                {task.helpRequests.map((comment, index) => {
+                {[...task.helpRequests].sort((a, b) => {
+                  // Sort by timestamp, newest first
+                  const aTime = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
+                  const bTime = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
+                  return bTime - aTime;
+                }).map((comment, index) => {
                   const isUnansweredQuestion = comment.isQuestion && !comment.hasResponse;
                   
                   return (
                     <div 
-                      key={index} 
+                      key={comment.id || index} 
                       className={`comment-item ${isUnansweredQuestion ? 'unanswered-question' : ''}`}
                       style={isUnansweredQuestion ? { backgroundColor: '#FFF9C4', borderColor: '#F9A825' } : {}}
                     >
-                      <div className="comment-content">
-                        <p className="comment-message">{comment.message}</p>
-                        <div className="comment-metadata">
-                          <span className="comment-date">
-                            {comment.timestamp?.toDate().toLocaleString('en-GB', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              hour12: false
-                            })}
-                          </span>
-                          <span className="comment-author-tag">
-                            {getFriendlyName(comment.authorName || comment.requestedByName)}
-                          </span>
-                        </div>
+                      <div className="comment-header">
+                        <span className="comment-author">
+                          {getFriendlyName(comment.authorName || comment.requestedByName)}
+                        </span>
+                        <span className="comment-date">
+                          {comment.timestamp?.toDate().toLocaleString('en-GB', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: false
+                          })}
+                        </span>
                       </div>
+                      <p className="comment-message">{comment.message}</p>
+                      
                       {comment.response && (
                         <div className="comment-response-thread">
-                          <div className="response-content">
-                            <p className="response-message">{comment.response}</p>
-                            <div className="comment-metadata">
-                              <span className="comment-date">
-                                {comment.responseAt?.toDate ? comment.responseAt.toDate().toLocaleString('en-GB', {
-                                  day: '2-digit',
-                                  month: '2-digit',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                  hour12: false
-                                }) : 'Recently'}
-                              </span>
-                              <span className="comment-author-tag">Parent</span>
-                            </div>
+                          <div className="response-header">
+                            <span className="comment-author">Parent</span>
+                            <span className="comment-date">
+                              {comment.responseAt?.toDate ? comment.responseAt.toDate().toLocaleString('en-GB', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: false
+                              }) : 'Recently'}
+                            </span>
                           </div>
+                          <p className="response-message">{comment.response}</p>
                         </div>
                       )}
+                      
                       {userRole === 'parent' && !comment.response && comment.isQuestion && (
                         <div className="comment-actions">
                           {respondingToComment === index ? (

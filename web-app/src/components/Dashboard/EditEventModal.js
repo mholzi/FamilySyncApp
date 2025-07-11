@@ -16,8 +16,10 @@ const EditEventModal = ({ event, familyId, onClose, onSave }) => {
     responsibility: event.responsibility || 'au_pair',
     location: event.location || '',
     additionalInfo: event.additionalInfo || '',
+    requiredItems: event.requiredItems || [],
     cancelled: false
   });
+  const [newRequiredItem, setNewRequiredItem] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -30,12 +32,30 @@ const EditEventModal = ({ event, familyId, onClose, onSave }) => {
       responsibility: event.responsibility || 'au_pair',
       location: event.location || '',
       additionalInfo: event.additionalInfo || '',
+      requiredItems: event.requiredItems || [],
       cancelled: false
     });
   }, [event]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleAddRequiredItem = () => {
+    if (newRequiredItem.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        requiredItems: [...prev.requiredItems, newRequiredItem.trim()]
+      }));
+      setNewRequiredItem('');
+    }
+  };
+
+  const handleRemoveRequiredItem = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      requiredItems: prev.requiredItems.filter((_, i) => i !== index)
+    }));
   };
 
   const handleSave = async () => {
@@ -57,11 +77,13 @@ const EditEventModal = ({ event, familyId, onClose, onSave }) => {
         responsibility: formData.responsibility,
         location: formData.location,
         additionalInfo: formData.additionalInfo,
+        requiredItems: formData.requiredItems,
         originalEvent: {
           title: event.title,
           description: event.description,
           time: event.time,
-          responsibility: event.responsibility || 'au_pair'
+          responsibility: event.responsibility || 'au_pair',
+          requiredItems: event.requiredItems || []
         }
       };
 
@@ -317,6 +339,55 @@ const EditEventModal = ({ event, familyId, onClose, onSave }) => {
                       rows={2}
                     />
                   </div>
+
+                  {/* Required Items section - only show for activity events */}
+                  {(event.type === 'activity' || event.type === 'recurring_activity') && (
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Required Items</label>
+                      <div style={styles.requiredItemsContainer}>
+                        {formData.requiredItems.length > 0 && (
+                          <div style={styles.requiredItemsList}>
+                            {formData.requiredItems.map((item, index) => (
+                              <div key={index} style={styles.requiredItem}>
+                                <span style={styles.requiredItemText}>{item}</span>
+                                <button
+                                  type="button"
+                                  style={styles.removeItemButton}
+                                  onClick={() => handleRemoveRequiredItem(index)}
+                                  title="Remove item"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div style={styles.addItemRow}>
+                          <input
+                            type="text"
+                            value={newRequiredItem}
+                            onChange={(e) => setNewRequiredItem(e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddRequiredItem();
+                              }
+                            }}
+                            style={styles.addItemInput}
+                            placeholder="Add an item (e.g., water bottle, snacks)"
+                          />
+                          <button
+                            type="button"
+                            style={styles.addItemButton}
+                            onClick={handleAddRequiredItem}
+                            disabled={!newRequiredItem.trim()}
+                          >
+                            Add
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </>
               );
             })()}
@@ -543,6 +614,62 @@ const styles = {
     borderRadius: 'var(--md-sys-shape-corner-medium)',
     backgroundColor: 'var(--md-sys-color-primary)',
     color: 'var(--md-sys-color-on-primary)',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
+  },
+  requiredItemsContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px'
+  },
+  requiredItemsList: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px'
+  },
+  requiredItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    backgroundColor: 'var(--md-sys-color-primary-container)',
+    padding: '6px 12px',
+    borderRadius: 'var(--md-sys-shape-corner-full)',
+    fontSize: '14px'
+  },
+  requiredItemText: {
+    color: 'var(--md-sys-color-on-primary-container)'
+  },
+  removeItemButton: {
+    background: 'none',
+    border: 'none',
+    color: 'var(--md-sys-color-on-primary-container)',
+    fontSize: '18px',
+    cursor: 'pointer',
+    padding: '0 4px',
+    opacity: 0.7,
+    transition: 'opacity var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
+  },
+  addItemRow: {
+    display: 'flex',
+    gap: '8px'
+  },
+  addItemInput: {
+    flex: 1,
+    padding: '8px 12px',
+    border: '1px solid var(--md-sys-color-outline-variant)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    fontSize: '14px',
+    outline: 'none',
+    transition: 'var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)'
+  },
+  addItemButton: {
+    padding: '8px 16px',
+    border: 'none',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    backgroundColor: 'var(--md-sys-color-secondary)',
+    color: 'var(--md-sys-color-on-secondary)',
     fontSize: '14px',
     fontWeight: '500',
     cursor: 'pointer',

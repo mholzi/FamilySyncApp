@@ -7,6 +7,7 @@ import { useCalendar } from '../hooks/useCalendar';
 import { useShopping } from '../hooks/useShopping';
 import { getTodaysHouseholdTodos, autoResetCompletedTasks } from '../utils/householdTodosUtils';
 import { DashboardStates, getDashboardState } from '../utils/dashboardStates';
+import { cleanupOldFamilyNotes } from '../utils/notesCleanup';
 
 // Import Material Design 3 components
 import { Card, Typography, Button, FAB, ThemeToggle } from './MD3';
@@ -73,6 +74,7 @@ function Dashboard({ user }) {
   const [todosLoading, setTodosLoading] = useState(true);
   const [recurringActivities, setRecurringActivities] = useState([]);
   const [unansweredQuestionsCount, setUnansweredQuestionsCount] = useState(0);
+  const [messagesUnreadCount, setMessagesUnreadCount] = useState(0);
 
   // Only show loading on initial load, not when switching views
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
@@ -118,6 +120,32 @@ function Dashboard({ user }) {
 
     return () => clearInterval(interval);
   }, [userData?.familyId, userData?.role]);
+
+  // Cleanup old family notes on component mount
+  useEffect(() => {
+    if (!userData?.familyId) return;
+
+    // Run cleanup on mount
+    cleanupOldFamilyNotes(userData.familyId);
+
+    // Run cleanup every hour
+    const interval = setInterval(() => {
+      cleanupOldFamilyNotes(userData.familyId);
+    }, 60 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [userData?.familyId]);
+
+  // Set up global function to update messages unread count
+  useEffect(() => {
+    window.updateMessagesUnreadCount = (count) => {
+      setMessagesUnreadCount(count);
+    };
+    
+    return () => {
+      delete window.updateMessagesUnreadCount;
+    };
+  }, []);
 
   // Fetch recurring activities
   useEffect(() => {
@@ -572,6 +600,7 @@ function Dashboard({ user }) {
       <BottomNavigation 
         currentView={currentView}
         onNavigate={setCurrentView}
+        messagesUnreadCount={messagesUnreadCount}
       />
 
 

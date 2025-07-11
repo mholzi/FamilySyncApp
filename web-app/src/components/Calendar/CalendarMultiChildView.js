@@ -112,8 +112,8 @@ const CalendarMultiChildView = ({
     const startMinutes = (hours - startHour) * 60 + minutes;
     const duration = event.duration || 60;
     
-    const top = (startMinutes / 60) * 60; // 60px per hour
-    const height = (duration / 60) * 60;
+    const top = (startMinutes / 60) * 80; // 80px per hour
+    const height = (duration / 60) * 80;
     const childWidth = 100 / children.length;
     const left = childIndex * childWidth;
     
@@ -170,37 +170,100 @@ const CalendarMultiChildView = ({
     // Refresh events after adding
   };
 
+  // Get responsibility color
+  const getResponsibilityColor = (event) => {
+    // Check for school events with transport responsibilities
+    if (event.type === 'school' && (event.dropOffResponsibility || event.pickUpResponsibility)) {
+      const dropOff = event.dropOffResponsibility?.toLowerCase();
+      const pickUp = event.pickUpResponsibility?.toLowerCase();
+      
+      // Check if shared (different responsibilities for drop-off and pick-up)
+      if (dropOff && pickUp && dropOff !== pickUp) {
+        return { background: '#F3E5F5', border: '#7B1FA2', textColor: '#1A1A1A' }; // Dark text for shared
+      }
+      // Check specific responsibilities
+      if ((dropOff === 'au_pair' || dropOff === 'aupair') || (pickUp === 'au_pair' || pickUp === 'aupair')) {
+        return { background: '#BBDEFB', border: '#2196F3', textColor: '#0D47A1' }; // Blue for aupair
+      }
+      if (dropOff === 'parent' || pickUp === 'parent') {
+        return { background: '#C8E6C9', border: '#4CAF50', textColor: '#1B5E20' }; // Green for parent
+      }
+    }
+    
+    // Check regular responsibility field
+    const responsibility = event.responsibility?.toLowerCase();
+    if (responsibility === 'au_pair' || responsibility === 'aupair') {
+      return { background: '#BBDEFB', border: '#2196F3', textColor: '#0D47A1' }; // Blue for aupair
+    }
+    if (responsibility === 'parent') {
+      return { background: '#C8E6C9', border: '#4CAF50', textColor: '#1B5E20' }; // Green for parent
+    }
+    if (responsibility === 'shared') {
+      return { background: '#F3E5F5', border: '#7B1FA2', textColor: '#1A1A1A' }; // Dark text for shared
+    }
+    
+    // Default to child color if no specific responsibility
+    return null;
+  };
+
+  // Check if an event has ended (is in the past)
+  const isEventPast = (event) => {
+    const now = new Date();
+    const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
+    
+    // Only check if the selected date is today
+    if (selectedDate.toDateString() === now.toDateString()) {
+      // Calculate event end time in minutes
+      const time = event.time || format(new Date(event.startTime), 'HH:mm');
+      const [hours, minutes] = time.split(':').map(Number);
+      const eventStartMinutes = hours * 60 + minutes;
+      const eventEndMinutes = eventStartMinutes + (event.duration || 60);
+      
+      return eventEndMinutes < currentTimeMinutes;
+    }
+    
+    return false;
+  };
+
 
   const renderEvent = (event, childIndex) => {
     const child = children[childIndex];
     const isTransportEvent = event.dropOffResponsibility || event.pickUpResponsibility;
+    const responsibilityColor = getResponsibilityColor(event);
+    const childColor = getChildColorFromId(event.childId);
+    const isPast = isEventPast(event);
     
     return (
       <div
         key={event.id}
         style={{
           ...getEventStyle(event, childIndex),
+          pointerEvents: 'auto',
+          opacity: isPast ? 0.5 : 1
         }}
         onClick={(e) => {
           e.stopPropagation();
-          onEventClick(event);
+          handleEventClick(event);
         }}
       >
         <div style={{
           ...styles.eventCard,
-          backgroundColor: getChildColor(event.childId),
-          border: `1px solid ${getChildColorFromId(event.childId).primary}`,
+          backgroundColor: responsibilityColor ? responsibilityColor.background : getChildColor(event.childId),
+          border: `2px solid ${responsibilityColor ? responsibilityColor.border : childColor.primary}`,
+          ...(isPast ? { filter: 'grayscale(50%)' } : {})
         }}>
           <div style={styles.eventContentRow}>
             <div style={{
               ...styles.eventTime,
-              color: getChildColorFromId(event.childId).primary
+              color: responsibilityColor ? responsibilityColor.textColor : getChildColorFromId(event.childId).primary,
+              fontWeight: responsibilityColor ? '600' : '500'
             }}>
-              {event.time || format(new Date(event.startTime), 'h:mm a')}
+              {event.time || format(new Date(event.startTime), 'HH:mm')}
             </div>
             <div style={{
               ...styles.eventTitle,
-              color: '#000000' // Black for better readability
+              color: responsibilityColor ? responsibilityColor.textColor : '#000000',
+              fontWeight: responsibilityColor ? '600' : '500'
             }}>{event.title}</div>
           </div>
           
@@ -236,47 +299,95 @@ const CalendarMultiChildView = ({
 
   return (
     <div style={styles.container}>
-      {/* Child Headers */}
-      <div style={styles.headerRow}>
-        <div style={styles.timeHeader}></div>
-        {children.map(child => (
-          <div key={child.id} style={styles.childHeader}>
-            <div style={{
-              ...styles.childHeaderCircle, 
-              backgroundColor: getChildColorFromId(child.id).primary
-            }}>
-              {getUserInitials(child.name)}
+      {/* Timeline Card */}
+      <div style={styles.timelineCard}>
+        {/* Child Headers */}
+        <div style={styles.headerRow}>
+          <div style={styles.timeHeader}></div>
+          {children.map(child => (
+            <div key={child.id} style={styles.childHeader}>
+              <div style={{
+                ...styles.childHeaderCircle, 
+                backgroundColor: getChildColorFromId(child.id).primary
+              }}>
+                {getUserInitials(child.name)}
+              </div>
+              <span style={styles.childName}>{child.name}</span>
             </div>
-            <span style={styles.childName}>{child.name}</span>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      {/* Timeline */}
-      <div style={styles.timeline}>
-        {/* Hour markers */}
-        {hours.map(hour => (
-          <div key={hour} style={styles.hourRow}>
-            <div style={styles.hourLabel}>
-              {`${hour}:00`}
-            </div>
-            <div style={styles.hourGrid}>
+        {/* Timeline Container */}
+        <div style={styles.timelineContainer}>
+          {/* Hour Column */}
+          <div style={styles.hourColumn}>
+            {hours.map(hour => (
+              <div key={hour} style={styles.hourMarker}>
+                <span style={styles.hourLabel}>{`${hour}:00`}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Events Column */}
+          <div style={styles.eventsColumn}>
+            <div 
+              style={styles.eventsArea}
+              onClick={(e) => {
+                // Calculate clicked time and child based on position
+                const rect = e.currentTarget.getBoundingClientRect();
+                const relativeY = e.clientY - rect.top;
+                const relativeX = e.clientX - rect.left;
+                const minutesFromStart = (relativeY / 80) * 60;
+                const clickedHour = startHour + Math.floor(minutesFromStart / 60);
+                const clickedMinutes = Math.floor(minutesFromStart % 60);
+                const roundedMinutes = Math.round(clickedMinutes / 15) * 15; // Round to 15-min intervals
+                
+                const clickedTime = `${clickedHour.toString().padStart(2, '0')}:${roundedMinutes.toString().padStart(2, '0')}`;
+                
+                // Determine which child column was clicked
+                const childIndex = Math.floor((relativeX / rect.width) * children.length);
+                const clickedChild = children[childIndex];
+                
+                if (clickedChild) {
+                  setQuickAddTime(clickedTime);
+                  setQuickAddChildId(clickedChild.id);
+                  setShowQuickAdd(true);
+                }
+              }}
+            >
+              {/* Hour grid lines */}
+              {hours.map(hour => (
+                <div 
+                  key={`line-${hour}`} 
+                  style={{
+                    ...styles.hourLine,
+                    top: (hour - startHour) * 80
+                  }}
+                />
+              ))}
+
+              {/* Vertical grid lines for children */}
               {children.map((child, index) => (
                 <div
-                  key={`${hour}-${child.id}`}
-                  style={styles.hourCell}
-                  onClick={() => handleTimelineClick(hour, child.id)}
+                  key={`vline-${child.id}`}
+                  style={{
+                    position: 'absolute',
+                    left: `${(index / children.length) * 100}%`,
+                    top: 0,
+                    bottom: 0,
+                    width: '1px',
+                    backgroundColor: 'var(--md-sys-color-outline-variant)',
+                    opacity: 0.5
+                  }}
                 />
+              ))}
+
+              {/* Events */}
+              {children.map((child, childIndex) => (
+                eventsByChild[child.id]?.map(event => renderEvent(event, childIndex))
               ))}
             </div>
           </div>
-        ))}
-
-        {/* Events overlay */}
-        <div style={styles.eventsContainer}>
-          {children.map((child, childIndex) => (
-            eventsByChild[child.id]?.map(event => renderEvent(event, childIndex))
-          ))}
         </div>
       </div>
       
@@ -305,16 +416,50 @@ const CalendarMultiChildView = ({
           onSave={handleSaveEventChanges}
         />
       )}
+
+      {/* Legend */}
+      <div style={styles.legend}>
+        <div style={styles.legendTitle}>Responsibility:</div>
+        <div style={styles.legendItems}>
+          <div style={styles.legendItem}>
+            <div style={{...styles.legendColor, backgroundColor: '#BBDEFB', border: '2px solid #2196F3'}} />
+            <span style={styles.legendLabel}>Aupair</span>
+          </div>
+          <div style={styles.legendItem}>
+            <div style={{...styles.legendColor, backgroundColor: '#C8E6C9', border: '2px solid #4CAF50'}} />
+            <span style={styles.legendLabel}>Parent</span>
+          </div>
+          <div style={styles.legendItem}>
+            <div style={{...styles.legendColor, backgroundColor: '#E1BEE7', border: '2px solid #9C27B0'}} />
+            <span style={styles.legendLabel}>Shared</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
 
 const styles = {
   container: {
-    backgroundColor: 'var(--md-sys-color-surface)',
-    borderRadius: 'var(--md-sys-shape-corner-medium)',
-    overflow: 'hidden',
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    backgroundColor: 'var(--md-sys-color-background)',
+    padding: '16px',
+    gap: '16px',
     marginBottom: '100px'
+  },
+  timelineCard: {
+    backgroundColor: 'var(--md-sys-color-surface-container-lowest)',
+    borderRadius: 'var(--md-sys-shape-corner-large)',
+    overflow: 'hidden',
+    boxShadow: 'var(--md-sys-elevation-level1)',
+    flex: 1
+  },
+  timelineContainer: {
+    display: 'flex',
+    height: '100%',
+    minHeight: '500px'
   },
   headerRow: {
     display: 'flex',
@@ -323,8 +468,46 @@ const styles = {
     padding: '12px 0'
   },
   timeHeader: {
-    width: '80px',
+    width: '72px',
     flexShrink: 0
+  },
+  hourColumn: {
+    width: '72px',
+    borderRight: '1px solid var(--md-sys-color-outline-variant)',
+    backgroundColor: 'var(--md-sys-color-surface-container-high)'
+  },
+  hourMarker: {
+    height: '80px',
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    padding: '8px 4px',
+    borderBottom: '1px solid var(--md-sys-color-outline-variant)'
+  },
+  hourLabel: {
+    font: 'var(--md-sys-typescale-label-small-font)',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    textAlign: 'center'
+  },
+  eventsColumn: {
+    flex: 1,
+    position: 'relative',
+    backgroundColor: 'var(--md-sys-color-surface)'
+  },
+  eventsArea: {
+    position: 'relative',
+    minHeight: '100%',
+    height: (24 - 6) * 80, // (endHour - startHour) * 80px per hour
+    cursor: 'pointer'
+  },
+  hourLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: '1px',
+    backgroundColor: 'var(--md-sys-color-outline-variant)',
+    zIndex: 1,
+    opacity: 0.5
   },
   childHeader: {
     flex: 1,
@@ -350,46 +533,6 @@ const styles = {
     fontSize: '14px',
     color: 'var(--md-sys-color-on-surface)',
     fontFamily: 'var(--md-sys-typescale-label-medium-font-family-name)'
-  },
-  timeline: {
-    position: 'relative',
-    overflow: 'auto',
-    maxHeight: '600px'
-  },
-  hourRow: {
-    display: 'flex',
-    height: '60px',
-    borderBottom: '1px solid var(--md-sys-color-outline-variant)'
-  },
-  hourLabel: {
-    width: '80px',
-    padding: '8px',
-    fontSize: '12px',
-    color: 'var(--md-sys-color-on-surface-variant)',
-    fontFamily: 'var(--md-sys-typescale-label-small-font-family-name)',
-    flexShrink: 0
-  },
-  hourGrid: {
-    flex: 1,
-    display: 'flex',
-    position: 'relative'
-  },
-  hourCell: {
-    flex: 1,
-    borderRight: '1px solid var(--md-sys-color-outline-variant)',
-    cursor: 'pointer',
-    transition: 'background-color var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard)',
-    '&:hover': {
-      backgroundColor: 'var(--md-sys-color-surface-container-low)'
-    }
-  },
-  eventsContainer: {
-    position: 'absolute',
-    top: 0,
-    left: '80px',
-    right: 0,
-    bottom: 0,
-    pointerEvents: 'none'
   },
   eventCard: {
     borderRadius: 'var(--md-sys-shape-corner-small)',
@@ -463,6 +606,42 @@ const styles = {
     color: 'white',
     boxShadow: 'var(--md-sys-elevation-level1)',
     border: '2px solid white'
+  },
+  legend: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    padding: '12px 16px',
+    backgroundColor: 'var(--md-sys-color-surface-container-low)',
+    borderRadius: 'var(--md-sys-shape-corner-medium)',
+    marginTop: '16px',
+    marginBottom: '100px'
+  },
+  legendTitle: {
+    fontSize: '14px',
+    fontWeight: '500',
+    color: 'var(--md-sys-color-on-surface-variant)',
+    fontFamily: 'var(--md-sys-typescale-label-medium-font-family-name)'
+  },
+  legendItems: {
+    display: 'flex',
+    gap: '16px',
+    flexWrap: 'wrap'
+  },
+  legendItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  legendColor: {
+    width: '24px',
+    height: '24px',
+    borderRadius: 'var(--md-sys-shape-corner-extra-small)'
+  },
+  legendLabel: {
+    fontSize: '14px',
+    color: 'var(--md-sys-color-on-surface)',
+    fontFamily: 'var(--md-sys-typescale-body-medium-font-family-name)'
   }
 };
 
