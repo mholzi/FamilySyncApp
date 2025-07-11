@@ -228,6 +228,14 @@ const DirectMessageChat = ({ conversationId, participants, currentUserId, onBack
               m => m.timestamp > message.timestamp && m.authorId !== message.authorId
             );
 
+            // Check if message is from today
+            const messageDate = message.timestamp?.toDate();
+            const today = new Date();
+            const isToday = messageDate && 
+              messageDate.getDate() === today.getDate() &&
+              messageDate.getMonth() === today.getMonth() &&
+              messageDate.getFullYear() === today.getFullYear();
+
             return (
               <div
                 key={message.id}
@@ -238,10 +246,20 @@ const DirectMessageChat = ({ conversationId, participants, currentUserId, onBack
                   <div className="awaiting-response">Awaiting response...</div>
                 )}
                 <span className="message-time">
-                  {message.timestamp?.toDate().toLocaleTimeString('en-GB', {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
+                  {isToday ? (
+                    message.timestamp?.toDate().toLocaleTimeString('en-GB', {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })
+                  ) : (
+                    message.timestamp?.toDate().toLocaleString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: false
+                    })
+                  )}
                   {!isOwn && conversationId === 'family-chat' && (
                     <span className="message-author-inline">
                       {' • '}

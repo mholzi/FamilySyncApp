@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../../firebase';
 import useSuperAdminAuth from '../../hooks/useSuperAdminAuth';
 import StatisticCard from './StatisticCard';
+import { Button, Typography } from '../MD3';
 
 function SuperAdminDashboard() {
   const { user, logout } = useSuperAdminAuth();
@@ -71,12 +72,20 @@ function SuperAdminDashboard() {
   };
 
   return (
-    <div className="super-admin-dashboard" style={{ minHeight: '100vh', backgroundColor: 'var(--md-sys-color-surface)' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--md-sys-color-surface)' }}>
       {/* Header */}
-      <div className="md3-elevation-1" style={{ backgroundColor: 'var(--md-sys-color-surface-container)' }}>
-        <div className="md3-container">
-          <div className="md3-flex md3-justify-between md3-flex-center md3-p-16">
-            <div className="md3-flex md3-flex-center md3-gap-16">
+      <div style={{ 
+        backgroundColor: 'var(--md-sys-color-surface-container)',
+        boxShadow: 'var(--md-sys-elevation-level1)',
+        padding: '16px 0'
+      }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 24px' }}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center' 
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <div className="md3-fab-small" style={{ 
                 background: 'linear-gradient(135deg, var(--md-sys-color-error) 0%, var(--md-sys-color-error-container) 100%)' 
               }}>
@@ -85,17 +94,20 @@ function SuperAdminDashboard() {
                 </span>
               </div>
               <div>
-                <h1 className="md3-title-large md3-on-surface-color">Super Admin Dashboard</h1>
-                <p className="md3-body-small md3-on-surface-variant-color">
+                <h1 className="md3-title-large md3-on-surface-color" style={{ margin: 0 }}>
+                  Super Admin Dashboard
+                </h1>
+                <p className="md3-body-small md3-on-surface-variant-color" style={{ margin: 0 }}>
                   Logged in as: {user?.email}
                 </p>
               </div>
             </div>
             <button
               onClick={handleLogout}
-              className="md3-button md3-button-text md3-error-color"
+              className="md3-button md3-button-text"
+              style={{ color: 'var(--md-sys-color-error)' }}
             >
-              <span className="material-icons md3-mr-8">logout</span>
+              <span className="material-icons" style={{ marginRight: '8px' }}>logout</span>
               Logout
             </button>
           </div>
@@ -103,19 +115,38 @@ function SuperAdminDashboard() {
       </div>
 
       {/* Main Content */}
-      <div className="md3-container md3-p-24">
-        <h2 className="md3-headline-small md3-on-surface-color md3-mb-24">Platform Statistics</h2>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px' }}>
+        <h2 className="md3-headline-small md3-on-surface-color" style={{ marginBottom: '24px' }}>
+          Platform Statistics
+        </h2>
         
         {loading ? (
-          <div className="md3-flex md3-flex-center md3-p-48">
-            <div className="md3-progress-circular">
-              <svg viewBox="0 0 48 48" style={{ width: '48px', height: '48px' }}>
-                <circle cx="24" cy="24" r="20" fill="none" stroke="var(--md-sys-color-primary)" strokeWidth="4" strokeDasharray="125.66" strokeDashoffset="31.42" />
-              </svg>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center',
+            padding: '48px'
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ 
+                width: '48px', 
+                height: '48px',
+                border: '4px solid var(--md-sys-color-surface-variant)',
+                borderTopColor: 'var(--md-sys-color-primary)',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+                margin: '0 auto 16px'
+              }} />
+              <p className="md3-body-medium md3-on-surface-variant-color">Loading statistics...</p>
             </div>
           </div>
         ) : (
-          <div className="md3-grid md3-grid-cols-1 md3-grid-cols-2-md md3-grid-cols-4-lg md3-gap-16">
+          <div style={{ 
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gap: '16px',
+            marginBottom: '48px'
+          }}>
             <StatisticCard
               title="Total Users"
               value={stats.totalUsers}
@@ -144,34 +175,60 @@ function SuperAdminDashboard() {
         )}
 
         {/* Additional Info */}
-        <div className="md3-mt-48">
-          <div className="md3-card md3-elevation-0" style={{ backgroundColor: 'var(--md-sys-color-surface-container-low)' }}>
-            <div className="md3-p-24">
-              <h3 className="md3-title-medium md3-on-surface-color md3-mb-16">System Information</h3>
-              <div className="md3-flex md3-flex-column md3-gap-8">
-                <p className="md3-body-medium md3-on-surface-variant-color">
-                  <span className="material-icons md3-mr-8" style={{ fontSize: '18px', verticalAlign: 'middle' }}>
-                    info
-                  </span>
-                  Real-time statistics update automatically
-                </p>
-                <p className="md3-body-medium md3-on-surface-variant-color">
-                  <span className="material-icons md3-mr-8" style={{ fontSize: '18px', verticalAlign: 'middle' }}>
-                    security
-                  </span>
-                  Read-only access to platform data
-                </p>
-                <p className="md3-body-medium md3-on-surface-variant-color">
-                  <span className="material-icons md3-mr-8" style={{ fontSize: '18px', verticalAlign: 'middle' }}>
-                    update
-                  </span>
-                  Last updated: {new Date().toLocaleString()}
-                </p>
-              </div>
+        <div className="md3-card" style={{ 
+          backgroundColor: 'var(--md-sys-color-surface-container-low)',
+          padding: '24px'
+        }}>
+          <h3 className="md3-title-medium md3-on-surface-color" style={{ marginBottom: '16px' }}>
+            System Information
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span className="material-icons" style={{ 
+                fontSize: '18px', 
+                marginRight: '8px',
+                color: 'var(--md-sys-color-on-surface-variant)'
+              }}>
+                info
+              </span>
+              <p className="md3-body-medium md3-on-surface-variant-color" style={{ margin: 0 }}>
+                Real-time statistics update automatically
+              </p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span className="material-icons" style={{ 
+                fontSize: '18px', 
+                marginRight: '8px',
+                color: 'var(--md-sys-color-on-surface-variant)'
+              }}>
+                security
+              </span>
+              <p className="md3-body-medium md3-on-surface-variant-color" style={{ margin: 0 }}>
+                Read-only access to platform data
+              </p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span className="material-icons" style={{ 
+                fontSize: '18px', 
+                marginRight: '8px',
+                color: 'var(--md-sys-color-on-surface-variant)'
+              }}>
+                update
+              </span>
+              <p className="md3-body-medium md3-on-surface-variant-color" style={{ margin: 0 }}>
+                Last updated: {new Date().toLocaleString()}
+              </p>
             </div>
           </div>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

@@ -145,19 +145,19 @@ const UpcomingEventsForMe = ({
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  // Get responsibility display info
+  // Get responsibility display info - matching calendar legend colors
   const getResponsibilityInfo = (responsibility) => {
     switch (responsibility) {
       case 'parent':
-        return { label: 'Parent', color: '#3b82f6' };
+        return { label: 'Parent', color: '#4CAF50' }; // Green - matching calendar
       case 'au_pair':
-        return { label: 'Au Pair', color: '#10b981' };
+        return { label: 'Aupair', color: '#2196F3' }; // Blue - matching calendar
       case 'shared':
-        return { label: 'Shared', color: '#f59e0b' };
+        return { label: 'Shared', color: '#9C27B0' }; // Purple - matching calendar
       case 'aware':
-        return { label: 'Awareness', color: '#8b5cf6' };
+        return { label: 'Awareness', color: '#FF9800' }; // Orange for awareness
       default:
-        return { label: 'Au Pair', color: '#10b981' };
+        return { label: 'Aupair', color: '#2196F3' }; // Blue - matching calendar
     }
   };
 
@@ -1354,12 +1354,38 @@ const UpcomingEventsForMe = ({
               ))}
             </div>
 
-            {/* Responsibility indicator */}
+            {/* Responsibility indicator - matching calendar legend style */}
             {event.responsibility && (
               <div style={{
                 ...styles.responsibilityBadge,
-                backgroundColor: `${getResponsibilityInfo(event.responsibility).color}15`,
-                color: getResponsibilityInfo(event.responsibility).color
+                backgroundColor: (() => {
+                  const color = getResponsibilityInfo(event.responsibility).color;
+                  // Match calendar legend colors with proper backgrounds
+                  switch (event.responsibility) {
+                    case 'au_pair':
+                      return '#BBDEFB'; // Light blue background
+                    case 'parent':
+                      return '#C8E6C9'; // Light green background
+                    case 'shared':
+                      return '#E1BEE7'; // Light purple background
+                    default:
+                      return `${color}15`; // Fallback to transparent color
+                  }
+                })(),
+                border: `2px solid ${getResponsibilityInfo(event.responsibility).color}`,
+                color: (() => {
+                  // Use darker text colors for better contrast on light backgrounds
+                  switch (event.responsibility) {
+                    case 'au_pair':
+                      return '#0D47A1'; // Dark blue text
+                    case 'parent':
+                      return '#1B5E20'; // Dark green text
+                    case 'shared':
+                      return '#4A148C'; // Dark purple text
+                    default:
+                      return getResponsibilityInfo(event.responsibility).color;
+                  }
+                })()
               }}>
                 {getResponsibilityInfo(event.responsibility).label}
               </div>
@@ -1535,17 +1561,16 @@ const styles = {
   },
   responsibilityBadge: {
     display: 'inline-block',
-    padding: '4px 8px',
+    padding: '6px 12px',
     borderRadius: 'var(--md-sys-shape-corner-extra-small)',
-    fontSize: '11px',
-    fontWeight: '500',
+    fontSize: '12px',
+    fontWeight: '600',
     textAlign: 'center',
-    textTransform: 'uppercase',
     letterSpacing: '0.3px',
-    opacity: 0.9,
     position: 'absolute',
     bottom: '10px',
-    left: '10px' // 10px margin from the left edge
+    left: '10px', // 10px margin from the left edge
+    boxShadow: 'var(--md-sys-elevation-level1)'
   },
   eventDescription: {
     fontSize: '14px',

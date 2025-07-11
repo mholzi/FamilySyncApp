@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import SuperAdminLogin from '../components/SuperAdmin/SuperAdminLogin';
 import SuperAdminDashboard from '../components/SuperAdmin/SuperAdminDashboard';
 import useSuperAdminAuth from '../hooks/useSuperAdminAuth';
